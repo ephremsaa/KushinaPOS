@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/db');
 const { authenticate, requireTenant } = require('../middleware/auth');
+const { verifyManagerPin } = require('../utils/pinHelper');
 
 const router = express.Router();
 
@@ -89,16 +90,12 @@ router.post('/close', authenticate, requireTenant, async (req, res) => {
         return res.status(400).json({ error: 'Manager PIN required for discrepancy over $5' });
       }
 
-      const { rows: managers } = await pool.query(
-        `SELECT id, role FROM staff WHERE restaurant_id=$1 AND pin=$2 AND role IN ('manager', 'owner') AND is_active=true LIMIT 1`,
-        [req.user.restaurantId, manager_pin]
-      );
-
-      if (managers.length === 0) {
+      const { authorized, staff: managerStaff } = await verifyManagerPin(req.user.restaurantId, manager_pin, pool);
+      if (!authorized || !managerStaff) {
         await pool.query('ROLLBACK');
         return res.status(401).json({ error: 'Invalid Manager PIN' });
       }
-      signoff_id = managers[0].id;
+      signoff_id = managerStaff.id;
     }
 
     const { rows } = await pool.query(

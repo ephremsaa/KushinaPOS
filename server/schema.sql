@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS staff (
   password_hash   TEXT,
   role            TEXT NOT NULL DEFAULT 'cashier'
                   CHECK (role IN ('owner','manager','cashier','kitchen','waiter')),
-  pin             TEXT,
+  pin_hash        TEXT,
+  phone           TEXT,
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW(),

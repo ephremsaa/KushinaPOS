@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { authenticate, requireTenant, requireOwner, requireManager } = require('../middleware/auth');
+const { verifyManagerPin, isPinUniqueForRestaurant } = require('../utils/pinHelper');
 const router = express.Router();
 
 router.use(authenticate, requireTenant);
@@ -12,7 +13,7 @@ const tid = (req) => req.user.restaurantId;
 router.get('/', requireManager, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id, name, email, phone, role, is_active, pin IS NOT NULL as has_pin,
+      `SELECT id, name, email, phone, role, is_active, pin_hash IS NOT NULL as has_pin,
               created_at, deactivated_at, deactivation_note
        FROM staff
        WHERE restaurant_id=$1
@@ -31,11 +32,19 @@ router.post('/', requireOwner, async (req, res) => {
   const { name, email, phone, role = 'cashier', password, pin } = req.body;
   if (!name || !email) return res.status(400).json({ error: 'name and email required' });
   try {
+    // Check PIN uniqueness within this restaurant if provided
+    if (pin) {
+      const isUnique = await isPinUniqueForRestaurant(tid(req), pin);
+      if (!isUnique) {
+        return res.status(400).json({ error: 'PIN is already in use by another active staff member at this restaurant' });
+      }
+    }
+
     const password_hash = password ? await bcrypt.hash(password, 12) : null;
     const pin_hash = pin ? await bcrypt.hash(String(pin), 10) : null;
     const { rows } = await db.query(
-      `INSERT INTO staff (restaurant_id, name, email, phone, role, password_hash, pin_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
+      `INSERT INTO staff (restaurant_id, name, full_name, email, phone, role, password_hash, pin_hash)
+       VALUES ($1,$2,$2,$3,$4,$5,$6,$7)
        RETURNING id, name, email, phone, role, is_active, created_at`,
       [tid(req), name, email.toLowerCase(), phone || null, role, password_hash, pin_hash]
     );
@@ -51,6 +60,14 @@ router.post('/', requireOwner, async (req, res) => {
 router.patch('/:id', requireOwner, async (req, res) => {
   const { role, is_active, password, pin, name, email, phone, deactivation_note } = req.body;
   try {
+    // Check PIN uniqueness if updating PIN
+    if (pin) {
+      const isUnique = await isPinUniqueForRestaurant(tid(req), pin, req.params.id);
+      if (!isUnique) {
+        return res.status(400).json({ error: 'PIN is already in use by another active staff member at this restaurant' });
+      }
+    }
+
     const password_hash = password ? await bcrypt.hash(password, 12) : undefined;
     const pin_hash      = pin !== undefined ? (pin ? await bcrypt.hash(String(pin), 10) : null) : undefined;
 
@@ -58,7 +75,10 @@ router.patch('/:id', requireOwner, async (req, res) => {
     let sets = ['updated_at = NOW()'];
     const params = [];
     let i = 1;
-    if (name     !== undefined) { sets.push(`name = $${i++}`);     params.push(name); }
+    if (name     !== undefined) { 
+      sets.push(`name = $${i++}`); params.push(name); 
+      sets.push(`full_name = $${i++}`); params.push(name); 
+    }
     if (email    !== undefined) { sets.push(`email = $${i++}`);    params.push(email.toLowerCase()); }
     if (phone    !== undefined) { sets.push(`phone = $${i++}`);    params.push(phone); }
     if (role     !== undefined) { sets.push(`role = $${i++}`);     params.push(role); }
@@ -89,22 +109,14 @@ router.patch('/:id', requireOwner, async (req, res) => {
 
 // ── POST /api/staff/verify-pin ────────────────────────────────
 // Used for manager-PIN flow for sensitive actions.
-// Any logged-in staff can call this; returns { authorized: true/false, staff_id, role }
+// Any logged-in staff can call this; returns { authorized: true/false, staff_id, staff_name, role }
 router.post('/verify-pin', async (req, res) => {
   const { pin } = req.body;
   if (!pin) return res.status(400).json({ error: 'pin required' });
   try {
-    // Find all active managers/owners with a PIN for this restaurant
-    const { rows } = await db.query(
-      `SELECT id, name, role, pin_hash FROM staff
-       WHERE restaurant_id=$1 AND is_active=TRUE AND role IN ('owner','manager') AND pin_hash IS NOT NULL`,
-      [tid(req)]
-    );
-    for (const s of rows) {
-      const match = await bcrypt.compare(String(pin), s.pin_hash);
-      if (match) {
-        return res.json({ authorized: true, staff_id: s.id, staff_name: s.name, role: s.role });
-      }
+    const { authorized, staff } = await verifyManagerPin(tid(req), pin);
+    if (authorized && staff) {
+      return res.json({ authorized: true, staff_id: staff.id, staff_name: staff.name, role: staff.role });
     }
     res.json({ authorized: false });
   } catch (err) { res.status(500).json({ error: 'Failed' }); }

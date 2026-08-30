@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
+const { authLimiter, staffLoginLimiter, bootstrapAdminLimiter } = require('../middleware/rateLimit');
 const router = express.Router();
 
 function signToken(payload) {
@@ -60,7 +61,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ── POST /api/auth/login ─────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
@@ -107,7 +108,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ── POST /api/auth/staff-login ───────────────────────────────
-router.post('/staff-login', async (req, res) => {
+router.post('/staff-login', staffLoginLimiter, async (req, res) => {
   const { slug, pin } = req.body;
   if (!slug || !pin) return res.status(400).json({ error: 'slug and pin required' });
 
@@ -227,21 +228,37 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 // ── POST /api/auth/admin/create ──────────────────────────────
-// One-time route to create the first platform admin
-router.post('/admin/create', async (req, res) => {
+// One-time route to bootstrap the first platform admin
+router.post('/admin/create', bootstrapAdminLimiter, async (req, res) => {
   const { name, email, password, secret } = req.body;
-  // Simple bootstrap secret to prevent abuse
-  if (secret !== (process.env.ADMIN_BOOTSTRAP_SECRET || 'kushina-bootstrap-2024')) {
+
+  // Fail closed if bootstrap secret is not configured in environment
+  if (!process.env.ADMIN_BOOTSTRAP_SECRET) {
+    return res.status(503).json({ error: 'Bootstrap disabled: ADMIN_BOOTSTRAP_SECRET is not configured' });
+  }
+
+  // Strict secret comparison (no hardcoded fallback)
+  if (!secret || secret !== process.env.ADMIN_BOOTSTRAP_SECRET) {
     return res.status(403).json({ error: 'Invalid bootstrap secret' });
   }
-  try {
-    const exists = await db.query('SELECT id FROM platform_admins WHERE email = $1', [email.toLowerCase()]);
-    if (exists.rows.length > 0) return res.status(409).json({ error: 'Admin already exists' });
 
-    const password_hash = await bcrypt.hash(password, 12);
+  try {
+    // Disable route once any platform admin already exists
+    const countRes = await db.query('SELECT COUNT(*) FROM platform_admins');
+    if (parseInt(countRes.rows[0].count, 10) > 0) {
+      return res.status(403).json({ error: 'Bootstrap disabled: platform administrator already exists' });
+    }
+
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanPassword = String(password || '').trim();
+    if (!name || !cleanEmail || !cleanPassword) {
+      return res.status(400).json({ error: 'name, email and password are required' });
+    }
+
+    const password_hash = await bcrypt.hash(cleanPassword, 12);
     const { rows } = await db.query(
-      'INSERT INTO platform_admins (email, password_hash, name) VALUES ($1,$2,$3) RETURNING id, email, name',
-      [email.toLowerCase(), password_hash, name]
+      'INSERT INTO platform_admins (id, user_id, email, password_hash, name) VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, $3) RETURNING id, email, name',
+      [cleanEmail, password_hash, String(name).trim()]
     );
     res.status(201).json({ message: 'Admin created', admin: rows[0] });
   } catch (err) {

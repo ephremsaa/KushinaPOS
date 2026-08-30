@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/db');
 const { authenticate, requireTenant } = require('../middleware/auth');
+const { verifyManagerPin } = require('../utils/pinHelper');
 const router = express.Router();
 
 router.use(authenticate, requireTenant);
@@ -472,14 +473,9 @@ router.patch('/:id/void', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Verify a manager/owner PIN in this restaurant
-    const { rows: staff } = await client.query(
-      `SELECT id FROM staff 
-       WHERE restaurant_id=$1 AND pin=$2 AND role IN ('owner','manager') AND is_active=true
-       LIMIT 1`,
-      [tid(req), manager_pin]
-    );
-    if (!staff[0]) {
+    // Verify a manager/owner PIN in this restaurant using bcrypt
+    const { authorized, staff: managerStaff } = await verifyManagerPin(tid(req), manager_pin, client);
+    if (!authorized) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Invalid manager PIN' });
     }

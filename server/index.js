@@ -13,8 +13,15 @@ for (const key of required) {
   }
 }
 
+const helmet = require('helmet');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// ── Security Headers ─────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(cors({
