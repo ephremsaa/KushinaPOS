@@ -15,11 +15,12 @@ const STATUS_COLORS: Record<TableStatus, string> = {
 };
 
 function TableCard({ table, onClick }: { table: Table; onClick: () => void }) {
+  const statusColor = STATUS_COLORS[table.status] || STATUS_COLORS.available;
   return (
     <button
       className={cn(
         'border-2 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 active:scale-95',
-        STATUS_COLORS[table.status],
+        statusColor,
         table.shape === 'circle' ? 'rounded-full' : '',
       )}
       style={{ width: 90, height: 80 }}
