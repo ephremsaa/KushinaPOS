@@ -42,6 +42,7 @@ export type OrderType = 'dine_in' | 'takeaway' | 'delivery';
 export type OrderStatus = 'new' | 'preparing' | 'ready' | 'served' | 'cancelled';
 export type OrderItemStatus = 'pending' | 'preparing' | 'ready' | 'served';
 export type TableStatus = 'available' | 'occupied' | 'reserved' | 'cleaning';
+export type ReservationStatus = 'pending' | 'confirmed' | 'seated' | 'cancelled' | 'no_show';
 export type PaymentMethod = 'telebirr' | 'cbe' | 'other';
 export type PaymentProofStatus = 'pending' | 'approved' | 'rejected';
 export type InventoryTxType = 'restock' | 'usage' | 'adjustment' | 'waste';
@@ -142,6 +143,7 @@ export interface PaymentProof {
   amount: number;
   currency: string;
   payment_method: PaymentMethod;
+  reference_number?: string;
   screenshot_url: string;
   note?: string;
   status: PaymentProofStatus;
@@ -272,6 +274,8 @@ export interface Order {
   synced_at?: string;
   payment_status: 'pending' | 'paid' | 'refunded';
   payment_method?: string | null;
+  payment_reference?: string;
+  is_payment_confirmed?: boolean;
   device_id?: string;
   created_at: string;
   updated_at: string;
@@ -283,6 +287,20 @@ export interface Order {
   order_items?: OrderItem[];
 }
 
+export interface Reservation {
+  id: string;
+  restaurant_id: string;
+  table_id?: string;
+  table_label?: string;
+  customer_name: string;
+  customer_phone: string;
+  party_size: number;
+  reservation_time: string;
+  status: ReservationStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Supplier {
   id: string;

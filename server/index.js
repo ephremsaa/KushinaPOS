@@ -18,6 +18,8 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.set('trust proxy', 1); // Trust first proxy for rate limiting
+
 // ── Security Headers ─────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -39,21 +41,22 @@ const fs = require('fs');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── Routes ───────────────────────────────────────────────────
-app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/admin',       require('./routes/admin'));
-app.use('/api/staff',       require('./routes/staff'));
-app.use('/api/menu',        require('./routes/menu'));
-app.use('/api/tables',      require('./routes/tables'));
-app.use('/api/orders',      require('./routes/orders'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/staff', require('./routes/staff'));
+app.use('/api/menu', require('./routes/menu'));
+app.use('/api/tables', require('./routes/tables'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/reservations', require('./routes/reservations'));
 app.use('/api/cash-drawer', require('./routes/cash_drawer'));
-app.use('/api/inventory',   require('./routes/inventory'));
-app.use('/api/reports',     require('./routes/reports'));
-app.use('/api/kitchen',     require('./routes/kitchen'));
-app.use('/api/recipes',     require('./routes/recipes'));
-app.use('/api/billing',     require('./routes/billing'));
+app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/kitchen', require('./routes/kitchen'));
+app.use('/api/recipes', require('./routes/recipes'));
+app.use('/api/billing', require('./routes/billing'));
 app.use('/api/restaurants', require('./routes/restaurants'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/public',      require('./routes/public'));
+app.use('/api/public', require('./routes/public'));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

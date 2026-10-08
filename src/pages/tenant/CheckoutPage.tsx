@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ordersApi } from '../../lib/api';
+import { ordersApi, tablesApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
+import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
 import type { Order, OrderItem } from '../../types';
 import {
-  Wallet, CheckCircle, Clock, Banknote, CreditCard, Smartphone,
-  X, Printer, Users, SplitSquareHorizontal, ShieldAlert,
+  Wallet, CheckCircle, Clock, Banknote, CreditCard, Smartphone, Building2,
+  X, Printer, Users, SplitSquareHorizontal, ShieldAlert, QrCode,
   ChevronRight, Percent, Minus, Plus, AlertTriangle, Sparkles
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type PayMethod = 'cash' | 'card' | 'telebirr';
+type PayMethod = 'cash' | 'card' | 'telebirr' | 'cbe_birr' | 'bank_transfer';
 
 interface PaymentSplit {
   method: PayMethod;
@@ -24,122 +25,6 @@ interface SplitGuest {
   id: number;
   label: string;
   itemIndexes: number[];
-}
-
-// ─── Receipt Modal ────────────────────────────────────────────────────────────
-
-function ReceiptModal({
-  order,
-  tipAmount,
-  paymentMethod,
-  amountTendered,
-  change,
-  restaurantName,
-  onClose,
-}: {
-  order: Order;
-  tipAmount: number;
-  paymentMethod: string;
-  amountTendered: number;
-  change: number;
-  restaurantName: string;
-  onClose: () => void;
-}) {
-  const handlePrint = () => window.print();
-  const grandTotal = order.total + tipAmount;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="p-6 border-b border-surface-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-100 rounded-2xl flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="font-bold text-surface-900">Payment Complete</p>
-              <p className="text-xs text-surface-400">Receipt ready</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full">
-            <X className="w-4 h-4 text-surface-400" />
-          </button>
-        </div>
-
-        {/* Receipt body */}
-        <div className="overflow-y-auto flex-1 p-6 print:p-4" id="receipt-content">
-          <div className="text-center mb-6">
-            <p className="font-display font-bold text-xl text-surface-900">{restaurantName}</p>
-            <p className="text-xs text-surface-400 mt-1">{new Date().toLocaleString()}</p>
-            <p className="text-xs text-surface-400">
-              #{order.id.split('-')[0].toUpperCase()}
-              {order.table_label ? ` · Table ${order.table_label}` : ''}
-            </p>
-          </div>
-
-          <div className="border-t border-dashed border-surface-200 pt-4 mb-4 space-y-2">
-            {order.order_items?.map(item => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-surface-600">{item.quantity}× {item.menu_item_name}</span>
-                <span className="font-medium">{formatCurrency(item.quantity * item.unit_price)}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-dashed border-surface-200 pt-4 space-y-1.5 text-sm">
-            <div className="flex justify-between text-surface-500">
-              <span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span>
-            </div>
-            {order.tax_amount > 0 && (
-              <div className="flex justify-between text-surface-500">
-                <span>Tax</span><span>{formatCurrency(order.tax_amount)}</span>
-              </div>
-            )}
-            {order.discount_amount > 0 && (
-              <div className="flex justify-between text-emerald-600">
-                <span>Discount</span><span>-{formatCurrency(order.discount_amount)}</span>
-              </div>
-            )}
-            {tipAmount > 0 && (
-              <div className="flex justify-between text-surface-500">
-                <span>Tip</span><span>{formatCurrency(tipAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between font-extrabold text-lg pt-2 border-t border-surface-200">
-              <span>Total Paid</span>
-              <span className="text-brand-600">{formatCurrency(grandTotal)}</span>
-            </div>
-            <div className="flex justify-between text-surface-500 text-xs pt-2">
-              <span>Method</span>
-              <span className="capitalize font-medium">{paymentMethod}</span>
-            </div>
-            {amountTendered > 0 && (
-              <>
-                <div className="flex justify-between text-surface-500 text-xs">
-                  <span>Tendered</span><span>{formatCurrency(amountTendered)}</span>
-                </div>
-                <div className="flex justify-between text-emerald-700 text-xs font-bold">
-                  <span>Change</span><span>{formatCurrency(change)}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          <p className="text-center text-xs text-surface-400 mt-6 border-t border-dashed border-surface-200 pt-4">
-            Thank you for dining with us!
-          </p>
-        </div>
-
-        <div className="p-4 border-t border-surface-100 flex gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1">Close</button>
-          <button onClick={handlePrint} className="btn-primary flex-1 gap-2">
-            <Printer className="w-4 h-4" /> Print
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ─── Void Modal ───────────────────────────────────────────────────────────────
@@ -163,7 +48,7 @@ function VoidModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-xs shadow-2xl p-6">
+    <div className="rounded-[2rem] w-full max-w-xs shadow-2xl p-6" style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--text-main)' }}>
         <div className="flex items-center gap-3 mb-5">
           <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center">
             <ShieldAlert className="w-6 h-6 text-red-600" />
@@ -220,7 +105,7 @@ function TableStatusModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-xs shadow-2xl p-6">
+      <div className="rounded-[2rem] w-full max-w-xs shadow-2xl p-6" style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--text-main)' }}>
         <p className="font-bold text-surface-900 text-lg mb-1">Table {tableLabel} — next status?</p>
         <p className="text-sm text-surface-500 mb-6">Payment complete. What should the table status be?</p>
         <div className="flex flex-col gap-3">
@@ -248,9 +133,11 @@ function TableStatusModal({
 
 const TIP_PRESETS = [10, 15, 20];
 const METHOD_CONFIG: { id: PayMethod; label: string; icon: React.ElementType; color: string }[] = [
-  { id: 'cash',     label: 'Cash',     icon: Banknote,    color: 'emerald' },
-  { id: 'card',     label: 'Card',     icon: CreditCard,  color: 'blue' },
-  { id: 'telebirr', label: 'Telebirr', icon: Smartphone,  color: 'violet' },
+  { id: 'cash',          label: 'Cash (ETB)', icon: Banknote,    color: 'emerald' },
+  { id: 'telebirr',      label: 'Telebirr',   icon: Smartphone,  color: 'violet' },
+  { id: 'cbe_birr',      label: 'CBE Birr',   icon: Building2,   color: 'purple' },
+  { id: 'bank_transfer', label: 'Bank Transfer', icon: Building2, color: 'blue' },
+  { id: 'card',          label: 'Card / POS', icon: CreditCard,  color: 'indigo' },
 ];
 
 export default function CheckoutPage() {
@@ -271,9 +158,10 @@ export default function CheckoutPage() {
   const [partialAmount, setPartialAmount] = useState('');
   const [partialMethod, setPartialMethod] = useState<PayMethod>('cash');
 
-  // ── Tip ───────────────────────────────────────────────────────
+  // ── Tip & Reference ───────────────────────────────────────────
   const [tipPercent, setTipPercent] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
 
   // ── Split bill ────────────────────────────────────────────────
   const [splitMode, setSplitMode] = useState<'none' | 'even' | 'items'>('none');
@@ -353,6 +241,7 @@ export default function CheckoutPage() {
     setSplits([]);
     setTipPercent(null);
     setCustomTip('');
+    setPaymentReference('');
     setSplitMode('none');
     setGuestCount(2);
     setGuests([]);
@@ -393,6 +282,7 @@ export default function CheckoutPage() {
         tip_amount: tipAmount,
         amount_tendered: paymentMethod === 'cash' && splits.length === 0 ? tendered || null : null,
         table_next_status: tableNextStatus,
+        payment_reference: paymentReference || undefined,
       });
 
       qc.invalidateQueries({ queryKey: ['orders'] });
@@ -443,7 +333,8 @@ export default function CheckoutPage() {
     }
   };
 
-  const canPay = selectedOrder && (splits.length > 0 ? amountRemaining < 0.01 : true);
+  const isCashUnderpaid = paymentMethod === 'cash' && splits.length === 0 && amountTendered !== '' && tendered < grandTotal;
+  const canPay = selectedOrder && !isCashUnderpaid && (splits.length > 0 ? amountRemaining < 0.01 : true);
 
   // ─────────────────────────────────────────────────────────────
   return (
@@ -453,13 +344,21 @@ export default function CheckoutPage() {
         <VoidModal order={selectedOrder} onConfirm={handleVoid} onClose={() => setShowVoid(false)} />
       )}
       {showReceipt && lastPaidData && (
-        <ReceiptModal
+        <ThermalReceipt
           order={lastPaidData.order}
           tipAmount={lastPaidData.tip}
           paymentMethod={lastPaidData.method}
           amountTendered={lastPaidData.tendered}
           change={lastPaidData.change}
-          restaurantName={restaurantName}
+          restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
+          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          taxId={(user?.restaurant as any)?.tax_id}
+          address={(user?.restaurant as any)?.address}
+          phone={(user?.restaurant as any)?.phone}
+          receiptHeader={(user?.restaurant as any)?.receipt_header}
+          receiptFooter={(user?.restaurant as any)?.receipt_footer}
+          showTaxBreakdown={(user?.restaurant as any)?.receipt_show_tax_breakdown ?? true}
+          showLogo={(user?.restaurant as any)?.receipt_show_logo ?? true}
           onClose={() => setShowReceipt(false)}
         />
       )}
@@ -755,46 +654,113 @@ export default function CheckoutPage() {
 
                 {/* Cash tendered / change */}
                 {paymentMethod === 'cash' && splits.length === 0 && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <label className="text-sm font-semibold text-surface-600 w-24 flex-shrink-0">Tendered</label>
-                      <input
-                        type="number"
-                        className="input flex-1 text-right font-bold text-lg"
-                        placeholder={formatCurrency(grandTotal)}
-                        value={amountTendered}
-                        onChange={e => setAmountTendered(e.target.value)}
-                      />
+                      <div className="flex-1 flex items-center gap-2 p-3 rounded-2xl border border-surface-200 bg-surface-50">
+                        <span className="text-sm font-bold text-surface-400 font-mono">ETB</span>
+                        <input
+                          type="number"
+                          className="w-full bg-transparent text-right font-black text-xl font-mono text-surface-900 outline-none"
+                          placeholder="0.00"
+                          value={amountTendered}
+                          onChange={e => setAmountTendered(e.target.value)}
+                        />
+                      </div>
                     </div>
+
                     {tendered > 0 && (
                       <div className={cn(
                         'flex items-center justify-between p-4 rounded-2xl border',
-                        changeDue >= 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
+                        tendered >= grandTotal ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
                       )}>
-                        <span className="font-semibold text-sm text-surface-700">Change Due</span>
-                        <span className={cn('font-extrabold text-2xl', changeDue >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                          {formatCurrency(Math.abs(changeDue))}
+                        <span className="font-semibold text-sm text-surface-700">
+                          {tendered >= grandTotal ? 'Change Due' : 'Amount Short'}
+                        </span>
+                        <span className={cn('font-extrabold text-2xl font-mono', tendered >= grandTotal ? 'text-emerald-600' : 'text-red-600')}>
+                          {tendered >= grandTotal ? formatCurrency(changeDue) : `-${formatCurrency(grandTotal - tendered)}`}
                         </span>
                       </div>
                     )}
-                    {/* Quick cash buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                      {[Math.ceil(grandTotal / 10) * 10, Math.ceil(grandTotal / 50) * 50, Math.ceil(grandTotal / 100) * 100].filter((v, i, a) => a.indexOf(v) === i && v > grandTotal).slice(0, 3).map(v => (
+
+                    {/* Quick ETB Cash Bill Chips */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-bold text-surface-500">Quick ETB Bills</p>
+                      <div className="flex gap-2 flex-wrap">
                         <button
-                          key={v}
-                          onClick={() => setAmountTendered(v.toString())}
-                          className="px-3 py-1.5 text-sm font-bold bg-surface-100 hover:bg-surface-200 rounded-2xl transition-colors"
+                          type="button"
+                          onClick={() => setAmountTendered(grandTotal.toFixed(2))}
+                          className="px-3.5 py-2 text-xs font-black bg-surface-900 text-white hover:bg-black rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
                         >
-                          {formatCurrency(v)}
+                          Exact ({formatCurrency(grandTotal)})
                         </button>
-                      ))}
-                      <button
-                        onClick={() => setAmountTendered(grandTotal.toFixed(2))}
-                        className="px-3 py-1.5 text-sm font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-2xl transition-colors"
-                      >
-                        Exact
-                      </button>
+                        {[50, 100, 200, 500, 1000].map(v => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => {
+                              const curr = parseFloat(amountTendered) || 0;
+                              setAmountTendered((curr + v).toString());
+                            }}
+                            className="px-3.5 py-2 text-xs font-bold bg-surface-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-surface-200 rounded-xl transition-all cursor-pointer active:scale-95"
+                          >
+                            +{v} ETB
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setAmountTendered('')}
+                          className="px-3 py-2 text-xs font-bold text-surface-400 hover:text-red-500 rounded-xl transition-colors cursor-pointer ml-auto"
+                        >
+                          Reset
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Telebirr / CBE Birr / Bank Transfer QR code preview */}
+                {(paymentMethod === 'telebirr' || paymentMethod === 'cbe_birr' || paymentMethod === 'bank_transfer') && splits.length === 0 && (
+                  <div className="flex flex-col gap-3 animate-fade-in">
+                    <div className="p-4 rounded-2xl bg-surface-50 border border-surface-200 flex items-center gap-4">
+                      <div className={cn(
+                        'w-20 h-20 rounded-2xl flex items-center justify-center p-2 text-white flex-shrink-0 shadow-inner',
+                        paymentMethod === 'telebirr' ? 'bg-violet-600' : paymentMethod === 'cbe_birr' ? 'bg-purple-700' : 'bg-blue-600'
+                      )}>
+                        {paymentMethod === 'bank_transfer' ? <Building2 className="w-12 h-12" /> : <QrCode className="w-12 h-12" />}
+                      </div>
+                      <div className="space-y-1 min-w-0">
+                        <p className="font-bold text-sm text-surface-900">
+                          {paymentMethod === 'telebirr' ? 'Telebirr SuperApp QR' : paymentMethod === 'cbe_birr' ? 'CBE Birr Digital Transfer' : 'Bank Transfer'}
+                        </p>
+                        <p className="text-xs text-surface-500 font-mono">
+                          Account: <strong>{(user?.restaurant as any)?.phone || '+251 91 123 4567'}</strong>
+                        </p>
+                        <p className="text-xs text-brand-600 font-bold font-mono">
+                          Pay: {formatCurrency(grandTotal)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-surface-700">Transaction Reference Number</label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="e.g. FT213..."
+                        value={paymentReference}
+                        onChange={e => setPaymentReference(e.target.value)}
+                      />
+                      <p className="text-[10px] text-amber-600 font-semibold mt-1">Payment will be marked as "pending confirmation" until receipt is verified.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Card terminal instructions */}
+                {paymentMethod === 'card' && splits.length === 0 && (
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200 text-blue-900 flex items-center gap-3 text-xs font-medium animate-fade-in">
+                    <CreditCard className="w-6 h-6 text-blue-600 flex-shrink-0" />
+                    <span>Swipe or tap customer card on connected bank POS terminal, then click <strong>Complete Settle</strong>.</span>
                   </div>
                 )}
 

@@ -2,39 +2,27 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { Store, Loader2, Delete, WifiOff, AlertTriangle } from 'lucide-react';
+import { Loader2, WifiOff, AlertTriangle, ChefHat, ShieldCheck, KeyRound } from 'lucide-react';
+import { PinPad } from '../../components/ui';
+import { cn, isDarkColor } from '../../lib/utils';
 
-// ─────────────────────────────────────────────────────────────
-// Shake animation (inline — avoids needing a CSS class)
-// ─────────────────────────────────────────────────────────────
-const SHAKE_KEYFRAMES = `
-@keyframes pin-shake {
-  0%, 100% { transform: translateX(0); }
-  15%       { transform: translateX(-8px); }
-  30%       { transform: translateX(8px); }
-  45%       { transform: translateX(-6px); }
-  60%       { transform: translateX(6px); }
-  75%       { transform: translateX(-3px); }
-  90%       { transform: translateX(3px); }
-}
-`;
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────
-// Loading skeleton
-// ─────────────────────────────────────────────────────────────
 function LoadingSkeleton() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950">
       <div className="flex flex-col items-center gap-5 animate-pulse">
-        <div className="w-24 h-24 rounded-3xl bg-slate-800" />
-        <div className="w-40 h-5 rounded-full bg-slate-800" />
-        <div className="w-24 h-3.5 rounded-full bg-slate-800/60" />
+        <div className="w-24 h-24 rounded-3xl bg-slate-900 border border-slate-800" />
+        <div className="w-44 h-6 rounded-full bg-slate-900" />
+        <div className="w-24 h-3.5 rounded-full bg-slate-900/60" />
         <div className="flex gap-4 mt-4">
-          {[0,1,2,3].map(i => <div key={i} className="w-14 h-14 rounded-xl bg-slate-800" />)}
+          {[0,1,2,3].map(i => (
+            <div key={i} className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800" />
+          ))}
         </div>
-        <div className="grid grid-cols-3 gap-3 w-[280px] mt-4">
+        <div className="grid grid-cols-3 gap-4 w-[320px] mt-4">
           {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-square rounded-2xl bg-slate-800" />
+            <div key={i} className="aspect-square rounded-3xl bg-slate-900 border border-slate-800" />
           ))}
         </div>
       </div>
@@ -42,41 +30,50 @@ function LoadingSkeleton() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Unavailable screen (suspended, inactive, or bad slug)
-// ─────────────────────────────────────────────────────────────
-function UnavailableScreen({ restaurantName, reason }: { restaurantName?: string; reason: 'not_found' | 'suspended' | 'rejected' }) {
+// ─── Unavailable screen ───────────────────────────────────────────────────────
+
+function UnavailableScreen({
+  restaurantName,
+  reason,
+}: {
+  restaurantName?: string;
+  reason: 'not_found' | 'suspended' | 'rejected';
+}) {
+  const messages = {
+    not_found: {
+      icon: <WifiOff className="w-10 h-10 text-slate-500" />,
+      title: restaurantName ? `${restaurantName} is Unavailable` : 'Terminal Unavailable',
+      body:  "This staff login URL doesn't match any active restaurant. Check the address or contact your manager.",
+    },
+    suspended: {
+      icon: <AlertTriangle className="w-10 h-10 text-amber-500" />,
+      title: `${restaurantName ?? 'Restaurant'} Paused`,
+      body:  "This restaurant's account is temporarily paused. Please contact your restaurant manager.",
+    },
+    rejected: {
+      icon: <AlertTriangle className="w-10 h-10 text-red-500" />,
+      title: 'Account Inactive',
+      body:  "This restaurant's account is no longer active. Please contact your restaurant manager for details.",
+    },
+  };
+  const m = messages[reason];
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-6">
-      <div className="text-center max-w-sm">
-        <div className="w-20 h-20 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-6">
-          {reason === 'not_found' ? (
-            <WifiOff className="w-9 h-9 text-slate-500" />
-          ) : (
-            <AlertTriangle className="w-9 h-9 text-amber-500" />
-          )}
+      <div className="text-center max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-10 shadow-2xl">
+        <div className="w-20 h-20 rounded-3xl bg-slate-950 border border-slate-800 flex items-center justify-center mx-auto mb-6">
+          {m.icon}
         </div>
-        <h1 className="text-xl font-display font-bold text-white mb-2">
-          {restaurantName ? `${restaurantName} is currently unavailable` : 'System Unavailable'}
-        </h1>
-        <p className="text-slate-400 text-sm leading-relaxed">
-          {reason === 'not_found'
-            ? "This staff login URL doesn't match any active restaurant. Check the address or contact your manager."
-            : reason === 'suspended'
-            ? "This restaurant's account is temporarily paused. This is not a device issue — please contact your manager."
-            : "This restaurant's account is no longer active. Please contact your manager."}
-        </p>
-        <p className="text-slate-600 text-xs mt-6">
-          If this seems wrong, contact your manager — not IT support.
-        </p>
+        <h1 className="text-xl font-display font-black text-white mb-3">{m.title}</h1>
+        <p className="text-slate-400 text-sm leading-relaxed">{m.body}</p>
+        <p className="text-slate-600 text-[11px] mt-8 font-medium">KushinaPOS Terminal Security Gateway</p>
       </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────
+// ─── StaffLoginPage ──────────────────────────────────────────────────────────
+
 export default function StaffLoginPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -84,19 +81,20 @@ export default function StaffLoginPage() {
 
   const [restaurant, setRestaurant] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
-  const [unavailableReason, setUnavailableReason] = useState<'not_found' | 'suspended' | 'rejected' | null>(null);
+  const [unavailableReason, setUnavailableReason] = useState<
+    'not_found' | 'suspended' | 'rejected' | null
+  >(null);
 
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
 
-  // Load restaurant config from public endpoint
+  // Load restaurant config
   useEffect(() => {
     async function loadConfig() {
       try {
         const res = await api.get<any>(`/public/restaurant/${slug}`);
-        // Check if restaurant is accessible
         if (res.status === 'suspended') {
           setUnavailableReason('suspended');
         } else if (res.status === 'rejected' || res.status === 'pending') {
@@ -113,56 +111,51 @@ export default function StaffLoginPage() {
     if (slug) loadConfig();
   }, [slug]);
 
-  // Inject shake animation CSS once
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = SHAKE_KEYFRAMES;
-    document.head.appendChild(style);
-    return () => {
-      document.head.removeChild(style);
-    };
-  }, []);
-
-  // Auto-submit when 4 digits entered
-  useEffect(() => {
-    if (pin.length === 4) handleLogin();
-  }, [pin]);
-
   const triggerShake = useCallback(() => {
     setShaking(true);
     setTimeout(() => setShaking(false), 600);
   }, []);
 
-  async function handleLogin() {
-    if (pin.length !== 4) return;
+  const handleLogin = useCallback(async (currentPin: string) => {
+    if (currentPin.length !== 4) return;
     setLoading(true);
     setError('');
     try {
-      await staffSignIn(slug!, pin);
-      // Navigate to root — App's getHome() will route by staff role
+      await staffSignIn(slug!, currentPin);
       navigate('/', { replace: true });
     } catch (err: any) {
-      const msg = err.message || 'Invalid PIN';
-      setError(msg);
+      setError(err.message || 'Incorrect PIN. Please try again.');
       setPin('');
       triggerShake();
     } finally {
       setLoading(false);
     }
-  }
+  }, [slug, staffSignIn, navigate, triggerShake]);
 
-  const handleKeyPress = (num: number) => {
-    if (pin.length < 4 && !loading) {
-      setPin(prev => prev + num);
-      setError('');
-    }
-  };
+  // Auto-submit when 4 digits entered
+  useEffect(() => {
+    if (pin.length === 4) handleLogin(pin);
+  }, [pin, handleLogin]);
 
-  const handleDelete = () => {
-    if (!loading) setPin(prev => prev.slice(0, -1));
-  };
+  // Physical keyboard support
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (loading) return;
+      if (e.key >= '0' && e.key <= '9') {
+        setPin(prev => prev.length < 4 ? prev + e.key : prev);
+        setError('');
+      } else if (e.key === 'Backspace') {
+        setPin(prev => prev.slice(0, -1));
+      } else if (e.key === 'Escape') {
+        setPin('');
+        setError('');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [loading]);
 
-  // ── States ────────────────────────────────────────────────
+  // ── Render guards ──────────────────────────────────────────────────────────
   if (loadingConfig) return <LoadingSkeleton />;
   if (unavailableReason) {
     return (
@@ -173,163 +166,99 @@ export default function StaffLoginPage() {
     );
   }
 
-  // ── Normal login UI ───────────────────────────────────────
-  const themeColor = restaurant.theme_color || '#f97316';
+  const themeColor = restaurant?.theme_color || '#2F7D32';
+  const bgColor = restaurant?.background_color || '#080c14';
+  const isDark = isDarkColor(bgColor);
+  const textColor = isDark ? '#ffffff' : '#0f172a';
+  const subtextColor = isDark ? '#94a3b8' : '#475569';
 
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center text-white font-sans overflow-hidden relative"
-      style={{ background: '#0a0a0f' }}
+      className="min-h-screen w-full flex flex-col items-center justify-center font-sans
+                 overflow-hidden relative select-none px-6 py-10"
+      style={{ background: bgColor, color: textColor }}
     >
-      {/* Themed ambient glow from restaurant's brand color */}
+      {/* Ambient brand glow from tenant color */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(ellipse 70% 60% at 50% 0%, ${themeColor}22 0%, transparent 70%)`,
+          background: `radial-gradient(ellipse 70% 60% at 50% 0%, ${themeColor}28 0%, transparent 70%)`,
         }}
       />
       {/* Subtle dot grid */}
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
-        style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '24px 24px' }}
+        className="absolute inset-0 opacity-[0.04] pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(${isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)'} 1.5px, transparent 1.5px)`,
+          backgroundSize: '28px 28px',
+        }}
       />
 
-      <div className="relative z-10 w-full max-w-xs sm:max-w-sm flex flex-col items-center px-6 py-10">
+      <div className="relative z-10 w-full max-w-xs flex flex-col items-center">
 
-        {/* ── Restaurant branding ── */}
-        <div className="flex flex-col items-center mb-10">
+        {/* ── Restaurant identity — large & prominent ── */}
+        <div className="flex flex-col items-center mb-10 text-center">
           {restaurant.logo_url ? (
             <img
               src={restaurant.logo_url}
               alt={restaurant.name}
-              className="w-24 h-24 rounded-3xl object-cover shadow-2xl mb-5 border-2"
-              style={{ borderColor: `${themeColor}40` }}
+              className="w-28 h-28 rounded-3xl object-cover shadow-2xl mb-5 border-2"
+              style={{ borderColor: `${themeColor}60` }}
             />
           ) : (
             <div
-              className="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl mb-5 border-2"
+              className="w-28 h-28 rounded-3xl flex items-center justify-center shadow-2xl mb-5 border-2"
               style={{
-                background: `${themeColor}15`,
-                borderColor: `${themeColor}30`,
+                background: `linear-gradient(135deg, ${themeColor}30, ${themeColor}12)`,
+                borderColor: `${themeColor}50`,
               }}
             >
-              <Store className="w-11 h-11" style={{ color: themeColor }} />
+              <ChefHat className="w-14 h-14" style={{ color: themeColor }} />
             </div>
           )}
-
-          <h1 className="text-2xl font-display font-bold text-center tracking-tight text-white">
+          <h1 className="text-3xl font-display font-black tracking-tight leading-tight" style={{ color: textColor }}>
             {restaurant.name}
           </h1>
-          <p className="text-slate-500 text-xs mt-1.5 uppercase tracking-[0.2em] font-medium">
-            Staff Login
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <KeyRound className="w-3.5 h-3.5" style={{ color: subtextColor }} />
+            <span className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: subtextColor }}>
+              Staff PIN Terminal
+            </span>
+          </div>
         </div>
 
-        {/* ── PIN dots ── */}
-        <div
-          className="flex gap-4 mb-3"
-          style={{
-            animation: shaking ? 'pin-shake 0.5s ease-in-out' : 'none',
-          }}
-        >
-          {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all duration-200"
-              style={{
-                borderColor: i < pin.length ? themeColor : 'rgba(255,255,255,0.08)',
-                background: i < pin.length ? `${themeColor}15` : 'rgba(255,255,255,0.03)',
-                boxShadow: i < pin.length ? `0 0 12px ${themeColor}30` : 'none',
-              }}
-            >
-              {i < pin.length && (
-                <div
-                  className="w-3.5 h-3.5 rounded-full transition-all duration-200"
-                  style={{ background: themeColor }}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Error / loading indicator below dots */}
-        <div className="h-7 flex items-center justify-center mb-3">
+        {/* ── Error / status feedback ── */}
+        <div className="h-8 flex items-center justify-center mb-4 w-full">
           {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" style={{ color: themeColor }} />
+            <div className="flex items-center gap-2 text-sm font-bold" style={{ color: subtextColor }}>
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: themeColor }} />
+              <span>Authenticating…</span>
+            </div>
           ) : error ? (
-            <p className="text-red-400 text-xs font-semibold tracking-wide">{error}</p>
-          ) : null}
+            <p className="text-rose-500 text-sm font-bold tracking-wide animate-scale-in flex items-center gap-1.5">
+              <span>⚠</span> {error}
+            </p>
+          ) : (
+            <p className="text-xs font-medium" style={{ color: subtextColor }}>Enter your 4-digit shift PIN</p>
+          )}
         </div>
 
-        {/* ── PIN pad ── */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-            <button
-              key={num}
-              onClick={() => handleKeyPress(num)}
-              disabled={loading || pin.length >= 4}
-              className="w-full aspect-square rounded-2xl text-2xl font-semibold transition-all duration-150
-                active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed
-                select-none focus:outline-none"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'white',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-            >
-              {num}
-            </button>
-          ))}
+        {/* ── PinPad — shared component, large touch targets ── */}
+        <PinPad
+          value={pin}
+          onChange={newPin => { setPin(newPin); setError(''); }}
+          maxLength={4}
+          disabled={loading}
+          shaking={shaking}
+          masked={true}
+        />
 
-          {/* Empty bottom-left cell */}
-          <div />
-
-          {/* 0 */}
-          <button
-            onClick={() => handleKeyPress(0)}
-            disabled={loading || pin.length >= 4}
-            className="w-full aspect-square rounded-2xl text-2xl font-semibold transition-all duration-150
-              active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed
-              select-none focus:outline-none"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              color: 'white',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.10)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-          >
-            0
-          </button>
-
-          {/* Backspace */}
-          <button
-            onClick={handleDelete}
-            disabled={loading || pin.length === 0}
-            className="w-full aspect-square rounded-2xl flex items-center justify-center transition-all duration-150
-              active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed
-              select-none focus:outline-none"
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.5)',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-          >
-            <Delete className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Footer hint */}
-        <p className="text-slate-600 text-[11px] mt-10 text-center">
-          Enter your 4-digit staff PIN
+        {/* ── Security note ── */}
+        <p className="text-slate-600 text-[11px] mt-10 text-center font-medium flex items-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
+          <span>Encrypted terminal access • Rate limited</span>
         </p>
-
       </div>
     </div>
   );
 }
-

@@ -5,21 +5,35 @@
  * Token is stored in localStorage and auto-attached to every request.
  */
 
-const BASE_URL = '/api';
+function getBaseApiUrl(): string {
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api`;
+  }
+  return '/api';
+}
+
+export const BASE_URL = getBaseApiUrl();
 
 export const TOKEN_KEY = 'kushina_token';
 
 // ── Token helpers ─────────────────────────────────────────────
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+export function setToken(token: string, remember: boolean = true) {
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 // ── Base fetch wrapper ────────────────────────────────────────
@@ -99,6 +113,8 @@ export const restaurantApi = {
     fd.append('image', file);
     return api.upload<{ image_url: string }>('/restaurants/menu-image', fd);
   },
+  testPrint: (data: { printer_name: string; ip_or_usb: string; type: string }) =>
+    api.post<{ success: boolean; message: string }>('/restaurants/me/test-print', data),
 };
 
 // ── Menu ──────────────────────────────────────────────────────
@@ -136,8 +152,10 @@ export const ordersApi = {
   addItems:        (id: string, data: Record<string, unknown>) => api.post(`/orders/${id}/items`, data),
   setStatus:       (id: string, status: string) => api.patch(`/orders/${id}/status`, { status }),
   cancelWithReason:(id: string, reason: string) => api.patch(`/orders/${id}/status`, { status: 'cancelled', reason }),
+  update:          (id: string, data: Record<string, unknown>) => api.patch(`/orders/${id}`, data),
   pay:             (id: string, data: Record<string, unknown>) => api.patch(`/orders/${id}/pay`, data),
   void:            (id: string, manager_pin: string) => api.patch(`/orders/${id}/void`, { manager_pin }),
+  confirmPayment:  (id: string) => api.patch(`/orders/${id}/confirm-payment`),
   setItemStatus:   (itemId: string, status: string) => api.patch(`/orders/items/${itemId}/status`, { status }),
   todaySummary:    () => api.get('/orders/today/summary'),
   history:         (dateFrom?: string) => api.get(`/orders/history${dateFrom ? `?date_from=${dateFrom}` : ''}`),
@@ -195,6 +213,14 @@ export const cashDrawerApi = {
   close:   (payload: { actual_cash: number; manager_pin?: string; notes?: string }) => api.post('/cash-drawer/close', payload),
 };
 
+// ── Reservations ────────────────────────────────────────────────
+export const reservationsApi = {
+  get: (date?: string) => api.get(`/reservations${date ? `?date=${date}` : ''}`),
+  create: (data: Record<string, unknown>) => api.post('/reservations', data),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/reservations/${id}`, data),
+  delete: (id: string) => api.delete(`/reservations/${id}`),
+};
+
 // ── Reports ───────────────────────────────────────────────────
 export const reportsApi = {
   dashboard: () => api.get('/reports/dashboard'),
@@ -237,11 +263,12 @@ export const billingApi = {
   /** Create the FIRST subscription for a newly-approved restaurant */
   subscribe:    (plan_id: string, billing_cycle: 'monthly' | 'annual') =>
     api.post('/billing/subscribe', { plan_id, billing_cycle }),
-  submitProof:  (file: File, amount: number, method: string, note: string, subscriptionId?: string) => {
+  submitProof:  (file: File, amount: number, method: string, referenceNumber: string, note: string, subscriptionId?: string) => {
     const fd = new FormData();
     fd.append('screenshot', file);
     fd.append('amount', String(amount));
     fd.append('payment_method', method);
+    if (referenceNumber) fd.append('reference_number', referenceNumber);
     fd.append('note', note);
     if (subscriptionId) fd.append('subscription_id', subscriptionId);
     return api.upload('/billing/proofs', fd);
@@ -277,6 +304,8 @@ export const publicApi = {
   getTable:       (slugOrId: string, tableIdOrLabel: string) => api.get<any>(`/public/restaurant/${slugOrId}/table/${tableIdOrLabel}`),
   placeOrder:     (orderData: Record<string, unknown>) => api.post<any>('/public/order', orderData),
   getOrderStatus: (orderId: string) => api.get<any>(`/public/order-status/${orderId}`),
+  callWaiter:     (data: { restaurant_id: string; table_label: string; request_type?: string; notes?: string }) =>
+    api.post<{ success: boolean; message: string }>('/public/call-waiter', data),
 };
 
 // ── Notifications ─────────────────────────────────────────────

@@ -58,6 +58,12 @@ function PaymentModal({ proof, onClose }: { proof: PaymentProof; onClose: () => 
               <p className="text-sm font-bold text-white uppercase">{proof.payment_method}</p>
             </div>
           </div>
+          {proof.reference_number && (
+            <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Reference Number</p>
+              <p className="text-sm font-bold text-white font-mono">{proof.reference_number}</p>
+            </div>
+          )}
 
           {proof.screenshot_url && (
             <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-center">

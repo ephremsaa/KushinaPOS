@@ -38,3 +38,5 @@ server/uploads/*
 *.njsproj
 *.sln
 *.sw?
+*.db
+*.sqlite

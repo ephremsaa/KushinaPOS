@@ -303,6 +303,7 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
   const [dragOver, setDragOver] = useState(false);
   const [method, setMethod] = useState<'telebirr' | 'cbe' | 'other'>('telebirr');
   const [amount, setAmount] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -328,9 +329,9 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
     setLoading(true);
     setError('');
     try {
-      await billingApi.submitProof(file, Number(amount), method, note, subscriptionId);
+      await billingApi.submitProof(file, Number(amount), method, referenceNumber, note, subscriptionId);
       setSuccess(true);
-      setTimeout(() => { setSuccess(false); setFile(null); setAmount(''); setNote(''); onSuccess(); }, 3000);
+      setTimeout(() => { setSuccess(false); setFile(null); setAmount(''); setReferenceNumber(''); setNote(''); onSuccess(); }, 3000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to submit');
     } finally {
@@ -370,11 +371,18 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
         </div>
       </div>
 
-      {/* Amount */}
-      <div>
-        <label className="label">Amount paid (ETB) *</label>
-        <input type="number" className="input" value={amount}
-          onChange={e => setAmount(e.target.value)} placeholder="1,200" />
+      {/* Amount and Reference */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="label">Amount paid (ETB) *</label>
+          <input type="number" className="input" value={amount}
+            onChange={e => setAmount(e.target.value)} placeholder="1,200" />
+        </div>
+        <div>
+          <label className="label">Reference Number</label>
+          <input type="text" className="input font-mono" value={referenceNumber}
+            onChange={e => setReferenceNumber(e.target.value)} placeholder="e.g. TF298A" />
+        </div>
       </div>
 
       {/* Drag-drop file */}
@@ -411,10 +419,10 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
 
       {/* Note */}
       <div>
-        <label className="label">Reference / Note (optional)</label>
+        <label className="label">Note (optional)</label>
         <textarea className="textarea" rows={2} value={note}
           onChange={e => setNote(e.target.value)}
-          placeholder="Transaction reference, confirmation code…" />
+          placeholder="Additional details..." />
       </div>
 
       {error && (

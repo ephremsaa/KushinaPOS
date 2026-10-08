@@ -2,11 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, X, AlertTriangle, Package, TrendingDown, TrendingUp, Search,
-  Truck, ArrowRightLeft, Clock, MapPin, Mail, Phone, Edit2, Trash2, Check, AlertCircle, FileText
+  Truck, ArrowRightLeft, Clock, MapPin, Mail, Phone, Edit2, Trash2, Check, AlertCircle, FileText, Printer
 } from 'lucide-react';
 import { inventoryApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn, formatCurrency, formatDateTime } from '../../lib/utils';
+import { PurchaseOrderModal } from '../../components/pos';
 import type { InventoryItem, InventoryTransaction, Supplier } from '../../types';
 
 // ─── Item Form Panel ─────────────────────────────────────────────────────────
@@ -286,11 +287,13 @@ function SupplierPanel({ supplier, onClose, onSaved }: { supplier?: Supplier; on
 // ─── Main Inventory Page ──────────────────────────────────────────────────────
 
 export default function InventoryPage() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'items' | 'suppliers'>('items');
   const [search, setSearch] = useState('');
   const [panelItem, setPanelItem] = useState<{ open: boolean; item?: InventoryItem }>({ open: false });
   const [panelSupplier, setPanelSupplier] = useState<{ open: boolean; supplier?: Supplier }>({ open: false });
+  const [showPurchaseOrder, setShowPurchaseOrder] = useState(false);
 
   const { data: items = [], isLoading: itemsLoading } = useQuery({
     queryKey: ['inventory'],
@@ -312,9 +315,9 @@ export default function InventoryPage() {
       {panelSupplier.open && <SupplierPanel supplier={panelSupplier.supplier} onClose={() => setPanelSupplier({ open: false })} onSaved={() => setPanelSupplier({ open: false })} />}
 
       <div className="animate-fade-in space-y-6">
-        <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm">
+        <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm flex-wrap gap-4">
           <div>
-            <h1 className="page-title flex items-center gap-2"><Package className="w-6 h-6 text-brand-500" /> Inventory</h1>
+            <h1 className="page-title flex items-center gap-2"><Package className="w-6 h-6 text-brand-500" /> Inventory & Stock</h1>
             <p className="page-subtitle">
               {items.length} items · {suppliers.length} suppliers 
               {lowStockItems.length > 0 && <span className="ml-2 text-red-500 font-bold">· {lowStockItems.length} low stock</span>}
@@ -324,16 +327,35 @@ export default function InventoryPage() {
             <button onClick={() => setTab('items')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'items' ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500')}>Items</button>
             <button onClick={() => setTab('suppliers')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'suppliers' ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500')}>Suppliers</button>
           </div>
-          <button className="btn-primary gap-2" onClick={() => tab === 'items' ? setPanelItem({ open: true }) : setPanelSupplier({ open: true })}>
-            <Plus className="w-4 h-4" /> Add {tab === 'items' ? 'Item' : 'Supplier'}
-          </button>
+          <div className="flex items-center gap-2">
+            {lowStockItems.length > 0 && (
+              <button
+                onClick={() => setShowPurchaseOrder(true)}
+                className="btn-secondary gap-1.5 border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100"
+              >
+                <Truck className="w-4 h-4 text-amber-600" />
+                Reorder Sheet ({lowStockItems.length})
+              </button>
+            )}
+            <button className="btn-primary gap-2" onClick={() => tab === 'items' ? setPanelItem({ open: true }) : setPanelSupplier({ open: true })}>
+              <Plus className="w-4 h-4" /> Add {tab === 'items' ? 'Item' : 'Supplier'}
+            </button>
+          </div>
         </div>
 
         {tab === 'items' && lowStockItems.length > 0 && !search && (
           <div className="bg-red-50 border border-red-200 rounded-3xl p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="w-5 h-5 text-red-500" />
-              <h3 className="font-bold text-red-800">Low Stock Alerts</h3>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <h3 className="font-bold text-red-800">Low Stock Alerts</h3>
+              </div>
+              <button
+                onClick={() => setShowPurchaseOrder(true)}
+                className="text-xs font-bold text-red-700 hover:text-red-900 flex items-center gap-1 cursor-pointer bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-xl transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" /> Generate Purchase Reorder Sheet
+              </button>
             </div>
             <div className="flex flex-wrap gap-3">
               {lowStockItems.map(item => (
@@ -424,6 +446,15 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      {showPurchaseOrder && (
+        <PurchaseOrderModal
+          items={items}
+          suppliers={suppliers}
+          restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
+          onClose={() => setShowPurchaseOrder(false)}
+        />
+      )}
     </>
   );
 }

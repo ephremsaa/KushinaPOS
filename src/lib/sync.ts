@@ -1,37 +1,33 @@
 /**
  * kushinaPOS Offline Sync Engine
  *
- * Stores orders locally (sessionStorage/IndexedDB on web, SQLite via Capacitor on Android)
- * and syncs them to Supabase when connectivity is restored.
- *
- * Usage:
- *   import { syncEngine } from './sync';
- *   syncEngine.saveLocalOrder(orderData); // when offline
- *   syncEngine.syncPending(restaurantId); // when back online
+ * Stores orders locally in localStorage when offline
+ * and syncs them via ordersApi when connectivity is restored.
  */
 
-import { supabase } from './supabase';
+import { ordersApi } from './api';
 
 const STORAGE_KEY = 'kushina_pending_orders';
 
 export interface LocalOrder {
   local_id: string;
   restaurant_id: string;
-  table_id?: string;
-  order_type: string;
+  table_id?: string | null;
+  order_type: 'dine_in' | 'takeaway' | 'delivery';
   status: string;
   subtotal: number;
   tax_amount: number;
   discount_amount: number;
   total: number;
-  customer_name?: string;
+  customer_name?: string | null;
+  notes?: string | null;
   items: Array<{
-    menu_item_id?: string;
+    menu_item_id?: string | null;
     menu_item_name: string;
     quantity: number;
     unit_price: number;
     modifier_choices: any[];
-    notes?: string;
+    notes?: string | null;
   }>;
   created_at: string;
 }
@@ -50,10 +46,10 @@ function savePending(orders: LocalOrder[]) {
 
 export const syncEngine = {
   /** Save an order locally when offline */
-  saveLocalOrder(order: Omit<LocalOrder, 'local_id' | 'created_at'>): LocalOrder {
+  saveLocalOrder(order: Omit<LocalOrder, 'created_at'>): LocalOrder {
     const localOrder: LocalOrder = {
       ...order,
-      local_id: crypto.randomUUID(),
+      local_id: order.local_id || crypto.randomUUID(),
       created_at: new Date().toISOString(),
     };
     const pending = getPending();
@@ -67,7 +63,12 @@ export const syncEngine = {
     return getPending().length;
   },
 
-  /** Sync all pending orders to Supabase */
+  /** Get all pending orders */
+  getPendingOrders(): LocalOrder[] {
+    return getPending();
+  },
+
+  /** Sync all pending orders to Backend API */
   async syncPending(
     onProgress?: (synced: number, total: number) => void
   ): Promise<{ synced: number; failed: number }> {
@@ -80,46 +81,20 @@ export const syncEngine = {
 
     for (const order of pending) {
       try {
-        // Insert order (upsert on local_id to handle double-submit)
-        const { data: inserted, error } = await supabase
-          .from('orders')
-          .upsert(
-            {
-              restaurant_id: order.restaurant_id,
-              table_id: order.table_id ?? null,
-              order_type: order.order_type,
-              status: order.status,
-              subtotal: order.subtotal,
-              tax_amount: order.tax_amount,
-              discount_amount: order.discount_amount,
-              total: order.total,
-              customer_name: order.customer_name ?? null,
-              local_id: order.local_id,
-              synced_at: new Date().toISOString(),
-              created_at: order.created_at,
-            },
-            { onConflict: 'restaurant_id,local_id' }
-          )
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // Insert order items
-        if (order.items?.length) {
-          await supabase.from('order_items').insert(
-            order.items.map((item) => ({
-              order_id: inserted.id,
-              menu_item_id: item.menu_item_id ?? null,
-              menu_item_name: item.menu_item_name,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              modifier_choices: item.modifier_choices,
-              notes: item.notes ?? null,
-              status: 'pending',
-            }))
-          );
-        }
+        await ordersApi.create({
+          restaurant_id: order.restaurant_id,
+          table_id: order.table_id || null,
+          order_type: order.order_type,
+          status: order.status || 'new',
+          subtotal: order.subtotal,
+          tax_amount: order.tax_amount,
+          discount_amount: order.discount_amount,
+          total: order.total,
+          customer_name: order.customer_name || null,
+          notes: order.notes || null,
+          local_id: order.local_id,
+          items: order.items,
+        });
 
         synced++;
         onProgress?.(synced, pending.length);

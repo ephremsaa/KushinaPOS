@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Edit2, X, Upload, BookOpen, Eye, EyeOff, ClipboardList,
@@ -9,6 +9,8 @@ import {
 import { menuApi, restaurantApi, inventoryApi, recipesApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency, cn } from '../../lib/utils';
+import { Modal } from '../../components/ui';
+import { MenuEngineeringMatrix } from '../../components/analytics/MenuEngineeringMatrix';
 import type { MenuItem, MenuCategory } from '../../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -152,6 +154,25 @@ function RecipePanel({ item, invItems }: { item: MenuItem; invItems: any[] }) {
     enabled: !loaded,
   });
 
+  const invMap = useMemo(() => {
+    const map = new Map<string, any>();
+    invItems.forEach((inv: any) => map.set(inv.id, inv));
+    return map;
+  }, [invItems]);
+
+  const totalFoodCost = useMemo(() => {
+    return ingredients.reduce((sum, ing) => {
+      const inv = invMap.get(ing.inventory_item_id);
+      const unitCost = Number(inv?.cost_per_unit) || 0;
+      const qty = Number(ing.quantity_required) || 0;
+      return sum + (unitCost * qty);
+    }, 0);
+  }, [ingredients, invMap]);
+
+  const itemPrice = Number(item.price) || 0;
+  const grossProfit = itemPrice > 0 ? itemPrice - totalFoodCost : 0;
+  const marginPercent = itemPrice > 0 ? Math.round((grossProfit / itemPrice) * 100) : 0;
+
   const save = async () => {
     setSaving(true);
     try { await recipesApi.update(item.id, ingredients); qc.invalidateQueries({ queryKey: ['recipes', item.id] }); }
@@ -161,33 +182,79 @@ function RecipePanel({ item, invItems }: { item: MenuItem; invItems: any[] }) {
 
   return (
     <div className="space-y-3 pt-2">
-      <p className="text-sm text-surface-500">Link ingredients for auto-deduction when sold.</p>
-      {ingredients.map((ing, idx) => (
-        <div key={idx} className="flex gap-2 items-center">
-          <select
-            className="select flex-1 text-sm"
-            value={ing.inventory_item_id}
-            onChange={e => { const n = [...ingredients]; n[idx].inventory_item_id = e.target.value; setIngredients(n); }}
-          >
-            <option value="">Select ingredient...</option>
-            {invItems.map((inv: any) => <option key={inv.id} value={inv.id}>{inv.name} ({inv.unit})</option>)}
-          </select>
-          <input
-            type="number" className="input w-20 text-sm py-1.5 text-right"
-            placeholder="Qty"
-            value={ing.quantity_required || ''}
-            onChange={e => { const n = [...ingredients]; n[idx].quantity_required = Number(e.target.value); setIngredients(n); }}
-          />
-          <button onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))} className="p-1.5 hover:bg-red-50 rounded-lg">
-            <X className="w-3.5 h-3.5 text-red-400" />
-          </button>
+      <p className="text-xs text-surface-500">Link raw ingredients to calculate dish cost and auto-deplete stock when orders are placed.</p>
+
+      {/* Real-time food cost and margin badge */}
+      <div className="p-3.5 bg-surface-50 rounded-2xl border border-surface-200 flex items-center justify-between text-xs">
+        <div>
+          <p className="text-surface-500 font-bold">Estimated Plate Cost</p>
+          <p className="font-mono font-black text-sm text-surface-900 mt-0.5">{formatCurrency(totalFoodCost)}</p>
         </div>
-      ))}
-      <div className="flex gap-2">
-        <button onClick={() => setIngredients([...ingredients, { inventory_item_id: '', quantity_required: 0 }])}
-          className="btn-secondary text-sm flex-1 gap-1"><Plus className="w-3.5 h-3.5" />Add</button>
-        <button onClick={save} disabled={saving} className="btn-primary text-sm px-5 gap-1">
-          {saving ? '…' : <><Check className="w-3.5 h-3.5" />Save</>}
+        <div className="text-right">
+          <p className="text-surface-500 font-bold">Gross Margin</p>
+          <p className={cn(
+            "font-mono font-black text-sm mt-0.5",
+            marginPercent >= 65 ? "text-emerald-600" : marginPercent >= 40 ? "text-amber-600" : "text-red-600"
+          )}>
+            {itemPrice > 0 ? `${marginPercent}% (${formatCurrency(grossProfit)})` : 'N/A'}
+          </p>
+        </div>
+      </div>
+
+      {ingredients.map((ing, idx) => {
+        const inv = invMap.get(ing.inventory_item_id);
+        const lineCost = (Number(inv?.cost_per_unit) || 0) * (Number(ing.quantity_required) || 0);
+
+        return (
+          <div key={idx} className="flex gap-2 items-center bg-white p-1 rounded-xl border border-surface-100">
+            <select
+              className="select flex-1 text-xs py-1.5"
+              value={ing.inventory_item_id}
+              onChange={e => { const n = [...ingredients]; n[idx].inventory_item_id = e.target.value; setIngredients(n); }}
+            >
+              <option value="">Select ingredient...</option>
+              {invItems.map((invItem: any) => (
+                <option key={invItem.id} value={invItem.id}>
+                  {invItem.name} ({invItem.unit}) — {formatCurrency(invItem.cost_per_unit || 0)}/{invItem.unit}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              step="any"
+              className="input w-16 text-xs py-1.5 text-right font-mono"
+              placeholder="Qty"
+              value={ing.quantity_required || ''}
+              onChange={e => { const n = [...ingredients]; n[idx].quantity_required = Number(e.target.value); setIngredients(n); }}
+            />
+            <span className="text-[10px] text-surface-400 w-12 text-right font-mono font-bold">
+              {formatCurrency(lineCost)}
+            </span>
+            <button
+              onClick={() => setIngredients(ingredients.filter((_, i) => i !== idx))}
+              className="p-1 hover:bg-red-50 text-surface-400 hover:text-red-500 rounded-lg cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        );
+      })}
+
+      <div className="flex gap-2 pt-1">
+        <button
+          type="button"
+          onClick={() => setIngredients([...ingredients, { inventory_item_id: '', quantity_required: 0 }])}
+          className="btn-secondary text-xs flex-1 gap-1 py-2"
+        >
+          <Plus className="w-3.5 h-3.5" /> Add Ingredient
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="btn-primary text-xs px-5 gap-1 py-2 shadow-sm"
+        >
+          {saving ? '…' : <><Check className="w-3.5 h-3.5" /> Save Recipe</>}
         </button>
       </div>
     </div>
@@ -209,7 +276,7 @@ function ItemPanel({
   const [form, setForm] = useState({
     name: item?.name ?? '',
     description: item?.description ?? '',
-    price: item?.price ?? 0,
+    price: item?.price !== undefined ? item.price : '' as number | string,
     category_id: item?.category_id ?? '',
     preparation_time_minutes: item?.preparation_time_minutes ?? 10,
     is_available: item?.is_available ?? true,
@@ -255,7 +322,7 @@ function ItemPanel({
         const res = await restaurantApi.uploadMenuImage(imageFile);
         image_url = res.image_url;
       }
-      const payload = { ...form, price: Number(form.price), preparation_time_minutes: Number(form.preparation_time_minutes), image_url };
+      const payload = { ...form, price: Number(form.price) || 0, preparation_time_minutes: Number(form.preparation_time_minutes) || 10, image_url };
       if (item) {
         await menuApi.updateItem(item.id, payload);
         await menuApi.saveModifiers(item.id, modifiers);
@@ -461,7 +528,7 @@ function ItemPanel({
             </button>
           )}
           <button onClick={onClose} className="btn-secondary">Cancel</button>
-          <button onClick={save} disabled={saving || !form.name || !form.price} className="btn-primary gap-2 min-w-[100px]">
+          <button onClick={save} disabled={saving || !form.name.trim() || form.price === ''} className="btn-primary gap-2 min-w-[100px]">
             {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
             {saving ? 'Saving…' : item ? 'Save Changes' : 'Add Item'}
           </button>
@@ -631,6 +698,7 @@ export default function MenuPage() {
   const [panelItem, setPanelItem]       = useState<MenuItem | null | undefined>(undefined); // undefined = closed, null = new
   const [catModal, setCatModal]         = useState<{ open: boolean; cat?: MenuCategory }>({ open: false });
   const [showImport, setShowImport]     = useState(false);
+  const [showMatrixModal, setShowMatrixModal] = useState(false);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['menu-categories'],
@@ -688,6 +756,19 @@ export default function MenuPage() {
       )}
       {catModal.open && <CategoryModal cat={catModal.cat} onClose={() => setCatModal({ open: false })} />}
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
+      {showMatrixModal && (
+        <Modal
+          open={true}
+          onClose={() => setShowMatrixModal(false)}
+          title="AI Menu Profitability & Engineering Matrix"
+          description="Gross Margin vs Sales Volume Quadrant Classifier"
+          size="xl"
+        >
+          <div className="pt-2">
+            <MenuEngineeringMatrix />
+          </div>
+        </Modal>
+      )}
 
       <div className="animate-fade-in space-y-6">
         {/* Header */}
@@ -701,6 +782,9 @@ export default function MenuPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowMatrixModal(true)} className="btn-gold btn-sm gap-1.5 text-xs shadow-glow-gold">
+              <Sparkles className="w-3.5 h-3.5" /> AI Profit Advisor
+            </button>
             <button onClick={handleExport} className="btn-secondary btn-sm gap-1.5 text-xs">
               <Download className="w-3.5 h-3.5" /> Export CSV
             </button>

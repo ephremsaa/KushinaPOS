@@ -110,3 +110,74 @@ export function getInitials(name: string): string {
 export function sleep(ms: number): Promise<void> {
   return new Promise((res) => setTimeout(res, ms));
 }
+
+export function isDarkColor(colorStr?: string): boolean {
+  if (!colorStr) return false;
+  let hex = colorStr.replace('#', '').trim();
+  if (hex.length === 3) {
+    hex = hex.split('').map((c) => c + c).join('');
+  }
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+  // ITU-R BT.601 perceptual luminance formula
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness < 155;
+}
+
+export function applyTheme(themeColor?: string, backgroundColor?: string) {
+  const brand = (themeColor && themeColor !== '#f97316') ? themeColor : '#2F7D32';
+  const bg = (backgroundColor && backgroundColor !== '#f1f5f9') ? backgroundColor : '#F7F7F2';
+  const root = document.documentElement;
+
+  root.style.setProperty('--brand-500', brand);
+  root.style.setProperty('--brand-600', brand);
+  root.style.setProperty('--brand-glow', `color-mix(in srgb, ${brand} 35%, transparent)`);
+  root.style.setProperty('--brand-glow-sm', `color-mix(in srgb, ${brand} 20%, transparent)`);
+  root.style.setProperty('--background-color', bg);
+
+  const isDark = isDarkColor(bg);
+  if (isDark) {
+    root.classList.add('dark');
+    root.setAttribute('data-theme', 'dark');
+    root.style.setProperty('--card-bg', 'rgba(23, 32, 51, 0.92)');
+    root.style.setProperty('--card-border', 'rgba(255, 255, 255, 0.12)');
+    root.style.setProperty('--text-main', '#F7F7F2');
+    root.style.setProperty('--text-muted', '#94a3b8');
+    root.style.setProperty('--sidebar-bg', 'rgba(23, 32, 51, 0.96)');
+    root.style.setProperty('--header-bg', 'rgba(23, 32, 51, 0.85)');
+    root.style.setProperty('--input-bg', 'rgba(30, 41, 59, 0.8)');
+  } else {
+    root.classList.remove('dark');
+    root.setAttribute('data-theme', 'light');
+    root.style.setProperty('--card-bg', '#FFFFFF');
+    root.style.setProperty('--card-border', '#E2E8F0');
+    root.style.setProperty('--text-main', '#172033');
+    root.style.setProperty('--text-muted', '#64748B');
+    root.style.setProperty('--sidebar-bg', 'rgba(255, 255, 255, 0.96)');
+    root.style.setProperty('--header-bg', 'rgba(255, 255, 255, 0.85)');
+    root.style.setProperty('--input-bg', '#FFFFFF');
+  }
+}
+
+export function getLuminance(hexStr: string): number {
+  let hex = hexStr.replace('#', '').trim();
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  if (hex.length !== 6) return 0.5;
+  const rgb = [0, 2, 4].map(idx => {
+    const val = parseInt(hex.substring(idx, idx + 2), 16) / 255;
+    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
+}
+
+export function getContrastRatio(hex1: string, hex2: string): number {
+  const l1 = getLuminance(hex1);
+  const l2 = getLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+

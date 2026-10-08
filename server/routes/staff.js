@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { authenticate, requireTenant, requireOwner, requireManager } = require('../middleware/auth');
+const { verifyPinLimiter } = require('../middleware/rateLimit');
 const { verifyManagerPin, isPinUniqueForRestaurant } = require('../utils/pinHelper');
 const router = express.Router();
 
@@ -32,16 +33,21 @@ router.post('/', requireOwner, async (req, res) => {
   const { name, email, phone, role = 'cashier', password, pin } = req.body;
   if (!name || !email) return res.status(400).json({ error: 'name and email required' });
   try {
-    // Check PIN uniqueness within this restaurant if provided
-    if (pin) {
-      const isUnique = await isPinUniqueForRestaurant(tid(req), pin);
+    // Validate PIN format and check uniqueness within this restaurant if provided
+    let cleanPin = null;
+    if (pin !== undefined && pin !== null && pin !== '') {
+      cleanPin = String(pin).trim();
+      if (!/^\d{4}$/.test(cleanPin)) {
+        return res.status(400).json({ error: 'PIN must be exactly 4 digits (0000-9999)' });
+      }
+      const isUnique = await isPinUniqueForRestaurant(tid(req), cleanPin);
       if (!isUnique) {
-        return res.status(400).json({ error: 'PIN is already in use by another active staff member at this restaurant' });
+        return res.status(409).json({ error: 'This PIN is already in use by another staff member at this restaurant' });
       }
     }
 
     const password_hash = password ? await bcrypt.hash(password, 12) : null;
-    const pin_hash = pin ? await bcrypt.hash(String(pin), 10) : null;
+    const pin_hash = cleanPin ? await bcrypt.hash(cleanPin, 10) : null;
     const { rows } = await db.query(
       `INSERT INTO staff (restaurant_id, name, full_name, email, phone, role, password_hash, pin_hash)
        VALUES ($1,$2,$2,$3,$4,$5,$6,$7)
@@ -60,16 +66,25 @@ router.post('/', requireOwner, async (req, res) => {
 router.patch('/:id', requireOwner, async (req, res) => {
   const { role, is_active, password, pin, name, email, phone, deactivation_note } = req.body;
   try {
-    // Check PIN uniqueness if updating PIN
-    if (pin) {
-      const isUnique = await isPinUniqueForRestaurant(tid(req), pin, req.params.id);
-      if (!isUnique) {
-        return res.status(400).json({ error: 'PIN is already in use by another active staff member at this restaurant' });
+    // Validate PIN format and check uniqueness if updating PIN
+    let pin_hash = undefined;
+    if (pin !== undefined) {
+      if (pin !== null && pin !== '') {
+        const cleanPin = String(pin).trim();
+        if (!/^\d{4}$/.test(cleanPin)) {
+          return res.status(400).json({ error: 'PIN must be exactly 4 digits (0000-9999)' });
+        }
+        const isUnique = await isPinUniqueForRestaurant(tid(req), cleanPin, req.params.id);
+        if (!isUnique) {
+          return res.status(409).json({ error: 'This PIN is already in use by another staff member at this restaurant' });
+        }
+        pin_hash = await bcrypt.hash(cleanPin, 10);
+      } else {
+        pin_hash = null;
       }
     }
 
     const password_hash = password ? await bcrypt.hash(password, 12) : undefined;
-    const pin_hash      = pin !== undefined ? (pin ? await bcrypt.hash(String(pin), 10) : null) : undefined;
 
     // Build dynamic SET clause
     let sets = ['updated_at = NOW()'];
@@ -110,7 +125,7 @@ router.patch('/:id', requireOwner, async (req, res) => {
 // ── POST /api/staff/verify-pin ────────────────────────────────
 // Used for manager-PIN flow for sensitive actions.
 // Any logged-in staff can call this; returns { authorized: true/false, staff_id, staff_name, role }
-router.post('/verify-pin', async (req, res) => {
+router.post('/verify-pin', verifyPinLimiter, async (req, res) => {
   const { pin } = req.body;
   if (!pin) return res.status(400).json({ error: 'pin required' });
   try {

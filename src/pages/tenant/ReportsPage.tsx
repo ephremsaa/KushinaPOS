@@ -6,13 +6,15 @@ import {
 } from 'recharts';
 import { reportsApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
-import { RefreshCw, Download, TrendingUp, Users, Package, Grid, Clock, Hash } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Users, Package, Grid, Clock, Hash, Sparkles } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button, StatCardSkeleton, Skeleton } from '../../components/ui';
+import { MenuEngineeringMatrix } from '../../components/analytics/MenuEngineeringMatrix';
 
 type Period = '7d' | '30d' | '90d';
-type Tab = 'sales' | 'items' | 'staff' | 'peak-hours' | 'tables' | 'inventory';
+type Tab = 'sales' | 'items' | 'menu-matrix' | 'staff' | 'peak-hours' | 'tables' | 'inventory';
 
-const CHART_COLORS = ['#f97316', '#fb923c', '#fdba74', '#fed7aa', '#ffedd5', '#ea580c', '#c2410c'];
+const CHART_COLORS = ['#2F7D32', '#7BC67E', '#D4A72C', '#172033', '#52a856', '#e4be52', '#a7d5ab'];
 
 export default function ReportsPage() {
   const qc = useQueryClient();
@@ -33,13 +35,14 @@ export default function ReportsPage() {
   });
 
   const downloadCsv = () => {
-    let typeMap: Record<Tab, string> = { sales: 'sales', items: 'items', staff: 'staff', 'peak-hours': '', tables: '', inventory: '' };
+    let typeMap: Record<Tab, string> = { sales: 'sales', items: 'items', 'menu-matrix': 'items', staff: 'staff', 'peak-hours': '', tables: '', inventory: '' };
     if (!typeMap[tab]) return alert('Export not supported for this tab yet');
     window.open(reportsApi.exportUrl(typeMap[tab], period), '_blank');
   };
 
   const tabs = [
     { k: 'sales', l: 'Sales Overview', i: TrendingUp },
+    { k: 'menu-matrix', l: 'AI Menu Matrix', i: Sparkles },
     { k: 'items', l: 'Top Items', i: Hash },
     { k: 'staff', l: 'Staff Perf.', i: Users },
     { k: 'tables', l: 'Table Util.', i: Grid },
@@ -64,7 +67,7 @@ export default function ReportsPage() {
           <YAxis type="category" dataKey="day" name="Day" allowDuplicatedCategory={false} />
           <ZAxis type="number" dataKey="value" range={[50, 400]} name="Orders" />
           <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-          <Scatter data={data} fill="#f97316" />
+          <Scatter data={data} fill="#2F7D32" />
         </ScatterChart>
       </ResponsiveContainer>
     );
@@ -87,14 +90,17 @@ export default function ReportsPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => refresh()} disabled={refreshing} className="btn-secondary gap-2 bg-white">
-            <RefreshCw className={cn("w-4 h-4 text-surface-500", refreshing && "animate-spin")} /> {refreshing ? 'Refreshing MVs...' : 'Refresh Data'}
-          </button>
+          <Button variant="secondary" loading={refreshing} icon={<RefreshCw className="w-4 h-4" />} onClick={() => refresh()}>
+            {refreshing ? 'Refreshing…' : 'Refresh Data'}
+          </Button>
           {['sales', 'items', 'staff'].includes(tab) && (
-            <button onClick={downloadCsv} className="btn-primary gap-2">
-              <Download className="w-4 h-4" /> Export CSV
-            </button>
+            <Button variant="primary" icon={<Download className="w-4 h-4" />} onClick={downloadCsv}>
+              Export CSV
+            </Button>
           )}
+          <Button variant="gold" icon={<Download className="w-4 h-4" />} onClick={() => window.open(reportsApi.exportUrl('z-report', period), '_blank')}>
+            Daily Z-Report
+          </Button>
         </div>
       </div>
 
@@ -112,22 +118,28 @@ export default function ReportsPage() {
       {/* TAB CONTENT */}
       {tab === 'sales' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Total Orders</p><p className="text-3xl font-display font-extrabold">{salesLoading ? '—' : Number(sales?.kpi?.total_orders || 0).toLocaleString()}</p></div>
-            <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Total Revenue</p><p className="text-3xl font-display font-extrabold text-brand-600">{salesLoading ? '—' : formatCurrency(sales?.kpi?.total_revenue || 0)}</p></div>
-            <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Avg Order Value</p><p className="text-3xl font-display font-extrabold">{salesLoading ? '—' : formatCurrency(sales?.kpi?.avg_order || 0)}</p></div>
-          </div>
+          {salesLoading ? (
+            <StatCardSkeleton count={3} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Total Orders</p><p className="text-3xl font-display font-extrabold font-mono">{Number(sales?.kpi?.total_orders || 0).toLocaleString()}</p></div>
+              <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Total Revenue</p><p className="text-3xl font-display font-extrabold text-brand-600 font-mono">{formatCurrency(sales?.kpi?.total_revenue || 0)}</p></div>
+              <div className="card bg-white p-6"><p className="text-surface-500 font-bold mb-1">Avg Order Value</p><p className="text-3xl font-display font-extrabold font-mono">{formatCurrency(sales?.kpi?.avg_order || 0)}</p></div>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="card lg:col-span-2">
               <h3 className="font-bold text-surface-900 mb-6">Daily Revenue</h3>
               <div className="h-64">
-                {salesLoading ? <div className="h-full bg-surface-100 rounded-xl animate-pulse"/> : (
+                {salesLoading ? (
+                  <Skeleton height="100%" rounded="lg" className="w-full" />
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={sales?.dailySales}>
                       <XAxis dataKey="date" tick={{fontSize:11}} tickFormatter={v => new Date(v).toLocaleDateString(undefined, {month:'short',day:'numeric'})} />
                       <YAxis tick={{fontSize:11}} tickFormatter={v => `${(v/1000)}k`} />
-                      <Tooltip formatter={(v: any) => formatCurrency(v)} labelFormatter={v => new Date(v).toLocaleDateString()} />
-                      <Bar dataKey="total" fill="#f97316" radius={[4,4,0,0]} />
+                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} labelFormatter={(v: any) => v ? new Date(v).toLocaleDateString() : ''} />
+                      <Bar dataKey="total" fill="#2F7D32" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -136,7 +148,9 @@ export default function ReportsPage() {
             <div className="card">
               <h3 className="font-bold text-surface-900 mb-6">Revenue by Order Type</h3>
               <div className="h-64">
-                {salesLoading ? <div className="h-full bg-surface-100 rounded-xl animate-pulse"/> : (
+                {salesLoading ? (
+                  <Skeleton height="100%" rounded="lg" className="w-full" />
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie data={sales?.typeBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({name, percent}: any) => `${String(name || '').replace('_',' ')} ${(Number(percent)*100).toFixed(0)}%`}>
@@ -162,12 +176,16 @@ export default function ReportsPage() {
                   <XAxis type="number" tick={{fontSize:11}} />
                   <YAxis type="category" dataKey="name" tick={{fontSize:11}} />
                   <Tooltip formatter={(v:any,n:any) => n === 'quantity' ? v : formatCurrency(v)} />
-                  <Bar dataKey="quantity" fill="#f97316" radius={[0,4,4,0]} />
+                  <Bar dataKey="quantity" fill="#2F7D32" radius={[0,4,4,0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
+      )}
+
+      {tab === 'menu-matrix' && (
+        <MenuEngineeringMatrix />
       )}
 
       {tab === 'staff' && (
@@ -213,8 +231,8 @@ export default function ReportsPage() {
                   <YAxis yAxisId="left" tick={{fontSize:11}} />
                   <YAxis yAxisId="right" orientation="right" tick={{fontSize:11}} />
                   <Tooltip formatter={(v:any, n:any) => n === 'parties' ? v : `${Math.round(v/60)} mins`} />
-                  <Bar yAxisId="left" dataKey="parties" fill="#f97316" radius={[4,4,0,0]} name="Total Parties" />
-                  <Bar yAxisId="right" dataKey="avg_duration_seconds" fill="#fdba74" radius={[4,4,0,0]} name="Avg Duration (sec)" />
+                  <Bar yAxisId="left" dataKey="parties" fill="#2F7D32" radius={[4,4,0,0]} name="Total Parties" />
+                  <Bar yAxisId="right" dataKey="avg_duration_seconds" fill="#7BC67E" radius={[4,4,0,0]} name="Avg Duration (sec)" />
                 </BarChart>
               </ResponsiveContainer>
             )}

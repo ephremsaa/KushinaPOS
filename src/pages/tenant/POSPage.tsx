@@ -1,17 +1,21 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Plus, Minus, ShoppingCart, Table2, X, Check,
-  Wifi, WifiOff, Trash2, ChevronRight, MessageSquare, Clock,
-  PauseCircle, PlayCircle, Tag, AlertCircle, ChefHat, ArrowLeft, Banknote
+  Search, Plus, Minus, ShoppingCart, Table2, Trash2, ChevronRight,
+  MessageSquare, PauseCircle, PlayCircle, Tag, AlertCircle, ChefHat,
+  ArrowLeft, Banknote, Check, Wifi, WifiOff, Smartphone, QrCode, Receipt
 } from 'lucide-react';
 import { menuApi, tablesApi, ordersApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNetwork } from '../../contexts/NetworkContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { formatCurrency, generateId, cn } from '../../lib/utils';
+import { syncEngine } from '../../lib/sync';
+import { Button, Badge, Modal, Input, LanguageSwitcher, EmptyState } from '../../components/ui';
+import { QuickPaymentModal, ThermalReceipt } from '../../components/pos';
 import type {
-  MenuItem, MenuCategory, Table, OrderItem,
+  MenuItem, MenuCategory, Table,
   ModifierChoice, TableStatus, MenuModifier, Order
 } from '../../types';
 
@@ -36,14 +40,12 @@ interface ParkedOrder {
   parkedAt: string;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const PARK_KEY = 'pos_parked_orders';
 
 const STATUS_COLORS: Record<TableStatus, string> = {
   available: 'bg-emerald-100 border-emerald-400 text-emerald-800',
-  occupied:  'bg-red-100   border-red-400   text-red-800',
-  reserved:  'bg-amber-100 border-amber-400  text-amber-800',
+  occupied:  'bg-red-100 border-red-400 text-red-800',
+  reserved:  'bg-amber-100 border-amber-400 text-amber-800',
   cleaning:  'bg-surface-100 border-surface-400 text-surface-700',
 };
 
@@ -94,81 +96,77 @@ function ModifierModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl flex flex-col max-h-[85vh]">
-        <div className="p-6 border-b border-surface-100 flex items-start gap-4">
-          <div className="flex-1">
-            <h3 className="font-display font-bold text-xl text-surface-900">{item.name}</h3>
-            <p className="text-brand-600 font-bold mt-1">
-              {formatCurrency(item.price + extraCost)}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full transition-colors">
-            <X className="w-5 h-5 text-surface-500" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 p-6 space-y-6">
-          {modifiers.map(mod => (
-            <div key={mod.id}>
-              <div className="flex items-center gap-2 mb-3">
-                <p className="font-bold text-surface-800 text-sm">{mod.name}</p>
-                {mod.is_required && (
-                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold">Required</span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {mod.options.map(opt => {
-                  const selected = selections[mod.id]?.option_label === opt.label;
-                  return (
-                    <button
-                      key={opt.label}
-                      onClick={() => toggle(mod, opt.label, opt.price_delta)}
-                      className={cn(
-                        'px-4 py-2 rounded-2xl text-sm font-semibold border-2 transition-all duration-200',
-                        selected
-                          ? 'bg-brand-500 border-brand-500 text-white shadow-sm shadow-brand-500/30 scale-105'
-                          : 'bg-surface-50 border-surface-200 text-surface-700 hover:border-brand-300'
-                      )}
-                    >
-                      {opt.label}
-                      {opt.price_delta !== 0 && (
-                        <span className={cn('ml-1.5 text-xs font-bold', selected ? 'text-white/80' : 'text-surface-400')}>
-                          +{formatCurrency(opt.price_delta)}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {/* Notes */}
-          <div>
-            <p className="font-bold text-surface-800 text-sm mb-2">Chef's Notes (optional)</p>
-            <textarea
-              className="textarea resize-none text-sm"
-              rows={2}
-              placeholder="e.g. No onions, extra spicy…"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="p-6 border-t border-surface-100 flex gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-          <button
-            onClick={confirm}
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={item.name}
+      description={`Base price: ${formatCurrency(item.price)} · Total: ${formatCurrency(item.price + extraCost)}`}
+      icon={<ChefHat className="w-5 h-5 text-brand-500" />}
+      size="md"
+      footer={
+        <div className="flex gap-2 justify-end w-full">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
             disabled={requiredMissing}
-            className="btn-primary flex-1 gap-2"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={confirm}
           >
-            <Plus className="w-4 h-4" /> Add to Order
-          </button>
+            Add to Order ({formatCurrency(item.price + extraCost)})
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {modifiers.map(mod => (
+          <div key={mod.id}>
+            <div className="flex items-center gap-2 mb-3">
+              <p className="font-bold text-surface-800 text-sm">{mod.name}</p>
+              {mod.is_required && (
+                <Badge status="new">Required</Badge>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {mod.options.map(opt => {
+                const selected = selections[mod.id]?.option_label === opt.label;
+                return (
+                  <button
+                    key={opt.label}
+                    type="button"
+                    onClick={() => toggle(mod, opt.label, opt.price_delta)}
+                    className={cn(
+                      'px-4 py-2 rounded-2xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer',
+                      selected
+                        ? 'bg-brand-500 border-brand-500 text-white shadow-sm shadow-brand-500/30 scale-105'
+                        : 'bg-surface-50 border-surface-200 text-surface-700 hover:border-brand-300'
+                    )}
+                  >
+                    {opt.label}
+                    {opt.price_delta !== 0 && (
+                      <span className={cn('ml-1.5 text-xs font-bold', selected ? 'text-white/80' : 'text-surface-400')}>
+                        +{formatCurrency(opt.price_delta)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Notes */}
+        <div>
+          <label className="label">Chef's Notes (optional)</label>
+          <textarea
+            className="input resize-none text-sm min-h-[60px]"
+            rows={2}
+            placeholder="e.g. No onions, extra spicy…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -179,7 +177,7 @@ function TableSelectionScreen({
   orderType,
   setOrderType,
   onSelectTable,
-  onSkip, // for takeaway/delivery
+  onSkip,
 }: {
   tables: Table[];
   orderType: 'dine_in' | 'takeaway' | 'delivery';
@@ -187,19 +185,20 @@ function TableSelectionScreen({
   onSelectTable: (tableId: string) => void;
   onSkip: () => void;
 }) {
+  const navigate = useNavigate();
   return (
-    <div className="flex flex-col items-center pt-10 h-full animate-fade-in overflow-y-auto pb-10">
-      <h2 className="font-display font-bold text-3xl mb-8 text-surface-900">Start New Order</h2>
+    <div className="flex flex-col items-center pt-8 h-full animate-fade-in overflow-y-auto pb-10">
+      <h2 className="font-display font-black text-3xl mb-6 text-surface-900">Start New Order</h2>
 
       {/* Order Type Selector */}
-      <div className="flex gap-2 p-1.5 bg-surface-200/50 backdrop-blur-sm rounded-2xl mb-10 border border-surface-200">
+      <div className="flex gap-2 p-1.5 bg-surface-200/50 backdrop-blur-sm rounded-2xl mb-8 border border-surface-200">
         {(['dine_in', 'takeaway', 'delivery'] as const).map(type => (
           <button
             key={type}
             className={cn(
-              'px-8 py-3 rounded-xl text-sm font-bold capitalize transition-all duration-300',
+              'px-8 py-3 rounded-xl text-sm font-bold capitalize transition-all duration-300 cursor-pointer',
               orderType === type
-                ? 'bg-white shadow-md text-brand-600 border border-white'
+                ? 'bg-[var(--card-bg)] shadow-md text-brand-600 border border-[var(--card-border)]'
                 : 'text-surface-500 hover:text-surface-800'
             )}
             onClick={() => setOrderType(type)}
@@ -215,9 +214,9 @@ function TableSelectionScreen({
             {orderType === 'takeaway' ? '🛍️' : '🛵'}
           </div>
           <p className="text-surface-600 font-medium">No table needed for {orderType} orders.</p>
-          <button className="btn-primary px-10 gap-2" onClick={onSkip}>
-            Proceed to Menu <ChevronRight className="w-4 h-4" />
-          </button>
+          <Button variant="primary" size="lg" iconRight={<ChevronRight className="w-5 h-5" />} onClick={onSkip}>
+            Proceed to Menu
+          </Button>
         </div>
       ) : (
         <div className="w-full max-w-4xl px-4">
@@ -235,7 +234,16 @@ function TableSelectionScreen({
 
           <div className="card glass-panel flex flex-wrap gap-4 justify-center min-h-[300px] p-8">
             {tables.length === 0 ? (
-              <p className="text-surface-500 my-auto">No tables configured.</p>
+              <EmptyState
+                icon={<Table2 className="w-12 h-12" />}
+                title="No tables configured"
+                description="Set up your floor plan to start taking dine-in orders."
+                action={{
+                  label: 'Set up floor plan',
+                  icon: <ChevronRight className="w-4 h-4" />,
+                  onClick: () => navigate('/dashboard/tables')
+                }}
+              />
             ) : (
               tables.map(table => (
                 <button
@@ -244,13 +252,13 @@ function TableSelectionScreen({
                     'border-2 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 active:scale-95',
                     STATUS_COLORS[table.status],
                     table.shape === 'circle' ? 'rounded-full' : '',
-                    table.status === 'reserved' || table.status === 'cleaning'
+                    table.status === 'cleaning'
                       ? 'opacity-50 cursor-not-allowed'
                       : 'cursor-pointer'
                   )}
                   style={{ width: 100, height: 90 }}
                   onClick={() => onSelectTable(table.id)}
-                  disabled={table.status === 'reserved' || table.status === 'cleaning'}
+                  disabled={table.status === 'cleaning'}
                 >
                   <span className="font-display font-bold text-lg">{table.label}</span>
                   <span className="text-xs font-medium capitalize">{table.status}</span>
@@ -281,52 +289,81 @@ function OccupiedTableModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
-            <AlertCircle className="w-6 h-6 text-amber-600" />
-          </div>
-          <div>
-            <h3 className="font-bold text-surface-900">Table {table.label} is Occupied</h3>
-            <p className="text-sm text-surface-500">An order is already open for this table.</p>
-          </div>
-        </div>
-
-        <div className="bg-surface-50 rounded-2xl p-4 mb-5 text-sm">
-          <p className="font-semibold text-surface-700 mb-1">Current Order</p>
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={`Table ${table.label} is Occupied`}
+      description="An active order is currently open on this table."
+      icon={<AlertCircle className="w-5 h-5 text-amber-500" />}
+      size="sm"
+    >
+      <div className="space-y-4">
+        <div className="bg-surface-50 rounded-2xl p-4 text-sm">
+          <p className="font-semibold text-surface-700 mb-1">Current Order #{existingOrder.local_id || existingOrder.id.slice(0, 6)}</p>
           <p className="text-surface-500">{existingOrder.order_items?.length ?? 0} item(s) · {formatCurrency(existingOrder.total)}</p>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={onAddToExisting}
-            className="btn-primary w-full gap-2 justify-center"
-          >
-            <Plus className="w-4 h-4" /> Add to Existing Order
-          </button>
-          <button
-            onClick={onNewOrder}
-            className="btn-secondary w-full gap-2 justify-center"
-          >
-            <ShoppingCart className="w-4 h-4" /> Start New Order Anyway
-          </button>
-          <button onClick={onClose} className="text-sm text-surface-500 hover:text-surface-700 text-center py-1">
+        <div className="flex flex-col gap-2 pt-2">
+          <Button variant="primary" fullWidth icon={<Plus className="w-4 h-4" />} onClick={onAddToExisting}>
+            Add to Existing Order
+          </Button>
+          <Button variant="secondary" fullWidth icon={<ShoppingCart className="w-4 h-4" />} onClick={onNewOrder}>
+            Start New Order Anyway
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
+
+// ─── Reserved Table Modal ─────────────────────────────────────────────────────
+
+function ReservedTableModal({
+  table,
+  onProceed,
+  onClose,
+}: {
+  table: Table;
+  onProceed: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={`Table ${table.label} is Reserved`}
+      description="This table is currently marked as reserved for an upcoming booking."
+      icon={<AlertCircle className="w-5 h-5 text-amber-500" />}
+      size="sm"
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-surface-600">Are you sure you want to seat a walk-in or start a new order at this table?</p>
+        <div className="flex flex-col gap-2 pt-2">
+          <Button variant="primary" fullWidth icon={<Check className="w-4 h-4" />} onClick={onProceed}>
+            Seat Anyway & Start Order
+          </Button>
+          <Button variant="ghost" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Main POS Component ───────────────────────────────────────────────────────
 
 export default function POSPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { isOnline, setPendingSyncCount } = useNetwork();
+  const { t } = useLanguage();
   const qc = useQueryClient();
-  const restaurantId = user?.restaurant?.id ?? '';
+  const location = useLocation();
+  const navigate = useNavigate();
+  const restaurantId = String((user?.restaurant as any)?.id || user?.restaurantId || '');
   const taxRate = Number(user?.restaurant?.tax_rate ?? 0);
 
   // ── Core state ────────────────────────────────────────────────
@@ -340,12 +377,23 @@ export default function POSPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // ── Quick Checkout & Receipt state ────────────────────────────
+  const [quickPayOrder, setQuickPayOrder] = useState<Order | null>(null);
+  const [receiptData, setReceiptData] = useState<{
+    order: Order;
+    tip: number;
+    method: string;
+    tendered: number;
+    change: number;
+  } | null>(null);
+
   // ── Modifier modal ────────────────────────────────────────────
   const [modifierItem, setModifierItem] = useState<MenuItem | null>(null);
 
   // ── Occupied table modal ──────────────────────────────────────
   const [occupiedModal, setOccupiedModal] = useState<{ table: Table; existingOrder: Order } | null>(null);
-  const [existingOrderId, setExistingOrderId] = useState<string | null>(null); // track if we're adding to existing
+  const [reservedModal, setReservedModal] = useState<Table | null>(null);
+  const [existingOrderId, setExistingOrderId] = useState<string | null>(null);
 
   // ── Parked orders ─────────────────────────────────────────────
   const [parkedOrders, setParkedOrders] = useState<ParkedOrder[]>(() => {
@@ -356,6 +404,16 @@ export default function POSPage() {
   // ── Notes editing ─────────────────────────────────────────────
   const [editingNoteIdx, setEditingNoteIdx] = useState<number | null>(null);
 
+  // ── Check route state on mount (e.g. from TablesPage) ────────
+  useEffect(() => {
+    if (location.state?.tableId) {
+      setSelectedTable(location.state.tableId);
+      if (location.state.orderType) setOrderType(location.state.orderType);
+      // clear location state so refresh doesn't force it
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   // ── Data fetching ─────────────────────────────────────────────
   const { data: categories = [] } = useQuery({
     queryKey: ['menu-categories'],
@@ -365,7 +423,7 @@ export default function POSPage() {
   const { data: menuItems = [] } = useQuery({
     queryKey: ['menu-items'],
     queryFn: () => menuApi.getItems() as Promise<MenuItem[]>,
-    refetchInterval: 15_000, // Refresh every 15s to catch 86'd items
+    refetchInterval: 15_000,
   });
 
   const { data: tables = [] } = useQuery({
@@ -374,8 +432,9 @@ export default function POSPage() {
     refetchInterval: 15_000,
   });
 
-  // ── Derived values ────────────────────────────────────────────
-  const filtered = menuItems.filter(item => {
+  // ── Derived values (filter only available items) ──────────────
+  const availableItems = menuItems.filter(item => item.is_available);
+  const filtered = availableItems.filter(item => {
     const matchesCat = selectedCategory === 'all' || item.category_id === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase());
     return matchesCat && matchesSearch;
@@ -418,7 +477,6 @@ export default function POSPage() {
     setSelectedTable(p.tableId);
     setCustomerName(p.customerName);
     setDiscount(p.discount);
-    // Remove from parked
     saveParked(parkedOrders.filter(o => o.id !== p.id));
     setShowParked(false);
   };
@@ -433,9 +491,8 @@ export default function POSPage() {
     const unitPrice = item.price + extraCost;
 
     setCart(prev => {
-      // Only merge if same item and no modifier choices (simple items)
-      if (choices.length === 0) {
-        const existing = prev.find(c => c.menuItem.id === item.id && c.modifierChoices.length === 0);
+      if (choices.length === 0 && !notes) {
+        const existing = prev.find(c => c.menuItem.id === item.id && c.modifierChoices.length === 0 && !c.notes);
         if (existing) {
           return prev.map(c =>
             c === existing
@@ -500,7 +557,6 @@ export default function POSPage() {
     if (!table) return;
 
     if (table.status === 'occupied') {
-      // Check for open order
       try {
         const openOrder = await ordersApi.openForTable(tableId) as Order | null;
         if (openOrder) {
@@ -508,6 +564,11 @@ export default function POSPage() {
           return;
         }
       } catch (e) { /* continue */ }
+    }
+
+    if (table.status === 'reserved') {
+      setReservedModal(table);
+      return;
     }
 
     setSelectedTable(tableId);
@@ -531,9 +592,8 @@ export default function POSPage() {
 
     try {
       let resultingOrderId = existingOrderId;
-      
+
       if (existingOrderId) {
-        // Adding to an existing open order
         await ordersApi.addItems(existingOrderId, { items, ...totals });
       } else {
         const localId = generateId();
@@ -553,10 +613,8 @@ export default function POSPage() {
           const res = await ordersApi.create(payload) as any;
           resultingOrderId = res?.id;
         } else {
-          const pending = JSON.parse(sessionStorage.getItem('pendingOrders') ?? '[]');
-          pending.push(payload);
-          sessionStorage.setItem('pendingOrders', JSON.stringify(pending));
-          setPendingSyncCount(pending.length);
+          syncEngine.saveLocalOrder(payload as any);
+          setPendingSyncCount(syncEngine.getPendingCount());
           resultingOrderId = localId;
         }
       }
@@ -564,12 +622,41 @@ export default function POSPage() {
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
 
-      resetOrder();
-      setOrderType('dine_in');
-      
+      const tableLabel = tables.find(t => t.id === selectedTable)?.label;
+      const orderForPayment: Order = {
+        id: resultingOrderId || generateId(),
+        restaurant_id: restaurantId || '',
+        table_id: selectedTable && selectedTable !== '__skip__' ? selectedTable : undefined,
+        table_label: tableLabel,
+        order_type: orderType,
+        status: 'new',
+        payment_status: 'pending',
+        subtotal,
+        tax_amount: taxAmount,
+        discount_amount: discount,
+        total,
+        customer_name: customerName || undefined,
+        order_items: items.map((it, idx) => ({
+          id: `item-${idx}`,
+          order_id: resultingOrderId || '',
+          menu_item_id: it.menu_item_id,
+          menu_item_name: it.menu_item_name,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          modifier_choices: it.modifier_choices,
+          status: 'pending',
+          notes: it.notes || undefined,
+          created_at: new Date().toISOString(),
+        })),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
       if (checkoutImmediately && resultingOrderId) {
-        navigate('/dashboard/checkout', { state: { orderId: resultingOrderId } });
+        setQuickPayOrder(orderForPayment);
       } else {
+        resetOrder();
+        setOrderType('dine_in');
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
       }
@@ -584,18 +671,16 @@ export default function POSPage() {
   // ── Parked tray ───────────────────────────────────────────────
   if (showParked) {
     return (
-      <div className="animate-fade-in pb-10">
+      <div className="animate-fade-in pb-10 max-w-2xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => setShowParked(false)}
-            className="p-2 hover:bg-surface-100 rounded-2xl transition-colors"
+            className="p-2 hover:bg-surface-100 rounded-2xl transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5 text-surface-600" />
           </button>
           <h2 className="font-display font-bold text-2xl text-surface-900">Parked Orders</h2>
-          <span className="bg-amber-100 text-amber-700 text-sm font-bold px-3 py-1 rounded-full">
-            {parkedOrders.length}
-          </span>
+          <Badge status="pending">{parkedOrders.length}</Badge>
         </div>
 
         {parkedOrders.length === 0 ? (
@@ -604,9 +689,9 @@ export default function POSPage() {
             <p className="font-bold text-surface-500">No parked orders</p>
           </div>
         ) : (
-          <div className="grid gap-4 max-w-2xl">
+          <div className="grid gap-4">
             {parkedOrders.map(p => (
-              <div key={p.id} className="card flex items-center gap-4">
+              <div key={p.id} className="card flex items-center gap-4 p-5">
                 <div className="flex-1">
                   <p className="font-bold text-surface-900">{p.label}</p>
                   <p className="text-sm text-surface-500">
@@ -614,18 +699,20 @@ export default function POSPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<PlayCircle className="w-4 h-4" />}
                     onClick={() => resumeParked(p)}
-                    className="btn-primary btn-sm gap-1"
                   >
-                    <PlayCircle className="w-4 h-4" /> Resume
-                  </button>
-                  <button
+                    Resume
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<Trash2 className="w-4 h-4 text-red-500" />}
                     onClick={() => deleteParked(p.id)}
-                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  />
                 </div>
               </div>
             ))}
@@ -639,11 +726,10 @@ export default function POSPage() {
   if (orderType === 'dine_in' && !selectedTable && !existingOrderId) {
     return (
       <>
-        {/* Parked badge */}
         {parkedOrders.length > 0 && (
           <button
             onClick={() => setShowParked(true)}
-            className="fixed top-4 right-4 z-40 flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-2xl shadow-lg hover:bg-amber-600 transition-colors font-bold text-sm"
+            className="fixed top-4 right-4 z-40 flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-2xl shadow-lg hover:bg-amber-600 transition-colors font-bold text-sm cursor-pointer"
           >
             <PauseCircle className="w-4 h-4" />
             {parkedOrders.length} Parked
@@ -695,26 +781,25 @@ export default function POSPage() {
         <div className="flex-1 flex flex-col min-w-0 pr-2">
           {/* Search bar + connection + parked */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-400" />
-              <input
-                className="input pl-11 shadow-sm text-base py-3.5"
-                placeholder="Search menu…"
+            <div className="flex-1">
+              <Input
+                icon={<Search className="w-4 h-4" />}
+                placeholder={t('pos.search_placeholder', 'Search menu items…')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
             {parkedOrders.length > 0 && (
-              <button
+              <Button
+                variant="secondary"
+                icon={<PauseCircle className="w-4 h-4 text-amber-500" />}
                 onClick={() => setShowParked(true)}
-                className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2.5 rounded-2xl shadow-sm font-bold text-sm hover:bg-amber-600 transition-colors"
               >
-                <PauseCircle className="w-4 h-4" />
-                {parkedOrders.length}
-              </button>
+                {parkedOrders.length} Parked
+              </Button>
             )}
             <div className={cn(
-              'flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold shadow-sm flex-shrink-0',
+              'flex items-center gap-2 px-3.5 py-2.5 rounded-2xl text-xs font-bold shadow-xs flex-shrink-0',
               isOnline
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
                 : 'bg-red-50 text-red-700 border border-red-100'
@@ -726,14 +811,14 @@ export default function POSPage() {
 
           {/* Category tabs */}
           <div className="flex gap-2.5 overflow-x-auto scrollbar-hide mb-5 pb-2">
-            {[{ id: 'all', name: 'All' }, ...categories].map(cat => (
+            {[{ id: 'all', name: t('pos.all_categories', 'All') }, ...categories].map(cat => (
               <button
                 key={cat.id}
                 className={cn(
-                  'flex-shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all duration-300',
+                  'flex-shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 cursor-pointer',
                   selectedCategory === cat.id
                     ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 -translate-y-0.5'
-                    : 'bg-white text-surface-600 hover:bg-surface-50 border border-surface-200/50'
+                    : 'bg-[var(--card-bg)] text-surface-600 hover:bg-surface-50 border border-surface-200/50'
                 )}
                 onClick={() => setSelectedCategory(cat.id)}
               >
@@ -746,48 +831,35 @@ export default function POSPage() {
           <div className="flex-1 overflow-y-auto pb-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filtered.map(item => {
-                const unavailable = !item.is_available;
                 return (
                   <button
                     key={item.id}
-                    className={cn(
-                      'group rounded-[2rem] border p-3 text-left transition-all duration-300 flex flex-col',
-                      unavailable
-                        ? 'bg-surface-100 border-surface-200 opacity-50 cursor-not-allowed'
-                        : 'bg-white/80 backdrop-blur-sm border-white/50 hover:border-brand-300 shadow-sm hover:shadow-card-hover hover:-translate-y-1 active:scale-[0.98] cursor-pointer'
-                    )}
+                    className="group rounded-[2rem] border p-3.5 text-left transition-all duration-300 flex flex-col bg-[var(--card-bg)] border-surface-200 hover:border-brand-500 shadow-card hover:shadow-card-hover hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                     onClick={() => handleItemTap(item)}
-                    disabled={unavailable}
                   >
                     {item.image_url ? (
-                      <div className="w-full h-28 rounded-[1.5rem] overflow-hidden mb-3 shadow-sm">
+                      <div className="w-full h-32 rounded-[1.5rem] overflow-hidden mb-3 shadow-xs">
                         <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                     ) : (
-                      <div className={cn(
-                        'w-full h-28 rounded-[1.5rem] mb-3 flex items-center justify-center border',
-                        unavailable ? 'bg-surface-200 border-surface-300' : 'bg-gradient-to-br from-brand-50 to-surface-50 border-brand-100/50'
-                      )}>
-                        <span className={cn('text-4xl transition-transform duration-300', !unavailable && 'group-hover:scale-110 drop-shadow-sm')}>
-                          {unavailable ? '🚫' : '🍽️'}
+                      <div className="w-full h-32 rounded-[1.5rem] mb-3 flex items-center justify-center border bg-gradient-to-br from-brand-50 to-surface-100 border-brand-100/50">
+                        <span className="text-4xl transition-transform duration-300 group-hover:scale-110 drop-shadow-sm">
+                          🍽️
                         </span>
                       </div>
                     )}
                     <div className="px-1 flex-1 flex flex-col">
-                      <p className="font-bold text-surface-900 text-sm leading-tight mb-1 line-clamp-2">{item.name}</p>
-                      <div className="flex items-center justify-between mt-auto">
-                        <p className="font-extrabold text-brand-600 text-base tracking-tight">
+                      <p className="font-bold text-surface-900 text-sm leading-tight mb-1.5 line-clamp-2">{item.name}</p>
+                      <div className="flex items-center justify-between mt-auto pt-1">
+                        <p className="font-extrabold text-brand-700 text-base tracking-tight font-mono">
                           {formatCurrency(item.price)}
                         </p>
-                        {(item.menu_modifiers ?? []).length > 0 && !unavailable && (
-                          <span className="text-xs bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full font-semibold">
-                            Options
-                          </span>
-                        )}
-                        {unavailable && (
-                          <span className="text-xs bg-red-50 text-red-500 px-2 py-0.5 rounded-full font-semibold">
-                            86'd
-                          </span>
+                        {(item.menu_modifiers ?? []).length > 0 ? (
+                          <Badge color="gold" className="text-[10px]">Custom</Badge>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center font-bold text-xs group-hover:bg-brand-500 group-hover:text-white transition-colors">
+                            <Plus className="w-3.5 h-3.5" />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -801,7 +873,7 @@ export default function POSPage() {
         {/* ── Cart Panel ─────────────────────────────────────────── */}
         <div className="w-96 flex flex-col glass-panel flex-shrink-0 ml-auto h-[calc(100vh-100px)] overflow-hidden -mt-4">
           {/* Cart Header */}
-          <div className="p-4 border-b border-surface-200/50 bg-white/40 flex-shrink-0">
+          <div className="p-4 border-b border-surface-200/50 bg-[var(--card-bg)] flex-shrink-0">
             {/* Order context pill */}
             <div className="flex items-center gap-2 mb-3">
               <div className="flex-1 bg-surface-100 rounded-2xl px-4 py-2.5 flex items-center gap-2">
@@ -812,10 +884,10 @@ export default function POSPage() {
                       Table {tables.find(t => t.id === selectedTable)?.label ?? '—'}
                     </span>
                     {existingOrderId && (
-                      <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Adding</span>
+                      <Badge status="pending">Adding</Badge>
                     )}
                     <button
-                      className="ml-auto text-xs text-brand-600 font-semibold hover:underline"
+                      className="ml-auto text-xs text-brand-600 font-semibold hover:underline cursor-pointer"
                       onClick={resetOrder}
                     >
                       Change
@@ -824,13 +896,13 @@ export default function POSPage() {
                 ) : orderType !== 'dine_in' ? (
                   <>
                     <span className="text-sm font-bold text-surface-800 capitalize">{orderType}</span>
-                    <button className="ml-auto text-xs text-brand-600 font-semibold hover:underline" onClick={resetOrder}>Change</button>
+                    <button className="ml-auto text-xs text-brand-600 font-semibold hover:underline cursor-pointer" onClick={resetOrder}>Change</button>
                   </>
                 ) : null}
               </div>
               <button
                 onClick={clearOrder}
-                className="p-2 text-surface-400 hover:text-red-600 transition-colors hover:bg-red-50 rounded-xl"
+                className="p-2 text-surface-400 hover:text-red-600 transition-colors hover:bg-red-50 rounded-xl cursor-pointer"
                 title="Clear order"
               >
                 <Trash2 className="w-5 h-5" />
@@ -839,8 +911,7 @@ export default function POSPage() {
 
             {/* Customer name for takeaway/delivery */}
             {(orderType === 'takeaway' || orderType === 'delivery') && (
-              <input
-                className="input text-sm"
+              <Input
                 placeholder="Customer name (optional)"
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
@@ -852,15 +923,15 @@ export default function POSPage() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface-50/30">
             {cart.length === 0 ? (
               <div className="text-center py-14">
-                <div className="w-20 h-20 bg-white shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-surface-100">
+                <div className="w-20 h-20 bg-[var(--card-bg)] shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-surface-100">
                   <ShoppingCart className="w-10 h-10 text-surface-300" />
                 </div>
-                <p className="text-surface-900 font-bold text-lg tracking-tight">Cart is empty</p>
-                <p className="text-surface-400 text-sm mt-1">Tap items to add them</p>
+                <p className="text-surface-900 font-bold text-lg tracking-tight">{t('pos.empty_cart', 'Cart is empty')}</p>
+                <p className="text-surface-400 text-sm mt-1">{t('pos.empty_cart_sub', 'Tap items to add them')}</p>
               </div>
             ) : (
               cart.map((item, i) => (
-                <div key={i} className="bg-white rounded-[1.25rem] shadow-sm border border-surface-100/50 overflow-hidden">
+                <div key={i} className="bg-[var(--card-bg)] rounded-[1.25rem] shadow-sm border border-surface-100/50 overflow-hidden">
                   <div className="flex items-start gap-3 p-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-surface-900 leading-tight truncate">{item.menuItem.name}</p>
@@ -875,23 +946,23 @@ export default function POSPage() {
                     </div>
                     <div className="flex items-center gap-1.5 bg-surface-50 p-1 rounded-full border border-surface-200/50">
                       <button
-                        className="w-6 h-6 rounded-full bg-white flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm"
+                        className="w-6 h-6 rounded-full bg-[var(--card-bg)] flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm cursor-pointer"
                         onClick={() => updateQuantity(i, -1)}
                       >
                         <Minus className="w-3 h-3" />
                       </button>
                       <span className="text-sm font-extrabold w-5 text-center text-surface-900">{item.quantity}</span>
                       <button
-                        className="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-colors shadow-sm"
+                        className="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-colors shadow-sm cursor-pointer"
                         onClick={() => updateQuantity(i, 1)}
                       >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <p className="text-sm font-extrabold text-surface-900 w-16 text-right">{formatCurrency(item.lineTotal)}</p>
+                      <p className="text-sm font-extrabold text-surface-900 w-16 text-right font-mono">{formatCurrency(item.lineTotal)}</p>
                       <button
-                        className="p-1 text-surface-300 hover:text-amber-500 transition-colors rounded-lg"
+                        className="p-1 text-surface-300 hover:text-amber-500 transition-colors rounded-lg cursor-pointer"
                         onClick={() => setEditingNoteIdx(editingNoteIdx === i ? null : i)}
                         title="Add note"
                       >
@@ -920,76 +991,143 @@ export default function POSPage() {
 
           {/* Totals + Actions */}
           {cart.length > 0 && (
-            <div className="p-4 border-t border-surface-200/50 bg-white/60 space-y-2.5 flex-shrink-0 rounded-b-3xl">
+            <div className="p-4 border-t border-surface-200/50 bg-[var(--card-bg)] space-y-2.5 flex-shrink-0 rounded-b-3xl">
               <div className="flex justify-between text-sm font-medium text-surface-500">
-                <span>Subtotal</span>
-                <span className="text-surface-700">{formatCurrency(subtotal)}</span>
+                <span>{t('pos.subtotal', 'Subtotal')}</span>
+                <span className="text-surface-700 font-mono">{formatCurrency(subtotal)}</span>
               </div>
               {taxRate > 0 && (
                 <div className="flex justify-between text-sm font-medium text-surface-500">
-                  <span>Tax ({taxRate}%)</span>
-                  <span className="text-surface-700">{formatCurrency(taxAmount)}</span>
+                  <span>{t('pos.tax', 'Tax')} ({taxRate}%)</span>
+                  <span className="text-surface-700 font-mono">{formatCurrency(taxAmount)}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm font-medium text-surface-500">
                 <Tag className="w-3.5 h-3.5" />
-                <span>Discount</span>
+                <span>{t('pos.discount', 'Discount')}</span>
                 <input
                   type="number"
-                  className="input py-1 text-sm h-8 w-20 ml-auto text-right font-bold text-surface-900 shadow-sm"
+                  className="input py-1 text-sm h-8 w-20 ml-auto text-right font-bold font-mono text-surface-900 shadow-sm"
                   value={discount || ''}
                   placeholder="0"
                   onChange={e => setDiscount(Number(e.target.value) || 0)}
                 />
               </div>
               <div className="flex justify-between font-extrabold text-surface-900 border-t border-surface-200/50 pt-2.5 mb-1">
-                <span className="text-lg">Total</span>
-                <span className="text-brand-600 text-2xl tracking-tight">{formatCurrency(total)}</span>
+                <span className="text-lg">{t('pos.total', 'Total')}</span>
+                <span className="text-brand-600 text-2xl tracking-tight font-mono">{formatCurrency(total)}</span>
               </div>
 
               {/* Hold + Place Order */}
               <div className="flex flex-col gap-2 pt-1">
                 <div className="flex gap-2">
-                  <button
+                  <Button
+                    variant="secondary"
+                    icon={<PauseCircle className="w-4 h-4" />}
                     onClick={holdOrder}
-                    className="btn-secondary gap-1.5 flex-shrink-0 px-3"
                     title="Park order for later"
                   >
-                    <PauseCircle className="w-4 h-4" />
                     Hold
-                  </button>
-                  <button
-                    className="btn-primary flex-1 justify-center gap-2 text-sm shadow-glow shadow-brand-500/40 relative overflow-hidden group"
-                    disabled={submitting}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    loading={submitting}
+                    icon={success ? <Check className="w-4 h-4" /> : existingOrderId ? <Plus className="w-4 h-4" /> : <ChefHat className="w-4 h-4" />}
                     onClick={() => placeOrder(false)}
                     id="place-order-btn"
                   >
-                    <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-500 -translate-x-full skew-x-12" />
-                    {submitting ? (
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : success ? (
-                      <><Check className="w-4 h-4" /> Sent!</>
-                    ) : existingOrderId ? (
-                      <><Plus className="w-4 h-4" /> Add to Order</>
-                    ) : (
-                      <><ChefHat className="w-4 h-4" /> Send to Kitchen {!isOnline && '(Offline)'}</>
-                    )}
-                  </button>
+                    {success ? 'Sent!' : existingOrderId ? 'Add to Order' : `Send to Kitchen ${!isOnline ? '(Offline)' : ''}`}
+                  </Button>
                 </div>
-                
-                <button
-                  className="w-full bg-surface-900 hover:bg-black text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                  disabled={submitting}
-                  onClick={() => placeOrder(true)}
-                >
-                  <Banknote className="w-5 h-5 text-emerald-400" />
-                  Pay Now / Checkout
-                </button>
+
+                {user?.staffRole === 'waiter' ? (
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    className="bg-surface-900 hover:bg-black text-white"
+                    icon={<Receipt className="w-4 h-4 text-white" />}
+                    loading={submitting}
+                    onClick={() => {
+                      alert('Bill requested (Cashier notified)');
+                    }}
+                  >
+                    Request Bill
+                  </Button>
+                ) : (
+                  <Button
+                    variant="primary"
+                    fullWidth
+                    className="bg-surface-900 hover:bg-black text-white"
+                    icon={<Banknote className="w-4 h-4 text-emerald-400" />}
+                    loading={submitting}
+                    onClick={() => placeOrder(true)}
+                  >
+                    Pay Now / Settle Bill
+                  </Button>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Quick Ethiopian Payment Modal ──────────────────────── */}
+      {quickPayOrder && (
+        <QuickPaymentModal
+          order={quickPayOrder}
+          restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
+          restaurantPhone={(user?.restaurant as any)?.phone ?? '+251 91 123 4567'}
+          onSuccess={(paidOrder, details) => {
+            setQuickPayOrder(null);
+            setReceiptData({
+              order: paidOrder,
+              tip: details.tip,
+              method: details.method,
+              tendered: details.tendered,
+              change: details.change,
+            });
+            resetOrder();
+            setOrderType('dine_in');
+          }}
+          onClose={() => setQuickPayOrder(null)}
+        />
+      )}
+
+      {/* ── Branded Thermal Receipt Modal ──────────────────────── */}
+      {receiptData && (
+        <ThermalReceipt
+          order={receiptData.order}
+          tipAmount={receiptData.tip}
+          paymentMethod={receiptData.method}
+          amountTendered={receiptData.tendered}
+          change={receiptData.change}
+          restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
+          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          taxId={(user?.restaurant as any)?.tax_id}
+          address={(user?.restaurant as any)?.address}
+          phone={(user?.restaurant as any)?.phone}
+          receiptHeader={(user?.restaurant as any)?.receipt_header}
+          receiptFooter={(user?.restaurant as any)?.receipt_footer}
+          showTaxBreakdown={(user?.restaurant as any)?.receipt_show_tax_breakdown ?? true}
+          showLogo={(user?.restaurant as any)?.receipt_show_logo ?? true}
+          onClose={() => {
+            setReceiptData(null);
+            resetOrder();
+          }}
+        />
+      )}
+      {reservedModal && (
+        <ReservedTableModal
+          table={reservedModal}
+          onProceed={() => {
+            setExistingOrderId(null);
+            setSelectedTable(reservedModal.id);
+            setReservedModal(null);
+          }}
+          onClose={() => setReservedModal(null)}
+        />
+      )}
     </>
   );
 }

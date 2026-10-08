@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NetworkProvider } from './contexts/NetworkContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute, TenantRoute } from './components/ProtectedRoute';
 import { SyncStatusBanner } from './components/SyncStatusBanner';
+import { ToastProvider }    from './components/ui/Toast';
 
 // Lazy loaded pages
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
@@ -37,6 +39,7 @@ const OrdersPage       = lazy(() => import('./pages/tenant/OrdersPage'));
 const CheckoutPage     = lazy(() => import('./pages/tenant/CheckoutPage'));
 const KitchenPage      = lazy(() => import('./pages/tenant/KitchenPage'));
 const TablesPage       = lazy(() => import('./pages/tenant/TablesPage'));
+const ReservationsPage = lazy(() => import('./pages/tenant/ReservationsPage'));
 const MenuPage         = lazy(() => import('./pages/tenant/MenuPage'));
 const StaffPage        = lazy(() => import('./pages/tenant/StaffPage'));
 const InventoryPage    = lazy(() => import('./pages/tenant/InventoryPage'));
@@ -56,6 +59,8 @@ const queryClient = new QueryClient({
   },
 });
 
+import { applyTheme } from './lib/utils';
+
 function PageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -71,8 +76,7 @@ function AppRoutes() {
   const backgroundColor = user?.restaurant?.background_color;
 
   React.useEffect(() => {
-    document.documentElement.style.setProperty('--brand-500', String(themeColor || '#f97316'));
-    document.documentElement.style.setProperty('--background-color', String(backgroundColor || '#f1f5f9'));
+    applyTheme(themeColor as string | undefined, backgroundColor as string | undefined);
   }, [themeColor, backgroundColor]);
 
   if (loading) return <PageLoader />;
@@ -140,6 +144,7 @@ function AppRoutes() {
           <Route path="orders"    element={<TenantRoute allowedRoles={['owner', 'manager', 'waiter']}><OrdersPage /></TenantRoute>} />
           <Route path="kitchen"   element={<TenantRoute allowedRoles={['owner', 'manager', 'kitchen']}><KitchenPage /></TenantRoute>} />
           <Route path="tables"    element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier', 'waiter']}><TablesPage /></TenantRoute>} />
+          <Route path="reservations" element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><ReservationsPage /></TenantRoute>} />
           <Route path="menu"      element={<TenantRoute allowedRoles={['owner', 'manager']}><MenuPage /></TenantRoute>} />
           <Route path="staff"     element={<TenantRoute allowedRoles={['owner', 'manager']}><StaffPage /></TenantRoute>} />
           <Route path="inventory" element={<TenantRoute allowedRoles={['owner', 'manager']}><InventoryPage /></TenantRoute>} />
@@ -161,12 +166,17 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NetworkProvider>
-          <BrowserRouter>
-            <AppRoutes />
-            <SyncStatusBanner />
-          </BrowserRouter>
+          <LanguageProvider>
+            <ToastProvider>
+              <BrowserRouter>
+                <AppRoutes />
+                <SyncStatusBanner />
+              </BrowserRouter>
+            </ToastProvider>
+          </LanguageProvider>
         </NetworkProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
 }
+

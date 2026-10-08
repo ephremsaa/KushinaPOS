@@ -107,7 +107,7 @@ router.get('/proofs', async (req, res) => {
 // ── POST /api/billing/proofs ──────────────────────────────────
 router.post('/proofs', requireOwner, upload.single('screenshot'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Screenshot image is required' });
-  const { amount, payment_method = 'telebirr', note, subscription_id } = req.body;
+  const { amount, payment_method = 'telebirr', note, subscription_id, reference_number } = req.body;
   if (!amount) return res.status(400).json({ error: 'amount required' });
 
   const screenshotUrl = `/uploads/payment-proofs/${req.file.filename}`;
@@ -121,9 +121,9 @@ router.post('/proofs', requireOwner, upload.single('screenshot'), async (req, re
 
     const { rows } = await db.query(
       `INSERT INTO payment_proofs
-         (restaurant_id, subscription_id, amount, currency, payment_method, screenshot_url, note, status)
-       VALUES ($1,$2,$3,'ETB',$4,$5,$6,'pending') RETURNING *`,
-      [tid(req), subId, amount, payment_method, screenshotUrl, note || null]
+         (restaurant_id, subscription_id, amount, currency, payment_method, reference_number, screenshot_url, note, status)
+       VALUES ($1,$2,$3,'ETB',$4,$5,$6,$7,'pending') RETURNING *`,
+      [tid(req), subId, amount, payment_method, reference_number || null, screenshotUrl, note || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) {

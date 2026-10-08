@@ -1,64 +1,100 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, ChefHat, Mail } from 'lucide-react';
+import { Clock, ChefHat, Mail, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { Button, Card } from '../components/ui';
+
+const STEPS = [
+  { label: 'Application submitted',         done: true },
+  { label: 'Our team reviews your details', done: false, active: true },
+  { label: 'Approval email sent to you',    done: false },
+  { label: 'Choose your plan and go live',  done: false },
+];
 
 export default function PendingPage() {
   const { user, signOut } = useAuth();
 
+  const submittedAt = (user as any)?.restaurant?.created_at;
+  const submittedDate = submittedAt
+    ? new Date(submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md text-center">
-        <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-surface-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg text-center animate-fade-in">
+
+        {/* Brand mark */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-glow-sm">
+            <ChefHat className="w-5 h-5 text-white" />
+          </div>
+          <span className="font-display font-black text-xl text-surface-900 tracking-tight">
+            kushina<span className="text-brand-500">POS</span>
+          </span>
+        </div>
+
+        {/* Status icon */}
+        <div className="w-20 h-20 bg-amber-100 border-4 border-amber-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-glow-amber">
           <Clock className="w-10 h-10 text-amber-600" />
         </div>
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <ChefHat className="w-5 h-5 text-brand-500" />
-          <span className="font-display font-bold text-brand-600">kushinaPOS</span>
-        </div>
-        <h1 className="font-display font-bold text-2xl text-surface-900 mb-3">
-          Application under review
+
+        <h1 className="font-display font-black text-2xl text-surface-900 mb-3">
+          Application Under Review
         </h1>
-        <p className="text-surface-500 mb-2">
+        <p className="text-surface-500 mb-1 max-w-sm mx-auto leading-relaxed">
           Thank you for registering! Our team is reviewing your restaurant application.
-          This usually takes <strong>1–2 business days</strong>.
         </p>
-        <p className="text-surface-500 mb-8">
-          We'll send a confirmation email to{' '}
+        <p className="text-surface-500 mb-6 text-sm max-w-sm mx-auto">
+          We'll email{' '}
           <span className="font-semibold text-surface-700">{user?.email}</span>{' '}
-          once your account is approved.
+          once you're approved.
+          {submittedDate && (
+            <span className="text-surface-400"> (Submitted {submittedDate} — typically 1–2 business days.)</span>
+          )}
         </p>
 
-        <div className="card mb-6 text-left">
-          <h3 className="font-semibold text-surface-900 mb-3 text-sm">What happens next?</h3>
-          <ol className="space-y-2.5">
-            {[
-              'Our team reviews your business details and documents',
-              'You receive an approval email',
-              'Select your subscription plan',
-              'Start managing your restaurant!',
-            ].map((step, i) => (
-              <li key={i} className="flex items-start gap-3 text-sm text-surface-600">
-                <span className="w-5 h-5 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {i + 1}
+        {/* Progress steps */}
+        <Card className="mb-6 text-left p-5">
+          <h3 className="font-bold text-surface-900 text-sm mb-4">What happens next</h3>
+          <ol className="space-y-3">
+            {STEPS.map((step, i) => (
+              <li key={i} className="flex items-center gap-3 text-sm">
+                <div className={[
+                  'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black',
+                  step.done
+                    ? 'bg-emerald-500 text-white'
+                    : step.active
+                    ? 'bg-amber-100 border-2 border-amber-400 text-amber-700'
+                    : 'bg-surface-100 border-2 border-surface-200 text-surface-400',
+                ].join(' ')}>
+                  {step.done ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}
+                </div>
+                <span className={step.done ? 'line-through text-surface-400' : step.active ? 'text-amber-700 font-semibold' : 'text-surface-500'}>
+                  {step.label}
                 </span>
-                {step}
+                {step.active && (
+                  <span className="ml-auto text-[10px] font-black uppercase tracking-wider text-amber-600 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full">
+                    In Progress
+                  </span>
+                )}
               </li>
             ))}
           </ol>
-        </div>
+        </Card>
 
         <div className="flex gap-3">
-          <a
+          <Button
+            variant="secondary"
+            fullWidth
+            icon={<Mail className="w-4 h-4" />}
+            as="a"
             href="mailto:support@kushina.pos"
-            className="btn-secondary flex-1 gap-2"
           >
-            <Mail className="w-4 h-4" />
-            Contact support
-          </a>
-          <button onClick={signOut} className="btn-ghost flex-1">
-            Sign out
-          </button>
+            Contact Support
+          </Button>
+          <Button variant="ghost" fullWidth onClick={signOut}>
+            Sign Out
+          </Button>
         </div>
       </div>
     </div>

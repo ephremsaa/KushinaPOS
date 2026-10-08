@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersApi } from '../../lib/api';
-import { formatCurrency, cn } from '../../lib/utils';
+import { formatCurrency } from '../../lib/utils';
 import type { Order } from '../../types';
-import { Receipt, Search, Clock, Hash, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Receipt, Search, Clock, Printer, AlertTriangle, CheckCircle } from 'lucide-react';
+import { DataTable, Badge, Input, Button } from '../../components/ui';
+import type { DataTableColumn } from '../../components/ui';
+import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function BillHistoryPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [reprintOrder, setReprintOrder] = useState<Order | null>(null);
+  const queryClient = useQueryClient();
+
+  const confirmMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.confirmPayment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders-history'] });
+    },
+    onError: () => alert('Failed to confirm payment'),
+  });
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['orders-history'],
@@ -14,121 +29,175 @@ export default function BillHistoryPage() {
       const data = await ordersApi.history();
       return data as Order[];
     },
+    refetchInterval: 10000,
   });
 
-  const filtered = orders.filter(o => 
-    o.id.toLowerCase().includes(search.toLowerCase()) || 
+  const filtered = orders.filter(o =>
+    o.id.toLowerCase().includes(search.toLowerCase()) ||
     (o.table_label && o.table_label.toLowerCase().includes(search.toLowerCase())) ||
-    (o.customer_name && o.customer_name.toLowerCase().includes(search.toLowerCase()))
+    (o.customer_name && o.customer_name.toLowerCase().includes(search.toLowerCase())) ||
+    (o.payment_reference && o.payment_reference.toLowerCase().includes(search.toLowerCase()))
   );
+
+  const columns: DataTableColumn<Order>[] = [
+    {
+      key: 'id',
+      label: 'Order',
+      sortable: true,
+      render: (_v, row) => (
+        <div>
+          <p className="font-mono font-bold text-surface-900 text-sm">
+            #{row.id.split('-')[0].toUpperCase()}
+          </p>
+          {(row.table_label || row.customer_name) && (
+            <p className="text-xs text-surface-500 mt-0.5">
+              {row.table_label ? `Table ${row.table_label}` : row.customer_name}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'Time',
+      sortable: true,
+      render: (_v, row) => (
+        <div className="flex items-center gap-1.5 text-sm text-surface-600">
+          <Clock className="w-3.5 h-3.5 text-surface-400" />
+          {new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      ),
+    },
+    {
+      key: 'total',
+      label: 'Total',
+      sortable: true,
+      render: (_v, row) => (
+        <span className="font-mono font-bold text-surface-900 text-sm">
+          {formatCurrency(row.total)}
+        </span>
+      ),
+    },
+    {
+      key: 'payment_method',
+      label: 'Method',
+      render: (_v, row) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="capitalize text-xs font-semibold px-2.5 py-1 bg-surface-100 text-surface-700 rounded-xl inline-block w-fit">
+            {row.payment_method?.replace('_', ' ') || 'Unknown'}
+          </span>
+          {row.payment_reference && (
+            <span className="text-[10px] text-surface-500 font-mono pl-1">
+              Ref: {row.payment_reference}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (_v, row) => (
+        row.status === 'cancelled' ? (
+          <Badge status="cancelled" dot>Voided</Badge>
+        ) : (
+          <div className="flex flex-col gap-1">
+            <Badge status="served" dot><CheckCircle className="w-3 h-3 inline mr-1" />Paid</Badge>
+            {row.is_payment_confirmed === false && (
+              <span className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Unconfirmed
+              </span>
+            )}
+          </div>
+        )
+      ),
+    },
+    {
+      key: 'id' as keyof Order,
+      label: '',
+      align: 'right',
+      render: (_v, row) => (
+        <div className="flex justify-end gap-2">
+          {row.is_payment_confirmed === false && row.status !== 'cancelled' && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<CheckCircle className="w-3.5 h-3.5" />}
+              onClick={() => confirmMutation.mutate(row.id)}
+              disabled={confirmMutation.isPending}
+            >
+              Confirm
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Printer className="w-3.5 h-3.5" />}
+            onClick={() => setReprintOrder(row)}
+          >
+            Reprint
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
-      <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm flex-wrap gap-4">
-        <div className="flex-1 min-w-[200px]">
-          <h1 className="page-title flex items-center gap-2">
+      {/* Page header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">
             <Receipt className="w-6 h-6 text-brand-500" />
             Bill History
           </h1>
           <p className="page-subtitle">View and reprint past orders from your shift.</p>
         </div>
-        
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
-          <input 
-            className="input pl-10 w-full bg-white/60" 
-            placeholder="Search order # or table..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
+        <div className="w-full md:w-64">
+          <Input
+            placeholder="Search order # or table…"
+            icon={<Search className="w-4 h-4" />}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] shadow-sm border border-surface-100 overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-surface-400">Loading history...</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center">
-            <Receipt className="w-12 h-12 text-surface-300 mb-3" />
-            <p className="font-bold text-surface-700">No bills found</p>
-            <p className="text-sm text-surface-500 mt-1">You haven't completed any orders yet today.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-50 border-b border-surface-100 text-xs uppercase tracking-wider text-surface-500 font-bold">
-                  <th className="p-4 pl-6">Order</th>
-                  <th className="p-4">Time</th>
-                  <th className="p-4">Total</th>
-                  <th className="p-4">Method</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 pr-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-50">
-                {filtered.map(order => (
-                  <tr key={order.id} className="hover:bg-surface-50/50 transition-colors">
-                    <td className="p-4 pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-surface-100 flex items-center justify-center text-surface-500 flex-shrink-0">
-                          <Hash className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-surface-900 text-sm">
-                            {order.id.split('-')[0].toUpperCase()}
-                          </p>
-                          {(order.table_label || order.customer_name) && (
-                            <p className="text-xs text-surface-500">
-                              {order.table_label ? `Table ${order.table_label}` : order.customer_name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-4 text-sm text-surface-600">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-surface-400" />
-                        {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="p-4 font-mono font-bold text-surface-900 text-sm">
-                      {formatCurrency(order.total)}
-                    </td>
-                    <td className="p-4">
-                      <span className="capitalize text-xs font-semibold px-2 py-1 bg-surface-100 text-surface-700 rounded-lg">
-                        {order.payment_method || 'Unknown'}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      {order.status === 'cancelled' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-700 rounded-lg text-xs font-bold">
-                          <AlertTriangle className="w-3 h-3" /> Voided
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold">
-                          <CheckCircle className="w-3 h-3" /> Paid
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4 pr-6 text-right">
-                      {/* Using window.print in a real app would be complex here, 
-                          but typically this triggers a reprint to the ESC/POS printer.
-                          For now we just alert. */}
-                      <button 
-                        className="btn-secondary text-xs px-3 py-1.5"
-                        onClick={() => alert(`Reprinting receipt for ${order.id.split('-')[0].toUpperCase()}`)}
-                      >
-                        Reprint
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={filtered}
+        loading={isLoading}
+        keyField="id"
+        emptyIcon={<Receipt className="w-8 h-8" />}
+        emptyTitle="No bills found"
+        emptyDescription={
+          search
+            ? `No bills match "${search}". Try a different order # or table.`
+            : "You haven't completed any orders yet today."
+        }
+        skeletonRows={6}
+      />
+
+      {reprintOrder && (
+        <ThermalReceipt
+          order={reprintOrder}
+          tipAmount={0}
+          paymentMethod={reprintOrder.payment_method || 'cash'}
+          amountTendered={reprintOrder.total}
+          change={0}
+          restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
+          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          taxId={(user?.restaurant as any)?.tax_id}
+          address={(user?.restaurant as any)?.address}
+          phone={(user?.restaurant as any)?.phone}
+          receiptHeader={(user?.restaurant as any)?.receipt_header}
+          receiptFooter={(user?.restaurant as any)?.receipt_footer}
+          showTaxBreakdown={(user?.restaurant as any)?.receipt_show_tax_breakdown ?? true}
+          showLogo={(user?.restaurant as any)?.receipt_show_logo ?? true}
+          onClose={() => setReprintOrder(null)}
+        />
+      )}
     </div>
   );
 }

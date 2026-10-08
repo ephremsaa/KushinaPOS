@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KushinaPOS</string>
+    <string name="title_activity_main">KushinaPOS</string>
+    <string name="package_name">com.kushina.pos</string>
+    <string name="custom_url_scheme">com.kushina.pos</string>
+</resources>

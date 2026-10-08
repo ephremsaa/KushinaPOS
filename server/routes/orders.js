@@ -57,8 +57,11 @@ router.get('/', async (req, res) => {
       params.push(order_type);
     }
 
-    // Staff filter
-    if (staff_id) {
+    // Staff filter (Waiters can ONLY see their own orders unless specifically requested, but we enforce it here)
+    if (req.user.staffRole === 'waiter') {
+      query += ` AND o.staff_id = $${params.length + 1}`;
+      params.push(req.user.staffId);
+    } else if (staff_id) {
       query += ` AND o.staff_id = $${params.length + 1}`;
       params.push(staff_id);
     }
@@ -118,14 +121,21 @@ router.get('/history', async (req, res) => {
       LEFT JOIN staff s ON s.id = o.staff_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
       WHERE o.restaurant_id = $1 
-        AND o.staff_id = $2
         AND o.status IN ('served', 'cancelled')
         AND o.payment_status IN ('paid', 'refunded')
     `;
-    const params = [tid(req), req.user.userId || req.user.id];
+    const params = [tid(req)];
     
+    // Only filter by staff_id for cashiers and waiters so they only see their own bills
+    if (req.user.role === 'staff' && ['cashier', 'waiter'].includes(req.user.staffRole)) {
+      query += ` AND o.staff_id = $2`;
+      params.push(req.user.userId || req.user.id);
+    }
+
+    // Now index 3 (or 2) depends on whether staff_id was pushed, so let's track param index
+    let pi = params.length + 1;
     if (date_from) {
-      query += ` AND o.created_at >= $3`;
+      query += ` AND o.created_at >= $${pi++}`;
       params.push(date_from);
     } else {
       // Default to today if no active till session
@@ -365,8 +375,8 @@ router.patch('/:id/status', async (req, res) => {
 
 // ── PATCH /api/orders/:id/pay ────────────────────────────────
 router.patch('/:id/pay', async (req, res) => {
-  const { payment_method, tip_amount = 0, amount_tendered = null, table_next_status = 'available' } = req.body;
-  if (!['cash', 'card', 'telebirr', 'other'].includes(payment_method)) {
+  const { payment_method, tip_amount = 0, amount_tendered = null, table_next_status = 'available', payment_reference } = req.body;
+  if (!['cash', 'card', 'telebirr', 'cbe_birr', 'bank_transfer', 'other'].includes(payment_method)) {
     return res.status(400).json({ error: 'Invalid payment method' });
   }
 
@@ -374,20 +384,21 @@ router.patch('/:id/pay', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Update order with payment info including tip
-    // Note: amount_tendered column might not exist, but let's assume it does or we just ignore storing it if it errors. Actually it's better to verify. Let's omit amount_tendered if it fails, wait we can just add till_session_id.
-    
     // First find active till session for this cashier
     let tillSessionId = null;
-    if (payment_method === 'cash') {
-      const { rows: sessionRows } = await client.query(
-        `SELECT id FROM cash_drawer_sessions WHERE restaurant_id=$1 AND staff_id=$2 AND status='open' LIMIT 1`,
-        [tid(req), req.user.userId || req.user.id]
-      );
-      if (sessionRows.length > 0) {
-        tillSessionId = sessionRows[0].id;
-      }
+    const { rows: sessionRows } = await client.query(
+      `SELECT id FROM cash_drawer_sessions WHERE restaurant_id=$1 AND staff_id=$2 AND status='open' LIMIT 1`,
+      [tid(req), req.user.userId || req.user.id]
+    );
+    if (sessionRows.length > 0) {
+      tillSessionId = sessionRows[0].id;
     }
+
+    // Determine if payment is confirmed. Mobile money/bank transfer defaults to false unless explicitly confirmed later.
+    // Wait, the prompt says "Mark mobile-money payments as 'pending confirmation' until staff confirm receipt".
+    // For now, at checkout, they are unconfirmed.
+    const isMobileMoney = ['telebirr', 'cbe_birr', 'bank_transfer'].includes(payment_method);
+    const isConfirmed = !isMobileMoney;
 
     const { rows } = await client.query(
       `UPDATE orders 
@@ -395,11 +406,13 @@ router.patch('/:id/pay', async (req, res) => {
            tip_amount=$2,
            total = total + $2,
            till_session_id=$3,
+           payment_reference=$4,
+           is_payment_confirmed=$5,
            status = CASE WHEN status NOT IN ('cancelled') THEN 'served' ELSE status END,
            updated_at=NOW() 
-       WHERE id=$4 AND restaurant_id=$5 AND payment_status='pending'
+       WHERE id=$6 AND restaurant_id=$7 AND payment_status='pending'
        RETURNING *`,
-      [payment_method, tip_amount, tillSessionId, req.params.id, tid(req)]
+      [payment_method, tip_amount, tillSessionId, payment_reference || null, isConfirmed, req.params.id, tid(req)]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
@@ -463,6 +476,23 @@ router.patch('/:id/pay', async (req, res) => {
   }
 });
 
+// ── PATCH /api/orders/:id/confirm-payment ────────────────────
+router.patch('/:id/confirm-payment', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `UPDATE orders 
+       SET is_payment_confirmed = true, updated_at = NOW() 
+       WHERE id = $1 AND restaurant_id = $2 
+       RETURNING *`,
+      [req.params.id, tid(req)]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to confirm payment' });
+  }
+});
+
 // ── PATCH /api/orders/:id/void ───────────────────────────────
 // Requires manager/owner PIN — logs to audit
 router.patch('/:id/void', async (req, res) => {
@@ -504,7 +534,7 @@ router.patch('/:id/void', async (req, res) => {
     await client.query(
       `INSERT INTO audit_logs (actor_user_id, action, target_type, target_id, metadata)
        VALUES ($1, 'order_void', 'order', $2, $3)`,
-      [req.user.userId || req.user.id, req.params.id, JSON.stringify({ authorized_by_staff: staff[0].id, restaurant_id: tid(req) })]
+      [req.user.userId || req.user.id, req.params.id, JSON.stringify({ authorized_by_staff: managerStaff?.id, restaurant_id: tid(req) })]
     );
 
     await client.query('COMMIT');

@@ -15,9 +15,64 @@ router.get('/current', authenticate, requireTenant, async (req, res) => {
        ORDER BY opened_at DESC LIMIT 1`,
       [req.user.restaurantId, req.user.userId || req.user.id]
     );
-    res.json(rows[0] || null);
+
+    if (!rows[0]) return res.json(null);
+
+    const session = rows[0];
+
+    // Compute shift summary metrics for this till session
+    const { rows: orderStats } = await pool.query(
+      `SELECT 
+         COUNT(*) as order_count,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'cash'), 0) as total_cash_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'card'), 0) as total_card_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'telebirr'), 0) as total_telebirr_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'cbe_birr'), 0) as total_cbe_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'bank_transfer'), 0) as total_bank_sales,
+         COUNT(*) FILTER (WHERE is_payment_confirmed = false AND payment_method IN ('telebirr', 'cbe_birr', 'bank_transfer')) as unconfirmed_count,
+         COALESCE(SUM(tax_amount), 0) as total_tax,
+         COALESCE(SUM(discount_amount), 0) as total_discount,
+         COALESCE(SUM(tip_amount), 0) as total_tips,
+         COALESCE(SUM(total), 0) as total_sales
+       FROM orders 
+       WHERE (till_session_id = $1 OR created_at >= $2) 
+         AND restaurant_id = $3 
+         AND payment_status = 'paid'`,
+      [session.id, session.opened_at, req.user.restaurantId]
+    );
+
+    const stats = orderStats[0] || {
+      order_count: 0,
+      total_cash_sales: 0,
+      total_card_sales: 0,
+      total_telebirr_sales: 0,
+      total_cbe_sales: 0,
+      total_bank_sales: 0,
+      unconfirmed_count: 0,
+      total_tax: 0,
+      total_discount: 0,
+      total_tips: 0,
+      total_sales: 0,
+    };
+
+    res.json({
+      ...session,
+      shift_summary: {
+        order_count: parseInt(stats.order_count, 10),
+        total_cash_sales: parseFloat(stats.total_cash_sales),
+        total_card_sales: parseFloat(stats.total_card_sales),
+        total_telebirr_sales: parseFloat(stats.total_telebirr_sales),
+        total_cbe_sales: parseFloat(stats.total_cbe_sales),
+        total_bank_sales: parseFloat(stats.total_bank_sales),
+        unconfirmed_count: parseInt(stats.unconfirmed_count, 10),
+        total_tax: parseFloat(stats.total_tax),
+        total_discount: parseFloat(stats.total_discount),
+        total_tips: parseFloat(stats.total_tips),
+        total_sales: parseFloat(stats.total_sales),
+      },
+    });
   } catch (err) {
-    console.error(err);
+    console.error('Cash drawer current error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -83,11 +138,11 @@ router.post('/close', authenticate, requireTenant, async (req, res) => {
 
     let signoff_id = null;
     
-    // If discrepancy is > $5 or < -$5, require manager signoff
+    // If discrepancy is > $5 / 50 ETB, require manager signoff
     if (Math.abs(discrepancy) > 5) {
       if (!manager_pin) {
         await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Manager PIN required for discrepancy over $5' });
+        return res.status(400).json({ error: 'Manager PIN required for discrepancy over 5' });
       }
 
       const { authorized, staff: managerStaff } = await verifyManagerPin(req.user.restaurantId, manager_pin, pool);
@@ -108,18 +163,61 @@ router.post('/close', authenticate, requireTenant, async (req, res) => {
     // Audit log if there was a discrepancy
     if (Math.abs(discrepancy) > 5) {
       await pool.query(
-        `INSERT INTO audit_logs (action, target_type, target_id, metadata) VALUES ($1, $2, $3, $4)`,
-        ['cash_drawer_discrepancy', 'cash_drawer_sessions', session.id, JSON.stringify({
-          staff_id: req.user.userId || req.user.id,
-          expected_cash: Number(session.expected_cash),
-          discrepancy,
-          manager_signoff_id: signoff_id
-        })]
+        `INSERT INTO audit_logs (actor_user_id, actor_email, action, target_type, target_id, metadata) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          req.user.userId || req.user.id,
+          req.user.email || null,
+          'cash_drawer_discrepancy',
+          'cash_drawer_sessions',
+          session.id,
+          JSON.stringify({
+            expected_cash: Number(session.expected_cash),
+            actual_cash: actual,
+            discrepancy,
+            manager_signoff_id: signoff_id,
+            notes,
+          })
+        ]
       );
     }
 
+    // Compute final shift summary for the Z-Report
+    const { rows: orderStats } = await pool.query(
+      `SELECT 
+         COUNT(*) as order_count,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'cash'), 0) as total_cash_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'card'), 0) as total_card_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'telebirr'), 0) as total_telebirr_sales,
+         COALESCE(SUM(total) FILTER (WHERE payment_method = 'cbe_birr'), 0) as total_cbe_sales,
+         COALESCE(SUM(tax_amount), 0) as total_tax,
+         COALESCE(SUM(discount_amount), 0) as total_discount,
+         COALESCE(SUM(tip_amount), 0) as total_tips,
+         COALESCE(SUM(total), 0) as total_sales
+       FROM orders 
+       WHERE (till_session_id = $1 OR created_at >= $2) 
+         AND restaurant_id = $3 
+         AND payment_status = 'paid'`,
+      [session.id, session.opened_at, req.user.restaurantId]
+    );
+
+    const stats = orderStats[0] || {};
+
     await pool.query('COMMIT');
-    res.json(rows[0]);
+    res.json({
+      ...rows[0],
+      shift_summary: {
+        order_count: parseInt(stats.order_count || 0, 10),
+        total_cash_sales: parseFloat(stats.total_cash_sales || 0),
+        total_card_sales: parseFloat(stats.total_card_sales || 0),
+        total_telebirr_sales: parseFloat(stats.total_telebirr_sales || 0),
+        total_cbe_sales: parseFloat(stats.total_cbe_sales || 0),
+        total_tax: parseFloat(stats.total_tax || 0),
+        total_discount: parseFloat(stats.total_discount || 0),
+        total_tips: parseFloat(stats.total_tips || 0),
+        total_sales: parseFloat(stats.total_sales || 0),
+      },
+    });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error(err);

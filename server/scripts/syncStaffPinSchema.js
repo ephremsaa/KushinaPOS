@@ -4,9 +4,10 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 async function syncStaffSchema() {
+  const isSupabase = process.env.DATABASE_URL?.includes('supabase.com');
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: isSupabase ? { rejectUnauthorized: false } : false
   });
 
   try {
@@ -28,13 +29,19 @@ async function syncStaffSchema() {
     await client.query(`UPDATE staff SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL;`);
 
     // 3. Check if pin_code exists and migrate to pin_hash if pin_hash is null
-    const { rows: staffWithPinCode } = await client.query(`
-      SELECT id, pin_code FROM staff WHERE pin_code IS NOT NULL AND pin_hash IS NULL
+    const { rows: colCheck } = await client.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'staff' AND column_name = 'pin_code'
     `);
-    for (const s of staffWithPinCode) {
-      if (s.pin_code) {
-        const hash = await bcrypt.hash(String(s.pin_code), 10);
-        await client.query(`UPDATE staff SET pin_hash = $1 WHERE id = $2`, [hash, s.id]);
+    if (colCheck.length > 0) {
+      const { rows: staffWithPinCode } = await client.query(`
+        SELECT id, pin_code FROM staff WHERE pin_code IS NOT NULL AND pin_hash IS NULL
+      `);
+      for (const s of staffWithPinCode) {
+        if (s.pin_code) {
+          const hash = await bcrypt.hash(String(s.pin_code), 10);
+          await client.query(`UPDATE staff SET pin_hash = $1 WHERE id = $2`, [hash, s.id]);
+        }
       }
     }
 

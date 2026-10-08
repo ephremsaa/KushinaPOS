@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
-const { authLimiter, staffLoginLimiter, bootstrapAdminLimiter } = require('../middleware/rateLimit');
+const { authLimiter, staffLoginLimiter, bootstrapAdminLimiter, registerLimiter } = require('../middleware/rateLimit');
 const router = express.Router();
 
 function signToken(payload) {
@@ -12,7 +12,7 @@ function signToken(payload) {
 
 // ── POST /api/auth/register ──────────────────────────────────
 // Restaurant owner registers their restaurant
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   const { name, email, password, phone, city, cuisine_type, tax_id, address } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email and password are required' });
@@ -113,25 +113,35 @@ router.post('/staff-login', staffLoginLimiter, async (req, res) => {
   if (!slug || !pin) return res.status(400).json({ error: 'slug and pin required' });
 
   try {
-    const restResult = await db.query('SELECT * FROM restaurants WHERE slug = $1', [slug]);
-    if (restResult.rows.length === 0) return res.status(404).json({ error: 'Restaurant not found' });
+    const cleanSlug = String(slug).toLowerCase().trim();
+    const cleanPin = String(pin).trim();
+
+    const restResult = await db.query(
+      'SELECT * FROM restaurants WHERE slug = $1 OR previous_slugs @> jsonb_build_array($1::text)', 
+      [cleanSlug]
+    );
+    if (restResult.rows.length === 0 || restResult.rows[0].status === 'suspended' || restResult.rows[0].status === 'rejected') {
+      return res.status(403).json({ error: "This restaurant's system is currently unavailable" });
+    }
     const restaurant = restResult.rows[0];
 
     const staffResult = await db.query(
-      'SELECT s.* FROM staff s WHERE s.restaurant_id = $1 AND s.is_active = true AND s.pin_hash IS NOT NULL',
+      'SELECT s.* FROM staff s WHERE s.restaurant_id = $1 AND s.is_active = TRUE AND s.pin_hash IS NOT NULL',
       [restaurant.id]
     );
 
     let validStaff = null;
     for (const staff of staffResult.rows) {
-      const valid = await bcrypt.compare(String(pin), staff.pin_hash);
+      const valid = await bcrypt.compare(cleanPin, staff.pin_hash);
       if (valid) {
         validStaff = staff;
         break;
       }
     }
 
-    if (!validStaff) return res.status(401).json({ error: 'Invalid PIN' });
+    if (!validStaff) {
+      return res.status(401).json({ error: 'Invalid PIN' });
+    }
 
     const token = signToken({
       userId: validStaff.id,

@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { restaurantApi } from '../../lib/api';
+import { restaurantApi, notificationApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { notificationApi } from '../../lib/api';
 import {
   Store, Clock, Receipt, Printer, Monitor, Palette,
   Upload, Save, Plus, Trash2, Check, Loader2,
-  ChevronRight, Percent, DollarSign, Bell, Mail, MessageSquare,
-  GripVertical, AlertCircle,
+  ChevronRight, Percent, DollarSign, Bell,
+  GripVertical, AlertCircle, Link2, AlertTriangle, Play,
+  Sparkles, Wand2, Image as ImageIcon, Sun, Moon, Globe
 } from 'lucide-react';
-import { cn, generateId } from '../../lib/utils';
+import { cn, generateId, applyTheme, isDarkColor, getContrastRatio } from '../../lib/utils';
+import { Button, Input, Modal, Badge, Card, Toggle, LargeToggle } from '../../components/ui';
+import { extractColorPalette, type ExtractedColorPalette } from '../../lib/colorExtractor';
 import type {
   OperatingHours, DayHours, ExtraTaxRate,
   Printer as PrinterType, KDSStationConfig,
@@ -26,7 +28,6 @@ const DAY_LABELS: Record<string, string> = {
 };
 
 const DEFAULT_HOURS: DayHours = { open: '08:00', close: '22:00', closed: false };
-
 const CURRENCIES = ['ETB', 'USD', 'EUR', 'GBP', 'KES', 'NGN', 'ZAR', 'GHS'];
 const STATIONS = ['General', 'Kitchen', 'Bar', 'Grill', 'Dessert', 'Cold Kitchen', 'Hot Kitchen', 'Bakery'];
 
@@ -48,7 +49,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType; desc: string }[
 ];
 
 // ─────────────────────────────────────────────────────────────
-// Section save button
+// Save Bar Component
 // ─────────────────────────────────────────────────────────────
 
 function SaveBar({
@@ -57,61 +58,129 @@ function SaveBar({
   return (
     <div className="flex items-center justify-between pt-6 border-t border-surface-200/60 mt-6">
       {error ? (
-        <p className="text-sm text-red-600 flex items-center gap-1.5">
-          <AlertCircle className="w-4 h-4" /> {error}
+        <p className="text-sm text-red-600 flex items-center gap-1.5 font-medium">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
         </p>
       ) : saved ? (
-        <p className="text-sm text-emerald-600 flex items-center gap-1.5">
-          <Check className="w-4 h-4" /> Changes saved
+        <p className="text-sm text-emerald-600 flex items-center gap-1.5 font-medium">
+          <Check className="w-4 h-4 flex-shrink-0" /> Changes saved successfully
         </p>
       ) : <span />}
-      <button
+      <Button
+        variant="primary"
+        loading={loading}
+        icon={<Save className="w-4 h-4" />}
         onClick={onSave}
-        disabled={loading}
-        className="btn-primary gap-2 min-w-[120px] justify-center"
         id="settings-save"
       >
-        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-        {loading ? 'Saving…' : 'Save changes'}
-      </button>
+        Save Changes
+      </Button>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Toggle component
+// Slug Change Safety Modal
 // ─────────────────────────────────────────────────────────────
 
-function Toggle({ checked, onChange, label, desc }: {
-  checked: boolean; onChange: (v: boolean) => void; label: string; desc?: string;
+
+function SlugChangeModal({
+  currentSlug,
+  isOpen,
+  onClose,
+  onConfirm,
+}: {
+  currentSlug: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (newSlug: string) => Promise<void>;
 }) {
+  const [newSlug, setNewSlug] = useState(currentSlug);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const clean = newSlug.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const handleSave = async () => {
+    if (clean.length < 3) {
+      return setError('Slug must be at least 3 characters');
+    }
+    if (clean === currentSlug) {
+      return onClose();
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await onConfirm(clean);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update URL slug');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <label className="flex items-center justify-between gap-4 cursor-pointer group py-1">
-      <div>
-        <p className="text-sm font-semibold text-surface-800 group-hover:text-surface-900">{label}</p>
-        {desc && <p className="text-xs text-surface-500 mt-0.5">{desc}</p>}
-      </div>
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={cn(
-          'relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2',
-          checked ? 'bg-brand-500' : 'bg-surface-200'
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Change Restaurant URL Slug"
+      description="Update your public menu link and staff login endpoint"
+      icon={<Link2 className="w-5 h-5 text-brand-500" />}
+      size="md"
+      footer={
+        <div className="flex gap-2 justify-end w-full">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            loading={loading}
+            disabled={!clean || clean === currentSlug}
+            onClick={handleSave}
+          >
+            Confirm & Update URL
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex gap-3 text-amber-800 text-xs">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-amber-900">URL Change Notice</p>
+            <p>Your old URL will continue to redirect for 30 days. However, you should update your QR codes and staff bookmarks as soon as possible.</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">New URL Slug</label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-surface-400 font-mono bg-surface-100 px-3 py-2.5 rounded-2xl border border-surface-200">
+              {window.location.origin}/r/
+            </span>
+            <input
+              className="input font-mono text-sm"
+              value={newSlug}
+              onChange={e => { setNewSlug(e.target.value); setError(''); }}
+              placeholder="my-restaurant"
+            />
+          </div>
+          {clean && (
+            <p className="text-[11px] text-surface-500 font-mono mt-1.5">
+              Preview: {window.location.origin}/r/<strong className="text-brand-600">{clean}</strong>
+            </p>
+          )}
+        </div>
+
+        {error && (
+          <p className="text-xs text-red-600 font-bold">{error}</p>
         )}
-        role="switch"
-        aria-checked={checked}
-      >
-        <span className={cn(
-          'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-200',
-          checked ? 'translate-x-5' : 'translate-x-0'
-        )} />
-      </button>
-    </label>
+      </div>
+    </Modal>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Main component
+// Main Component
 // ─────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
@@ -120,13 +189,19 @@ export default function SettingsPage() {
   const r = user?.restaurant as Record<string, unknown> | undefined;
 
   const [activeTab, setActiveTab] = useState<TabId>('profile');
+  const [pendingTab, setPendingTab] = useState<TabId | null>(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [showSlugModal, setShowSlugModal] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [testingPrinterId, setTestingPrinterId] = useState<string | null>(null);
+  const [printFeedback, setPrintFeedback] = useState<string>('');
 
   // ── Profile state ──────────────────────────────────────────
-  const [profile, setProfile] = useState({
+  const initialProfile = useMemo(() => ({
     name:                    (r?.name as string)                  ?? '',
     phone:                   (r?.phone as string)                 ?? '',
     address:                 (r?.address as string)               ?? '',
@@ -135,61 +210,185 @@ export default function SettingsPage() {
     currency:                (r?.currency as string)              ?? 'ETB',
     slug:                    (r?.slug as string)                  ?? '',
     online_ordering_enabled: Boolean(r?.online_ordering_enabled  ?? true),
-  });
+  }), [r]);
+  const [profile, setProfile] = useState(initialProfile);
 
   // ── Operating hours state ──────────────────────────────────
-  const [hours, setHours] = useState<OperatingHours>(() => {
-    const saved = r?.operating_hours as OperatingHours | undefined;
+  const initialHours = useMemo(() => {
+    const savedHours = r?.operating_hours as OperatingHours | undefined;
     const base: OperatingHours = {};
-    DAYS.forEach(d => { base[d] = saved?.[d] ?? { ...DEFAULT_HOURS }; });
+    DAYS.forEach(d => { base[d] = savedHours?.[d] ?? { ...DEFAULT_HOURS }; });
     return base;
-  });
+  }, [r]);
+  const [hours, setHours] = useState<OperatingHours>(initialHours);
 
   // ── Tax state ──────────────────────────────────────────────
-  const [tax, setTax] = useState({
+  const initialTax = useMemo(() => ({
     tax_rate:      Number(r?.tax_rate ?? 0),
     tax_inclusive: Boolean(r?.tax_inclusive ?? false),
-  });
-  const [extraTaxRates, setExtraTaxRates] = useState<ExtraTaxRate[]>(
-    (r?.extra_tax_rates as ExtraTaxRate[]) ?? []
-  );
+  }), [r]);
+  const [tax, setTax] = useState(initialTax);
+
+  const initialExtraTax = useMemo(() => (r?.extra_tax_rates as ExtraTaxRate[]) ?? [], [r]);
+  const [extraTaxRates, setExtraTaxRates] = useState<ExtraTaxRate[]>(initialExtraTax);
 
   // ── Service charge state ───────────────────────────────────
-  const [service, setService] = useState({
+  const initialService = useMemo(() => ({
     service_charge_enabled:      Boolean(r?.service_charge_enabled     ?? false),
     service_charge_percent:      Number(r?.service_charge_percent      ?? 10),
     service_charge_mandatory:    Boolean(r?.service_charge_mandatory   ?? false),
     service_charge_split_staff:  Boolean(r?.service_charge_split_staff ?? false),
-  });
+  }), [r]);
+  const [service, setService] = useState(initialService);
 
   // ── Receipt state ──────────────────────────────────────────
-  const [receipt, setReceipt] = useState({
+  const initialReceipt = useMemo(() => ({
     receipt_footer:             (r?.receipt_footer as string)  ?? '',
     receipt_header:             (r?.receipt_header as string)  ?? '',
     receipt_show_logo:          Boolean(r?.receipt_show_logo          ?? true),
     receipt_show_tax_breakdown: Boolean(r?.receipt_show_tax_breakdown ?? true),
     receipt_default_mode:       ((r?.receipt_default_mode as string) ?? 'print') as 'print' | 'email' | 'sms',
-  });
+  }), [r]);
+  const [receipt, setReceipt] = useState(initialReceipt);
 
   // ── Devices state ──────────────────────────────────────────
-  const [printers, setPrinters] = useState<PrinterType[]>(
-    (r?.printers as PrinterType[]) ?? []
-  );
-  const [kdsStations, setKdsStations] = useState<KDSStationConfig[]>(
-    (r?.kds_stations_config as KDSStationConfig[]) ?? []
-  );
+  const initialPrinters = useMemo(() => (r?.printers as PrinterType[]) ?? [], [r]);
+  const [printers, setPrinters] = useState<PrinterType[]>(initialPrinters);
+
+  const initialKds = useMemo(() => (r?.kds_stations_config as KDSStationConfig[]) ?? [], [r]);
+  const [kdsStations, setKdsStations] = useState<KDSStationConfig[]>(initialKds);
 
   // ── Appearance state ───────────────────────────────────────
-  const [appearance, setAppearance] = useState({
-    theme_color:      (r?.theme_color as string)      ?? '#f97316',
-    background_color: (r?.background_color as string) ?? '#f1f5f9',
-  });
+  const initialAppearance = useMemo(() => {
+    const theme = r?.theme_color as string | undefined;
+    const bg = r?.background_color as string | undefined;
+    return {
+      theme_color: (theme && theme !== '#f97316') ? theme : '#2F7D32',
+      background_color: (bg && bg !== '#f1f5f9') ? bg : '#F7F7F2',
+    };
+  }, [r]);
+  const [appearance, setAppearance] = useState(initialAppearance);
+
+  // ── Auto-Brand Color Extractor State ───────────────────────
+  const [extractedPalette, setExtractedPalette] = useState<ExtractedColorPalette | null>(null);
+  const [isExtractingColor, setIsExtractingColor] = useState(false);
+
+  // Sync state when restaurant data loads / updates
+  useEffect(() => {
+    if (r) {
+      setProfile(initialProfile);
+      setHours(initialHours);
+      setTax(initialTax);
+      setExtraTaxRates(initialExtraTax);
+      setService(initialService);
+      setReceipt(initialReceipt);
+      setPrinters(initialPrinters);
+      setKdsStations(initialKds);
+      setAppearance(initialAppearance);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r?.id, r?.updated_at]);
+
+  // Extract color palette from uploaded logo or saved logo URL
+  useEffect(() => {
+    const source = logoFile || (r?.logo_url as string | undefined);
+    if (source) {
+      setIsExtractingColor(true);
+      extractColorPalette(source)
+        .then(pal => setExtractedPalette(pal))
+        .catch(() => {})
+        .finally(() => setIsExtractingColor(false));
+    }
+  }, [logoFile, r?.logo_url]);
+
+  const applyExtractedTheme = (themeColor: string, bgColor?: string) => {
+    const nextBg = bgColor || appearance.background_color;
+    setAppearance(p => ({
+      ...p,
+      theme_color: themeColor,
+      background_color: nextBg,
+    }));
+    applyTheme(themeColor, nextBg);
+  };
 
   // Live CSS preview for appearance
   useEffect(() => {
-    document.documentElement.style.setProperty('--brand-500', appearance.theme_color);
-    document.documentElement.style.setProperty('--background-color', appearance.background_color);
+    applyTheme(appearance.theme_color, appearance.background_color);
   }, [appearance.theme_color, appearance.background_color]);
+
+
+  // ── Dirty State Check per Tab ──────────────────────────────
+  const isCurrentTabDirty = useMemo(() => {
+    switch (activeTab) {
+      case 'profile':
+        return JSON.stringify(profile) !== JSON.stringify(initialProfile) || logoFile !== null;
+      case 'hours':
+        return JSON.stringify(hours) !== JSON.stringify(initialHours);
+      case 'tax':
+        return JSON.stringify(tax) !== JSON.stringify(initialTax) ||
+               JSON.stringify(extraTaxRates) !== JSON.stringify(initialExtraTax);
+      case 'service':
+        return JSON.stringify(service) !== JSON.stringify(initialService);
+      case 'receipt':
+        return JSON.stringify(receipt) !== JSON.stringify(initialReceipt);
+      case 'devices':
+        return JSON.stringify(printers) !== JSON.stringify(initialPrinters) ||
+               JSON.stringify(kdsStations) !== JSON.stringify(initialKds);
+      case 'appearance':
+        return JSON.stringify(appearance) !== JSON.stringify(initialAppearance);
+      default:
+        return false;
+    }
+  }, [
+    activeTab, profile, initialProfile, logoFile, hours, initialHours,
+    tax, initialTax, extraTaxRates, initialExtraTax,
+    service, initialService, receipt, initialReceipt,
+    printers, initialPrinters, kdsStations, initialKds,
+    appearance, initialAppearance,
+  ]);
+
+  // Warn before browser window close if dirty
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isCurrentTabDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isCurrentTabDirty]);
+
+  // Tab switcher with unsaved warning
+  const handleTabClick = (tabId: TabId) => {
+    if (tabId === activeTab) return;
+    if (isCurrentTabDirty) {
+      setPendingTab(tabId);
+      setShowUnsavedModal(true);
+    } else {
+      setActiveTab(tabId);
+      setError('');
+      setSaved(false);
+    }
+  };
+
+  const discardAndSwitch = () => {
+    // Reset dirty tab to initial
+    setProfile(initialProfile);
+    setHours(initialHours);
+    setTax(initialTax);
+    setExtraTaxRates(initialExtraTax);
+    setService(initialService);
+    setReceipt(initialReceipt);
+    setPrinters(initialPrinters);
+    setKdsStations(initialKds);
+    setAppearance(initialAppearance);
+    setLogoFile(null);
+    if (pendingTab) setActiveTab(pendingTab);
+    setShowUnsavedModal(false);
+    setPendingTab(null);
+    setError('');
+  };
 
   // ── Generic save helper ────────────────────────────────────
   const doSave = useCallback(async (payload: Record<string, unknown>) => {
@@ -222,7 +421,32 @@ export default function SettingsPage() {
   const saveDevices    = () => doSave({ printers, kds_stations_config: kdsStations });
   const saveAppearance = () => doSave({ ...appearance });
 
-  // ── Hours helpers ──────────────────────────────────────────
+  const handleUpdateSlug = async (newSlug: string) => {
+    await restaurantApi.update({ slug: newSlug });
+    setProfile(p => ({ ...p, slug: newSlug }));
+    await refreshUser();
+    qc.invalidateQueries();
+  };
+
+  const handleTestPrint = async (printer: PrinterType) => {
+    setTestingPrinterId(printer.id);
+    setPrintFeedback('');
+    try {
+      const res = await restaurantApi.testPrint({
+        printer_name: printer.name,
+        ip_or_usb: printer.ip_or_usb,
+        type: printer.type,
+      });
+      setPrintFeedback(`✅ ${res.message}`);
+      setTimeout(() => setPrintFeedback(''), 4000);
+    } catch (err: any) {
+      setPrintFeedback(`❌ Print failed: ${err.message}`);
+    } finally {
+      setTestingPrinterId(null);
+    }
+  };
+
+  // ── Helpers ────────────────────────────────────────────────
   const setDay = (day: string, patch: Partial<DayHours>) =>
     setHours(prev => ({ ...prev, [day]: { ...prev[day], ...patch } }));
 
@@ -233,13 +457,11 @@ export default function SettingsPage() {
     setHours(next);
   };
 
-  // ── Extra tax rate helpers ─────────────────────────────────
   const addExtraTax = () => setExtraTaxRates(p => [...p, { id: generateId(), name: '', rate: 0 }]);
   const removeExtraTax = (id: string) => setExtraTaxRates(p => p.filter(t => t.id !== id));
   const updateExtraTax = (id: string, patch: Partial<ExtraTaxRate>) =>
     setExtraTaxRates(p => p.map(t => t.id === id ? { ...t, ...patch } : t));
 
-  // ── Printer helpers ────────────────────────────────────────
   const addPrinter = () => setPrinters(p => [
     ...p, { id: generateId(), name: 'New Printer', station: 'General', type: 'receipt', ip_or_usb: '', is_active: true },
   ]);
@@ -247,7 +469,6 @@ export default function SettingsPage() {
   const updatePrinter = (id: string, patch: Partial<PrinterType>) =>
     setPrinters(p => p.map(x => x.id === id ? { ...x, ...patch } : x));
 
-  // ── KDS helpers ────────────────────────────────────────────
   const addKds = () => setKdsStations(p => [
     ...p, { id: generateId(), name: 'New Station', label: 'Station', menu_stations: [] },
   ]);
@@ -255,41 +476,77 @@ export default function SettingsPage() {
   const updateKds = (id: string, patch: Partial<KDSStationConfig>) =>
     setKdsStations(p => p.map(x => x.id === id ? { ...x, ...patch } : x));
 
-  // ── Render ─────────────────────────────────────────────────
+  // Contrast calculations for appearance
+  const contrastRatio = useMemo(() => {
+    const isDarkBg = isDarkColor(appearance.background_color);
+    const textColor = isDarkBg ? '#ffffff' : '#0f172a';
+    return getContrastRatio(appearance.background_color, textColor);
+  }, [appearance.background_color]);
+
+  const hasLowContrast = contrastRatio < 3.0;
+
   return (
-    <div className="animate-fade-in">
-      {/* Page header */}
-      <div className="page-header">
+    <div className="animate-fade-in pb-12 max-w-7xl mx-auto space-y-6">
+      {/* Slug Change Safety Modal */}
+      <SlugChangeModal
+        isOpen={showSlugModal}
+        currentSlug={profile.slug}
+        onClose={() => setShowSlugModal(false)}
+        onConfirm={handleUpdateSlug}
+      />
+
+      {/* Unsaved Changes Confirmation Modal */}
+      <Modal
+        open={showUnsavedModal}
+        onClose={() => setShowUnsavedModal(false)}
+        title="Unsaved Changes"
+        description="You have unsaved changes in this settings section."
+        icon={<AlertCircle className="w-5 h-5 text-amber-500" />}
+        size="sm"
+        footer={
+          <div className="flex gap-2 justify-end w-full">
+            <Button variant="ghost" onClick={() => setShowUnsavedModal(false)}>Stay on Page</Button>
+            <Button variant="danger" onClick={discardAndSwitch}>Discard & Switch</Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-surface-600">
+          Switching tabs now will discard all unsaved edits on the current tab. Are you sure you want to proceed?
+        </p>
+      </Modal>
+
+      {/* Page Header */}
+      <div className="page-header bg-white/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
         <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Restaurant configuration &amp; preferences</p>
+          <h1 className="page-title">Restaurant Settings</h1>
+          <p className="page-subtitle">Configure your business details, taxes, service charges, hardware, and brand theme</p>
         </div>
       </div>
 
       <div className="flex gap-6 flex-col lg:flex-row">
         {/* ── Left tab sidebar ── */}
-        <nav className="lg:w-56 flex-shrink-0">
-          <div className="card p-2 space-y-0.5">
+        <nav className="lg:w-60 flex-shrink-0">
+          <div className="card p-2 space-y-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setSaved(false); setError(''); }}
+                onClick={() => handleTabClick(tab.id)}
                 className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-left transition-all',
+                  'w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all cursor-pointer',
                   activeTab === tab.id
-                    ? 'bg-brand-50 text-brand-700 font-semibold border border-brand-100'
+                    ? 'bg-brand-50 text-brand-700 font-bold border border-brand-200/80 shadow-xs'
                     : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'
                 )}
                 id={`settings-tab-${tab.id}`}
               >
                 <tab.icon className={cn('w-4 h-4 flex-shrink-0', activeTab === tab.id ? 'text-brand-500' : 'text-surface-400')} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm leading-tight truncate">{tab.label}</p>
-                  <p className={cn('text-[10px] leading-tight truncate', activeTab === tab.id ? 'text-brand-400' : 'text-surface-400')}>
+                  <p className={cn('text-[10px] leading-tight truncate mt-0.5', activeTab === tab.id ? 'text-brand-400' : 'text-surface-400')}>
                     {tab.desc}
                   </p>
                 </div>
-                {activeTab === tab.id && <ChevronRight className="w-3.5 h-3.5 ml-auto text-brand-400 flex-shrink-0" />}
+                {activeTab === tab.id && <ChevronRight className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />}
               </button>
             ))}
           </div>
@@ -297,69 +554,152 @@ export default function SettingsPage() {
 
         {/* ── Right content panel ── */}
         <div className="flex-1 min-w-0">
-          <div className="card">
+          <div className="card p-6 sm:p-8">
 
             {/* ══════════════ PROFILE ══════════════ */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                <SectionHeader icon={Store} title="Restaurant Profile" desc="Shown on receipts and the public menu." />
+                <SectionHeader icon={Store} title="Restaurant Profile" desc="Shown on customer receipts, staff logins, and the public menu." />
 
-                {/* Logo */}
-                <div className="flex items-center gap-5">
-                  <div className="w-20 h-20 rounded-2xl bg-surface-100 border border-surface-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {logoFile ? (
-                      <img src={URL.createObjectURL(logoFile)} alt="Preview" className="w-full h-full object-cover" />
-                    ) : r?.logo_url ? (
-                      <img src={r.logo_url as string} alt="Logo" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-3xl">🍽️</span>
-                    )}
+                {/* Logo & Smart Color Extraction */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-5">
+                    <div className="w-20 h-20 rounded-3xl bg-surface-100 border border-surface-200/80 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm relative group">
+                      {logoFile ? (
+                        <img src={URL.createObjectURL(logoFile)} alt="Preview" className="w-full h-full object-cover" />
+                      ) : r?.logo_url ? (
+                        <img src={r.logo_url as string} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-3xl">🍽️</span>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-3xl">
+                        <Upload className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="logo-upload" className="btn-secondary gap-2 cursor-pointer inline-flex items-center text-xs sm:text-sm">
+                        <Upload className="w-4 h-4 text-brand-500" />
+                        {logoFile ? logoFile.name : 'Upload Restaurant Logo'}
+                      </label>
+                      <input id="logo-upload" type="file" className="hidden" accept="image/*"
+                        onChange={e => setLogoFile(e.target.files?.[0] ?? null)} />
+                      <p className="text-xs text-surface-400">PNG, JPG, SVG or WEBP · Colors are automatically extracted</p>
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="logo-upload" className="btn-secondary gap-2 cursor-pointer">
-                      <Upload className="w-4 h-4" />
-                      {logoFile ? logoFile.name : 'Upload logo'}
-                    </label>
-                    <input id="logo-upload" type="file" className="hidden" accept="image/*"
-                      onChange={e => setLogoFile(e.target.files?.[0] ?? null)} />
-                    <p className="text-xs text-surface-400 mt-1.5">PNG, JPG, SVG · Max 2 MB</p>
-                  </div>
+
+                  {/* Extracted Brand Palette Bar */}
+                  {isExtractingColor ? (
+                    <div className="p-4 rounded-3xl bg-brand-50/50 border border-brand-200/60 flex items-center gap-3 animate-pulse">
+                      <Loader2 className="w-4 h-4 text-brand-500 animate-spin flex-shrink-0" />
+                      <p className="text-xs font-semibold text-brand-700">Sampling logo pixels & generating branded palette...</p>
+                    </div>
+                  ) : extractedPalette && extractedPalette.palette.length > 0 ? (
+                    <div className="p-5 rounded-3xl bg-gradient-to-r from-brand-50/70 via-surface-50/90 to-amber-50/50 border border-brand-200/80 space-y-3.5 shadow-sm">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                          <p className="text-xs font-extrabold uppercase tracking-wider text-surface-800">
+                            Smart Extracted Brand Colors
+                          </p>
+                        </div>
+                        <Badge variant="brand" className="text-[10px]">
+                          Dominant: {extractedPalette.dominant}
+                        </Badge>
+                      </div>
+
+                      {/* Palette Swatches */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {extractedPalette.palette.map((color, idx) => {
+                          const isCurrent = appearance.theme_color.toLowerCase() === color.toLowerCase();
+                          return (
+                            <button
+                              key={color + idx}
+                              type="button"
+                              onClick={() => applyExtractedTheme(color)}
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95',
+                                isCurrent
+                                  ? 'ring-2 ring-brand-500 border-white bg-white shadow-brand-glow-sm'
+                                  : 'bg-white/90 border-surface-200/80 hover:border-surface-300'
+                              )}
+                            >
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-black/10 flex-shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span>{color}</span>
+                              {idx === 0 && (
+                                <span className="text-[9px] font-sans font-black uppercase text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-md">
+                                  Primary
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* 1-Click Action Bar */}
+                      <div className="flex items-center gap-3 pt-1 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          icon={<Wand2 className="w-3.5 h-3.5" />}
+                          onClick={() => applyExtractedTheme(extractedPalette.dominant, extractedPalette.recommendedBg)}
+                        >
+                          Auto-Brand Platform
+                        </Button>
+                        <span className="text-[11px] text-surface-500 font-medium">
+                          Applies dominant accent & sets optimal background contrast
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className="label">Restaurant name *</label>
-                    <input className="input" value={profile.name}
-                      onChange={e => setProfile(p => ({ ...p, name: e.target.value }))} />
+                    <Input
+                      value={profile.name}
+                      onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+                    />
                   </div>
                   <div>
-                    <label className="label">Email</label>
-                    <input className="input bg-surface-50" value={r?.email as string ?? ''} readOnly
-                      title="Contact support to change email" />
+                    <label className="label">Email (Read-only)</label>
+                    <Input value={r?.email as string ?? ''} readOnly className="bg-surface-50" />
                   </div>
                   <div>
                     <label className="label">Phone</label>
-                    <input className="input" value={profile.phone}
+                    <Input
+                      value={profile.phone}
                       onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))}
-                      placeholder="+251 9…" />
+                      placeholder="+251 9…"
+                    />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="label">Address</label>
-                    <input className="input" value={profile.address}
+                    <Input
+                      value={profile.address}
                       onChange={e => setProfile(p => ({ ...p, address: e.target.value }))}
-                      placeholder="Bole Road, near…" />
+                      placeholder="Bole Road, near…"
+                    />
                   </div>
                   <div>
                     <label className="label">City</label>
-                    <input className="input" value={profile.city}
+                    <Input
+                      value={profile.city}
                       onChange={e => setProfile(p => ({ ...p, city: e.target.value }))}
-                      placeholder="Addis Ababa" />
+                      placeholder="Addis Ababa"
+                    />
                   </div>
                   <div>
                     <label className="label">Cuisine type</label>
-                    <input className="input" value={profile.cuisine_type}
+                    <Input
+                      value={profile.cuisine_type}
                       onChange={e => setProfile(p => ({ ...p, cuisine_type: e.target.value }))}
-                      placeholder="Ethiopian" />
+                      placeholder="Ethiopian / International"
+                    />
                   </div>
                   <div>
                     <label className="label">Currency</label>
@@ -368,33 +708,36 @@ export default function SettingsPage() {
                       {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="label">Public Menu URL Slug</label>
-                    <div className="flex gap-2 items-center">
-                      <span className="text-xs text-surface-400 font-mono bg-surface-100 px-3 py-3 rounded-2xl border border-surface-200">
-                        {window.location.origin}/r/
-                      </span>
-                      <input className="input font-mono text-xs" value={profile.slug}
-                        onChange={e => setProfile(p => ({ ...p, slug: e.target.value }))}
-                        placeholder="my-restaurant-name" />
+
+                  {/* Dedicated Protected URL Slug Management */}
+                  <div className="sm:col-span-2 p-4 bg-surface-50 rounded-2xl border border-surface-200/80 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-surface-700 uppercase tracking-wider">Restaurant URL Slug</p>
+                      <p className="text-sm font-mono font-bold text-brand-600 mt-0.5">
+                        {window.location.origin}/r/{profile.slug}
+                      </p>
                     </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<Link2 className="w-3.5 h-3.5 text-brand-500" />}
+                      onClick={() => setShowSlugModal(true)}
+                    >
+                      Change URL
+                    </Button>
                   </div>
                 </div>
 
-                {/* Online Ordering Toggle */}
-                <div className="p-4 bg-brand-50/50 border border-brand-100 rounded-3xl flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-sm text-surface-900">Enable Customer Online & QR Ordering</p>
-                    <p className="text-xs text-surface-500 mt-0.5">Allows customers to view your menu and place orders via table QR code or delivery link.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setProfile(p => ({ ...p, online_ordering_enabled: !p.online_ordering_enabled }))}
-                    className={cn('w-12 h-6 rounded-full transition-colors relative flex-shrink-0', profile.online_ordering_enabled ? 'bg-brand-500' : 'bg-surface-300')}
-                  >
-                    <span className={cn('w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform shadow-xs', profile.online_ordering_enabled ? 'right-0.5' : 'left-0.5')} />
-                  </button>
-                </div>
+                {/* Online Ordering Large Toggle */}
+                <LargeToggle
+                  checked={profile.online_ordering_enabled}
+                  onChange={v => setProfile(p => ({ ...p, online_ordering_enabled: v }))}
+                  label="Enable Customer Online & QR Ordering"
+                  description="Allows customers to view your digital menu and place live orders via table QR code or online link."
+                  activeIcon={Globe}
+                  badgeText="Live QR"
+                  badgeVariant="brand"
+                />
 
                 <SaveBar loading={loading} saved={saved} error={error} onSave={saveProfile} />
               </div>
@@ -403,12 +746,12 @@ export default function SettingsPage() {
             {/* ══════════════ OPERATING HOURS ══════════════ */}
             {activeTab === 'hours' && (
               <div className="space-y-6">
-                <SectionHeader icon={Clock} title="Operating Hours" desc="Controls ordering availability and menu scheduling." />
+                <SectionHeader icon={Clock} title="Operating Hours" desc="Controls ordering availability and schedule display." />
 
                 <div className="flex justify-end">
-                  <button className="btn-secondary btn-sm gap-1.5" onClick={copyWeekdaysToAll}>
+                  <Button variant="secondary" size="sm" onClick={copyWeekdaysToAll}>
                     Copy Monday to all days
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="space-y-3">
@@ -419,15 +762,14 @@ export default function SettingsPage() {
                         'flex flex-wrap sm:flex-nowrap items-center gap-3 p-4 rounded-2xl border transition-all',
                         dh.closed ? 'bg-surface-50 border-surface-200 opacity-60' : 'bg-white border-surface-200/80'
                       )}>
-                        {/* Day name */}
                         <span className="w-24 text-sm font-semibold text-surface-700 flex-shrink-0">
                           {DAY_LABELS[day]}
                         </span>
-                        {/* Open/Close toggle */}
                         <div className="flex items-center gap-2">
                           <button
+                            type="button"
                             onClick={() => setDay(day, { closed: !dh.closed })}
-                            className={cn('text-xs px-2.5 py-1 rounded-full font-semibold border transition-all',
+                            className={cn('text-xs px-2.5 py-1 rounded-full font-semibold border transition-all cursor-pointer',
                               dh.closed
                                 ? 'bg-surface-100 text-surface-500 border-surface-200'
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -436,7 +778,6 @@ export default function SettingsPage() {
                             {dh.closed ? 'Closed' : 'Open'}
                           </button>
                         </div>
-                        {/* Time inputs */}
                         {!dh.closed && (
                           <>
                             <div className="flex items-center gap-2">
@@ -465,7 +806,7 @@ export default function SettingsPage() {
             {/* ══════════════ TAX & PRICING ══════════════ */}
             {activeTab === 'tax' && (
               <div className="space-y-6">
-                <SectionHeader icon={Percent} title="Tax & Pricing" desc="Feeds directly into Checkout bill calculation." />
+                <SectionHeader icon={Percent} title="Tax & Pricing" desc="Feeds directly into Checkout bill calculation and receipts." />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -475,30 +816,19 @@ export default function SettingsPage() {
                       <input type="number" min={0} max={100} step={0.5}
                         className="input pl-10"
                         value={tax.tax_rate}
-                        onChange={e => setTax(p => ({ ...p, tax_rate: Number(e.target.value) }))} />
+                        onChange={e => setTax(p => ({ ...p, tax_rate: Math.min(100, Math.max(0, Number(e.target.value))) }))} />
                     </div>
                   </div>
                   <div className="flex flex-col justify-end pb-1">
-                    <Toggle
+                    <LargeToggle
                       checked={tax.tax_inclusive}
                       onChange={v => setTax(p => ({ ...p, tax_inclusive: v }))}
                       label="Tax-inclusive pricing"
-                      desc="Tax is built into displayed prices (extract on checkout)"
+                      description="Prices displayed on menus already include the tax amount (extracted at checkout)"
+                      badgeText={tax.tax_inclusive ? "Inclusive" : "Exclusive"}
+                      badgeVariant={tax.tax_inclusive ? "success" : "neutral"}
                     />
                   </div>
-                </div>
-
-                {/* Tax-inclusive info */}
-                <div className={cn(
-                  'p-4 rounded-2xl border text-sm transition-all',
-                  tax.tax_inclusive
-                    ? 'bg-amber-50 border-amber-200 text-amber-800'
-                    : 'bg-surface-50 border-surface-200 text-surface-600'
-                )}>
-                  {tax.tax_inclusive
-                    ? <>📌 <strong>Inclusive:</strong> Item price of ETB 100 at 15% → subtotal ETB 86.96 + tax ETB 13.04 = ETB 100 total.</>
-                    : <>📌 <strong>Exclusive:</strong> Item price of ETB 100 at 15% → subtotal ETB 100 + tax ETB 15 = ETB 115 total.</>
-                  }
                 </div>
 
                 {/* Additional tax rates */}
@@ -506,11 +836,11 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-sm font-semibold text-surface-800">Additional tax rates</p>
-                      <p className="text-xs text-surface-500">e.g. Alcohol 5%, Service levy 2%</p>
+                      <p className="text-xs text-surface-500">e.g. Alcohol Levy 5%, Tourism Tax 2%</p>
                     </div>
-                    <button className="btn-secondary btn-sm gap-1.5" onClick={addExtraTax}>
-                      <Plus className="w-3.5 h-3.5" /> Add rate
-                    </button>
+                    <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addExtraTax}>
+                      Add Rate
+                    </Button>
                   </div>
                   {extraTaxRates.length === 0 && (
                     <p className="text-sm text-surface-400 text-center py-6 border border-dashed border-surface-200 rounded-2xl">
@@ -525,11 +855,11 @@ export default function SettingsPage() {
                         <div className="relative w-28 flex-shrink-0">
                           <input type="number" min={0} max={100} step={0.1}
                             className="input !py-2 !text-sm pr-8"
-                            value={tr.rate} onChange={e => updateExtraTax(tr.id, { rate: Number(e.target.value) })} />
+                            value={tr.rate} onChange={e => updateExtraTax(tr.id, { rate: Math.min(100, Math.max(0, Number(e.target.value))) })} />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 text-xs">%</span>
                         </div>
                         <button onClick={() => removeExtraTax(tr.id)}
-                          className="p-2 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors">
+                          className="p-2 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors cursor-pointer">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -544,13 +874,15 @@ export default function SettingsPage() {
             {/* ══════════════ SERVICE CHARGE ══════════════ */}
             {activeTab === 'service' && (
               <div className="space-y-6">
-                <SectionHeader icon={DollarSign} title="Service Charge / Tip" desc="Applied at checkout. Auto-suggested to customers." />
+                <SectionHeader icon={DollarSign} title="Service Charge / Tip" desc="Applied at checkout and automatically suggested to guests." />
 
-                <Toggle
+                <LargeToggle
                   checked={service.service_charge_enabled}
                   onChange={v => setService(p => ({ ...p, service_charge_enabled: v }))}
-                  label="Enable service charge"
-                  desc="Adds a service charge line to every bill"
+                  label="Enable Automatic Service Charge"
+                  description="Automatically applies a service tip percentage line to customer bills during checkout."
+                  badgeText={service.service_charge_enabled ? "Active" : "Disabled"}
+                  badgeVariant={service.service_charge_enabled ? "brand" : "neutral"}
                 />
 
                 {service.service_charge_enabled && (
@@ -559,6 +891,7 @@ export default function SettingsPage() {
                       <label className="label">Default service charge (%)</label>
                       <div className="flex items-center gap-3 max-w-xs">
                         <button
+                          type="button"
                           onClick={() => setService(p => ({ ...p, service_charge_percent: Math.max(0, p.service_charge_percent - 1) }))}
                           className="btn-secondary btn-sm !p-2"
                         ><span className="text-lg leading-none">−</span></button>
@@ -566,10 +899,11 @@ export default function SettingsPage() {
                           <input type="number" min={0} max={100} step={0.5}
                             className="input text-center font-bold text-lg"
                             value={service.service_charge_percent}
-                            onChange={e => setService(p => ({ ...p, service_charge_percent: Number(e.target.value) }))} />
+                            onChange={e => setService(p => ({ ...p, service_charge_percent: Math.min(100, Math.max(0, Number(e.target.value))) }))} />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400">%</span>
                         </div>
                         <button
+                          type="button"
                           onClick={() => setService(p => ({ ...p, service_charge_percent: Math.min(100, p.service_charge_percent + 1) }))}
                           className="btn-secondary btn-sm !p-2"
                         ><span className="text-lg leading-none">+</span></button>
@@ -577,31 +911,22 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-3">
-                      <Toggle
+                      <LargeToggle
                         checked={service.service_charge_mandatory}
                         onChange={v => setService(p => ({ ...p, service_charge_mandatory: v }))}
-                        label="Mandatory"
-                        desc="Cannot be removed by cashier at checkout"
+                        label="Mandatory Service Charge"
+                        description="Cannot be removed by cashier at checkout without supervisor override."
+                        badgeText={service.service_charge_mandatory ? "Mandatory" : "Optional"}
+                        badgeVariant={service.service_charge_mandatory ? "amber" : "neutral"}
                       />
-                      <Toggle
+                      <LargeToggle
                         checked={service.service_charge_split_staff}
                         onChange={v => setService(p => ({ ...p, service_charge_split_staff: v }))}
                         label="Split among serving staff"
-                        desc="Allocates collected charge to staff attendance records"
+                        description="Automatically pool and allocate collected service charges to waiter shift records."
+                        badgeText={service.service_charge_split_staff ? "Staff Pool" : "House"}
+                        badgeVariant={service.service_charge_split_staff ? "success" : "neutral"}
                       />
-                    </div>
-
-                    {/* Preview */}
-                    <div className="p-4 bg-surface-50 rounded-2xl border border-surface-200 text-sm space-y-1.5">
-                      <p className="font-semibold text-surface-700 text-xs uppercase tracking-wider mb-2">Bill preview</p>
-                      <div className="flex justify-between text-surface-600"><span>Subtotal</span><span>ETB 1,000.00</span></div>
-                      <div className="flex justify-between text-surface-600"><span>Service charge ({service.service_charge_percent}%)</span>
-                        <span>ETB {(1000 * service.service_charge_percent / 100).toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-surface-900 border-t border-surface-200 pt-1.5 mt-1.5">
-                        <span>Total</span>
-                        <span>ETB {(1000 * (1 + service.service_charge_percent / 100)).toFixed(2)}</span>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -613,22 +938,28 @@ export default function SettingsPage() {
             {/* ══════════════ RECEIPT ══════════════ */}
             {activeTab === 'receipt' && (
               <div className="space-y-6">
-                <SectionHeader icon={Receipt} title="Receipt Customization" desc="Controls what prints and how it looks." />
+                <SectionHeader icon={Receipt} title="Receipt Customization" desc="Controls what prints and how digital receipts look." />
 
-                <div className="space-y-3">
-                  <Toggle
+                <div className="space-y-4">
+                  <LargeToggle
                     checked={receipt.receipt_show_logo}
                     onChange={v => setReceipt(p => ({ ...p, receipt_show_logo: v }))}
-                    label="Show restaurant logo on receipt"
-                    desc="Prints your logo at the top of every receipt"
+                    label="Show Restaurant Logo on Receipt"
+                    description="Prints your high-resolution restaurant logo at the top header of paper and digital receipts."
+                    activeIcon={ImageIcon}
+                    badgeText="Brand Header"
+                    badgeVariant="brand"
                   />
-                  <Toggle
+                  <LargeToggle
                     checked={receipt.receipt_show_tax_breakdown}
                     onChange={v => setReceipt(p => ({ ...p, receipt_show_tax_breakdown: v }))}
-                    label="Show tax breakdown"
-                    desc="Separates subtotal, tax amount, and total on receipt"
+                    label="Show Detailed Tax Breakdown"
+                    description="Prints explicit itemized subtotal, 15% VAT / taxes, and total line items."
+                    badgeText="Fiscal Tax"
+                    badgeVariant="neutral"
                   />
                 </div>
+
 
                 <div>
                   <label className="label">Default receipt mode</label>
@@ -636,9 +967,10 @@ export default function SettingsPage() {
                     {(['print', 'email', 'sms'] as const).map(mode => (
                       <button
                         key={mode}
+                        type="button"
                         onClick={() => setReceipt(p => ({ ...p, receipt_default_mode: mode }))}
                         className={cn(
-                          'py-3 px-4 rounded-2xl border text-sm font-semibold capitalize transition-all',
+                          'py-3 px-4 rounded-2xl border text-sm font-semibold capitalize transition-all cursor-pointer',
                           receipt.receipt_default_mode === mode
                             ? 'bg-brand-50 text-brand-700 border-brand-300 shadow-sm'
                             : 'bg-white text-surface-600 border-surface-200 hover:border-surface-300'
@@ -651,7 +983,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="label">Receipt header</label>
+                  <label className="label">Receipt header text</label>
                   <textarea className="textarea" rows={2}
                     value={receipt.receipt_header}
                     onChange={e => setReceipt(p => ({ ...p, receipt_header: e.target.value }))}
@@ -659,29 +991,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="label">Receipt footer</label>
+                  <label className="label">Receipt footer text</label>
                   <textarea className="textarea" rows={2}
                     value={receipt.receipt_footer}
                     onChange={e => setReceipt(p => ({ ...p, receipt_footer: e.target.value }))}
                     placeholder="Thank you for dining with us!" />
-                </div>
-
-                {/* Receipt preview */}
-                <div className="border border-dashed border-surface-300 rounded-2xl p-4 bg-surface-50 font-mono text-xs text-surface-700 space-y-1">
-                  <p className="text-center font-bold text-sm">Receipt Preview</p>
-                  {receipt.receipt_show_logo && <p className="text-center text-lg">🍽️</p>}
-                  <p className="text-center font-bold">{profile.name || 'Restaurant Name'}</p>
-                  {receipt.receipt_header && <p className="text-center text-surface-500 italic">{receipt.receipt_header}</p>}
-                  <p className="border-t border-dashed pt-1 mt-2">Item 1 ×2 ......... ETB 80.00</p>
-                  <p>Item 2 ×1 ......... ETB 45.00</p>
-                  {receipt.receipt_show_tax_breakdown && (
-                    <>
-                      <p className="border-t border-dashed pt-1 mt-1">Subtotal ........ ETB 125.00</p>
-                      <p>Tax ({tax.tax_rate}%) ........ ETB {(125 * tax.tax_rate / 100).toFixed(2)}</p>
-                    </>
-                  )}
-                  <p className="border-t border-dashed pt-1 mt-1 font-bold">TOTAL ........... ETB {(125 * (1 + tax.tax_rate / 100)).toFixed(2)}</p>
-                  {receipt.receipt_footer && <p className="text-center text-surface-500 italic mt-2 border-t border-dashed pt-1">{receipt.receipt_footer}</p>}
                 </div>
 
                 <SaveBar loading={loading} saved={saved} error={error} onSave={saveReceipt} />
@@ -691,18 +1005,27 @@ export default function SettingsPage() {
             {/* ══════════════ DEVICES ══════════════ */}
             {activeTab === 'devices' && (
               <div className="space-y-8">
-                <SectionHeader icon={Printer} title="Devices & Stations" desc="Configure ESC/POS printers and KDS tablet assignments." />
+                <SectionHeader icon={Printer} title="Devices & Stations" desc="Configure ESC/POS thermal printers and KDS station routing." />
+
+                {printFeedback && (
+                  <div className={cn(
+                    'p-4 rounded-2xl text-xs font-bold animate-fade-in border',
+                    printFeedback.startsWith('✅') ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
+                  )}>
+                    {printFeedback}
+                  </div>
+                )}
 
                 {/* Printers */}
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="font-semibold text-surface-800">Printers</p>
-                      <p className="text-xs text-surface-500">Receipt printer, kitchen ticket printer, etc.</p>
+                      <p className="font-semibold text-surface-800">Thermal Printers</p>
+                      <p className="text-xs text-surface-500">Receipt printer, kitchen ticket printer, bar printer</p>
                     </div>
-                    <button className="btn-secondary btn-sm gap-1.5" onClick={addPrinter}>
-                      <Plus className="w-3.5 h-3.5" /> Add printer
-                    </button>
+                    <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addPrinter}>
+                      Add Printer
+                    </Button>
                   </div>
 
                   {printers.length === 0 && (
@@ -725,8 +1048,17 @@ export default function SettingsPage() {
                               className="rounded" />
                             Active
                           </label>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={<Play className="w-3 h-3 text-brand-500" />}
+                            loading={testingPrinterId === p.id}
+                            onClick={() => handleTestPrint(p)}
+                          >
+                            Test Print
+                          </Button>
                           <button onClick={() => removePrinter(p.id)}
-                            className="p-1.5 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors">
+                            className="p-1.5 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors cursor-pointer">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -764,9 +1096,9 @@ export default function SettingsPage() {
                       <p className="font-semibold text-surface-800">KDS Stations</p>
                       <p className="text-xs text-surface-500">Assign kitchen display tablets to prep areas.</p>
                     </div>
-                    <button className="btn-secondary btn-sm gap-1.5" onClick={addKds}>
-                      <Plus className="w-3.5 h-3.5" /> Add station
-                    </button>
+                    <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addKds}>
+                      Add Station
+                    </Button>
                   </div>
 
                   {kdsStations.length === 0 && (
@@ -783,7 +1115,7 @@ export default function SettingsPage() {
                           <input className="input flex-1 !py-2 !text-sm font-semibold" placeholder="Station name (e.g. Grill)"
                             value={k.name} onChange={e => updateKds(k.id, { name: e.target.value })} />
                           <button onClick={() => removeKds(k.id)}
-                            className="p-1.5 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors">
+                            className="p-1.5 hover:bg-red-50 rounded-xl text-surface-400 hover:text-red-600 transition-colors cursor-pointer">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -806,45 +1138,201 @@ export default function SettingsPage() {
 
             {/* ══════════════ APPEARANCE ══════════════ */}
             {activeTab === 'appearance' && (
-              <div className="space-y-6">
-                <SectionHeader icon={Palette} title="Appearance" desc="Theme colors apply immediately across the whole app." />
+              <div className="space-y-7">
+                <SectionHeader icon={Palette} title="Appearance & Brand Theming" desc="Custom brand colors, logo-matched palettes, and platform backgrounds apply live across all POS devices." />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {hasLowContrast && (
+                  <div className="p-4 rounded-3xl bg-amber-50 border border-amber-200 flex gap-3 text-amber-800 text-xs shadow-sm">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-amber-900">Low Text Contrast Notice ({contrastRatio.toFixed(1)}:1)</p>
+                      <p>The selected background color might make text harder to read on low-brightness POS tablets. Recommended WCAG contrast is at least 4.5:1.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1. Smart Extracted Logo Palette Swatches */}
+                {extractedPalette && extractedPalette.palette.length > 0 && (
+                  <div className="p-5 rounded-3xl bg-gradient-to-r from-brand-50/80 via-surface-50/90 to-amber-50/40 border border-brand-200/80 space-y-3.5 shadow-sm">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-brand-500" />
+                        <p className="text-xs font-extrabold uppercase tracking-wider text-surface-800">
+                          Extracted from Restaurant Logo
+                        </p>
+                      </div>
+                      <span className="text-[11px] text-surface-500 font-medium">Click any swatch to set as brand accent</span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      {extractedPalette.palette.map((color, idx) => {
+                        const isCurrent = appearance.theme_color.toLowerCase() === color.toLowerCase();
+                        return (
+                          <button
+                            key={color + idx}
+                            type="button"
+                            onClick={() => applyExtractedTheme(color)}
+                            className={cn(
+                              'flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95',
+                              isCurrent
+                                ? 'ring-2 ring-brand-500 border-white bg-white shadow-brand-glow-sm'
+                                : 'bg-white/90 border-surface-200/80 hover:border-surface-300'
+                            )}
+                          >
+                            <span
+                              className="w-4 h-4 rounded-full border border-black/10 flex-shrink-0"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span>{color}</span>
+                            {idx === 0 && (
+                              <span className="text-[9px] font-sans font-black uppercase text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-md">
+                                Dominant
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        icon={<Wand2 className="w-3.5 h-3.5 text-brand-500" />}
+                        onClick={() => applyExtractedTheme(extractedPalette.dominant, extractedPalette.recommendedBg)}
+                        className="!py-1.5 !text-xs ml-auto"
+                      >
+                        Auto-Brand Full Theme
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Curated Designer Presets */}
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="label !mb-0.5">Curated Designer Palettes</label>
+                    <p className="text-xs text-surface-400">Pre-calibrated lighting and brand combinations tailored for dining & bars</p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {[
+                      { name: 'Kushina Emerald', brand: '#2F7D32', bg: '#F7F7F2', icon: '🌿' },
+                      { name: 'Obsidian Night', brand: '#D4A72C', bg: '#172033', icon: '🌌' },
+                      { name: 'Addis Gold', brand: '#D4A72C', bg: '#F7F7F2', icon: '✨' },
+                      { name: 'Bole Sunset', brand: '#f43f5e', bg: '#fff7ed', icon: '🪸' },
+                      { name: 'Royal Velvet', brand: '#8b5cf6', bg: '#172033', icon: '👑' },
+                    ].map((preset) => {
+                      const isSelected =
+                        appearance.theme_color.toLowerCase() === preset.brand.toLowerCase() &&
+                        appearance.background_color.toLowerCase() === preset.bg.toLowerCase();
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => applyExtractedTheme(preset.brand, preset.bg)}
+                          className={cn(
+                            'p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between gap-2.5 relative overflow-hidden',
+                            isSelected
+                              ? 'ring-2 ring-brand-500 border-brand-300 shadow-brand-glow-sm bg-white'
+                              : 'bg-surface-50/70 border-surface-200/80 hover:bg-white hover:border-surface-300'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-base">{preset.icon}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: preset.brand }} />
+                              <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: preset.bg }} />
+                            </div>
+                          </div>
+                          <div>
+                            <p className="font-display font-bold text-xs text-surface-900 leading-tight">{preset.name}</p>
+                            <p className="text-[10px] text-surface-400 font-mono mt-0.5">{preset.brand}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Custom Color Pickers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                   <ColorPicker
-                    label="Brand / Primary color"
-                    desc="Used on buttons, active nav items, badges."
+                    label="Brand / Primary Accent"
+                    desc="Used on action buttons, active navigation, badges, and glowing highlights."
                     value={appearance.theme_color}
-                    onChange={v => setAppearance(p => ({ ...p, theme_color: v }))}
-                    presets={['#f97316','#8b5cf6','#06b6d4','#10b981','#f43f5e','#3b82f6','#f59e0b','#84cc16']}
+                    onChange={v => {
+                      setAppearance(p => {
+                        const next = { ...p, theme_color: v };
+                        applyTheme(next.theme_color, next.background_color);
+                        return next;
+                      });
+                    }}
+                    presets={['#2F7D32','#D4A72C','#172033','#7BC67E','#10b981','#3b82f6','#8b5cf6','#f43f5e']}
                   />
                   <ColorPicker
-                    label="Background color"
-                    desc="App shell background base color."
+                    label="Platform Background Color"
+                    desc="Controls the full shell background, cards, and adaptive dark/light contrast."
                     value={appearance.background_color}
-                    onChange={v => setAppearance(p => ({ ...p, background_color: v }))}
-                    presets={['#f1f5f9','#fdf4e7','#f0fdf4','#faf5ff','#fff7ed','#f8fafc','#1e293b','#0f172a']}
+                    onChange={v => {
+                      setAppearance(p => {
+                        const next = { ...p, background_color: v };
+                        applyTheme(next.theme_color, next.background_color);
+                        return next;
+                      });
+                    }}
+                    presets={['#f8fafc','#f1f5f9','#fdf4e7','#f0fdf4','#faf5ff','#fff7ed','#1e293b','#0f172a','#090d16','#000000']}
                   />
                 </div>
 
-                {/* Live preview strip */}
-                <div className="p-5 rounded-2xl border border-surface-200 space-y-3"
-                  style={{ backgroundColor: appearance.background_color }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-surface-500">Live preview</p>
-                  <div className="flex gap-2 flex-wrap">
-                    <button className="btn-primary btn-sm" style={{ backgroundColor: appearance.theme_color }}>
-                      Primary Button
-                    </button>
-                    <button className="btn-secondary btn-sm">Secondary</button>
-                    <span className="badge" style={{ backgroundColor: `${appearance.theme_color}22`, color: appearance.theme_color, border: `1px solid ${appearance.theme_color}44` }}>
-                      Badge
+                {/* 4. Interactive Neo-Glassmorphic Live Preview */}
+                <div
+                  className="p-6 rounded-3xl border space-y-4 shadow-card transition-all duration-300 backdrop-blur-2xl"
+                  style={{
+                    backgroundColor: appearance.background_color,
+                    borderColor: 'var(--card-border, rgba(226,232,240,0.8))',
+                  }}
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wider opacity-75" style={{ color: 'var(--text-main, #0f172a)' }}>
+                      Interactive Live UI Preview
+                    </p>
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border bg-white/20 shadow-xs" style={{ color: 'var(--text-main, #0f172a)' }}>
+                      {appearance.background_color} · Contrast: {contrastRatio.toFixed(1)}:1
                     </span>
                   </div>
-                  <div className="h-2 rounded-full" style={{ backgroundColor: appearance.theme_color }} />
+                  {contrastRatio < 4.5 && (
+                    <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-100">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                      <span>Warning: Your chosen background color has low contrast with text (ratio &lt; 4.5:1). This may make the app hard to read for staff and customers.</span>
+                    </div>
+                  )}
+                  <div className="flex gap-3 flex-wrap items-center">
+                    <button
+                      type="button"
+                      className="btn-primary btn-sm px-4 py-2"
+                      style={{ backgroundColor: appearance.theme_color }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Primary POS Button
+                    </button>
+                    <button type="button" className="btn-secondary btn-sm px-4 py-2">
+                      Secondary Action
+                    </button>
+                    <span
+                      className="badge px-3 py-1 text-xs font-bold"
+                      style={{
+                        backgroundColor: `${appearance.theme_color}25`,
+                        color: appearance.theme_color,
+                        borderColor: `${appearance.theme_color}50`,
+                      }}
+                    >
+                      Active Status Pill
+                    </span>
+                  </div>
                 </div>
 
                 <SaveBar loading={loading} saved={saved} error={error} onSave={saveAppearance} />
               </div>
             )}
+
 
             {/* ══════════════ NOTIFICATIONS ══════════════ */}
             {activeTab === 'notifications' && (
@@ -921,26 +1409,26 @@ function NotificationPreferencesTab() {
                     <p className="text-xs text-surface-500 mt-0.5">{info.desc}</p>
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={!!p.in_app} 
-                      onChange={() => toggle(p.alert_type, 'in_app')} 
+                    <input
+                      type="checkbox"
+                      checked={!!p.in_app}
+                      onChange={() => toggle(p.alert_type, 'in_app')}
                       className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={!!p.email} 
-                      onChange={() => toggle(p.alert_type, 'email')} 
+                    <input
+                      type="checkbox"
+                      checked={!!p.email}
+                      onChange={() => toggle(p.alert_type, 'email')}
                       className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={!!p.sms} 
-                      onChange={() => toggle(p.alert_type, 'sms')} 
+                    <input
+                      type="checkbox"
+                      checked={!!p.sms}
+                      onChange={() => toggle(p.alert_type, 'sms')}
                       className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 cursor-pointer"
                     />
                   </td>
@@ -981,28 +1469,51 @@ function ColorPicker({ label, desc, value, onChange, presets }: {
   onChange: (v: string) => void; presets: string[];
 }) {
   return (
-    <div>
-      <label className="label">{label}</label>
-      <p className="text-xs text-surface-400 mb-2 -mt-1">{desc}</p>
-      <div className="flex items-center gap-3 mb-3">
-        <input type="color" value={value} onChange={e => onChange(e.target.value)}
-          className="w-12 h-12 p-1 rounded-xl border border-surface-200 cursor-pointer" />
-        <input type="text" value={value} onChange={e => onChange(e.target.value)}
-          className="input flex-1 uppercase font-mono" placeholder="#f97316" />
+    <div className="space-y-2.5">
+      <div>
+        <label className="label !mb-0.5">{label}</label>
+        <p className="text-xs text-surface-400">{desc}</p>
       </div>
-      <div className="flex gap-2 flex-wrap">
-        {presets.map(c => (
-          <button
-            key={c}
-            onClick={() => onChange(c)}
-            title={c}
-            className={cn(
-              'w-7 h-7 rounded-xl border-2 transition-transform hover:scale-110',
-              value === c ? 'border-surface-900 scale-110' : 'border-transparent'
-            )}
-            style={{ backgroundColor: c }}
+      <div className="flex items-center gap-3">
+        <div className="relative w-12 h-12 rounded-2xl overflow-hidden border shadow-sm flex-shrink-0 cursor-pointer"
+          style={{ borderColor: 'var(--card-border, rgba(226,232,240,0.8))' }}>
+          <input
+            type="color"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />
-        ))}
+          <div className="w-full h-full" style={{ backgroundColor: value }} />
+        </div>
+        <input
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="input flex-1 uppercase font-mono font-bold tracking-wider !py-2.5"
+          placeholder="#f97316"
+        />
+      </div>
+      <div className="flex gap-2 flex-wrap items-center pt-1">
+        {presets.map(c => {
+          const isSelected = value.toLowerCase() === c.toLowerCase();
+          return (
+            <button
+              type="button"
+              key={c}
+              onClick={() => onChange(c)}
+              title={c}
+              className={cn(
+                'w-8 h-8 rounded-2xl border-2 transition-all duration-150 flex items-center justify-center cursor-pointer shadow-sm hover:scale-110',
+                isSelected ? 'ring-2 ring-brand-500 scale-110 border-white' : 'border-surface-200/80 hover:border-surface-400'
+              )}
+              style={{ backgroundColor: c }}
+            >
+              {isSelected && (
+                <Check className={cn('w-4 h-4 drop-shadow', isDarkColor(c) ? 'text-white' : 'text-slate-900')} />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

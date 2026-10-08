@@ -151,7 +151,7 @@ function StaffPanel({
   return (
     <div className="fixed inset-0 z-40 flex">
       <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden"
+      <div className="w-full max-w-lg bg-[var(--card-bg)] shadow-2xl flex flex-col h-full overflow-hidden"
         style={{ borderRadius: '2rem 0 0 2rem' }}>
 
         {/* Header */}
@@ -186,7 +186,7 @@ function StaffPanel({
             {TABS.map(t => (
               <button key={t.key} onClick={() => setTab(t.key as any)}
                 className={cn('flex-1 py-2 rounded-xl text-sm font-bold transition-all',
-                  tab === t.key ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500 hover:text-surface-700')}>
+                  tab === t.key ? 'bg-[var(--card-bg)] shadow-sm text-surface-900' : 'text-surface-500 hover:text-surface-700')}>
                 {t.label}
               </button>
             ))}
@@ -237,7 +237,7 @@ function StaffPanel({
                           'flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left',
                           form.role === r
                             ? 'border-brand-400 bg-brand-50'
-                            : 'border-surface-200 hover:border-brand-200 bg-white'
+                            : 'border-surface-200 hover:border-brand-200 bg-[var(--card-bg)]'
                         )}
                       >
                         <div className={cn('w-8 h-8 rounded-xl bg-gradient-to-br flex-shrink-0', ROLE_COLORS[r])}>
@@ -473,7 +473,7 @@ function ClockModal({
   const [notes, setNotes] = useState('');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-xs shadow-2xl p-6 space-y-4">
+      <div className="bg-[var(--card-bg)] rounded-[2rem] w-full max-w-xs shadow-2xl p-6 space-y-4">
         <div className="text-center">
           <div className={cn('w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3', action === 'in' ? 'bg-emerald-100' : 'bg-amber-100')}>
             {action === 'in' ? <LogIn className="w-8 h-8 text-emerald-600" /> : <LogOut className="w-8 h-8 text-amber-600" />}
@@ -577,7 +577,7 @@ export default function StaffPage() {
 
       <div className="animate-fade-in space-y-6">
         {/* Header */}
-        <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm flex-wrap gap-4">
+        <div className="page-header bg-[var(--card-bg)] p-5 rounded-[2rem] backdrop-blur-sm border border-[var(--card-border)] shadow-sm flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <h1 className="page-title flex items-center gap-2"><Users className="w-6 h-6 text-brand-500" />Staff</h1>
             <p className="page-subtitle">
@@ -615,7 +615,7 @@ export default function StaffPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {activeNow.map(a => (
-                <div key={a.id} className="flex items-center gap-2 bg-white border border-emerald-200 rounded-full px-3 py-1.5">
+                <div key={a.id} className="flex items-center gap-2 bg-[var(--card-bg)] border border-emerald-200/50 rounded-full px-3 py-1.5">
                   <div className="w-6 h-6 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold flex items-center justify-center">
                     {getInitials(a.staff_name)}
                   </div>
@@ -646,7 +646,7 @@ export default function StaffPage() {
             {[['active', 'Active'], ['inactive', 'Inactive'], ['all', 'All']].map(([v, l]) => (
               <button key={v} onClick={() => setFilterActive(v)}
                 className={cn('px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
-                  filterActive === v ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500')}>
+                  filterActive === v ? 'bg-[var(--card-bg)] shadow-sm text-surface-900' : 'text-surface-500')}>
                 {l}
               </button>
             ))}
@@ -659,7 +659,7 @@ export default function StaffPage() {
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-40 bg-surface-100 rounded-3xl animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-white/60 rounded-3xl border border-surface-100">
+          <div className="text-center py-20 bg-[var(--card-bg)] rounded-3xl border border-surface-100">
             <Users className="w-14 h-14 text-surface-200 mx-auto mb-4" />
             <p className="text-surface-500 font-semibold">No staff members found</p>
             {canOwner && <button className="btn-primary mt-4" onClick={() => setPanel({ mode: 'new' })}>Add First Staff Member</button>}
@@ -673,7 +673,7 @@ export default function StaffPage() {
                 <div
                   key={s.id}
                   className={cn(
-                    'bg-white rounded-3xl border-2 p-5 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer group',
+                    'bg-[var(--card-bg)] rounded-3xl border-2 p-5 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer group',
                     !s.is_active ? 'opacity-60 border-surface-100' : 'border-surface-200 hover:border-brand-200'
                   )}
                   onClick={() => setPanel({ mode: 'edit', staff: s })}

@@ -60,6 +60,17 @@ router.get('/dashboard', async (req, res) => {
     `, [rId]);
     const lowStockItems = inventory.filter(i => i.quantity <= i.low_stock_threshold);
 
+    // Recent orders for the Live Orders Stream panel on the dashboard
+    const { rows: recentOrders } = await db.query(`
+      SELECT o.id, o.status, o.order_type, o.total, o.customer_name, o.created_at,
+             t.label as table_label
+      FROM orders o
+      LEFT JOIN tables t ON t.id = o.table_id
+      WHERE o.restaurant_id = $1 AND o.status != 'cancelled'
+      ORDER BY o.created_at DESC
+      LIMIT 10
+    `, [rId]);
+
     res.json({
       kpis: kpis[0] || { today_orders: 0, today_sales: 0, today_avg_order: 0, yesterday_orders: 0, yesterday_sales: 0 },
       liveStatus: {
@@ -68,7 +79,8 @@ router.get('/dashboard', async (req, res) => {
         preparing_orders: parseInt(orderStatus[0]?.preparing_orders || 0),
         active_staff: parseInt(staffStatus[0]?.active_staff || 0),
       },
-      lowStock: lowStockItems
+      lowStock: lowStockItems,
+      recentOrders,
     });
   } catch (err) {
     console.error('Dashboard Error:', err);
@@ -241,6 +253,25 @@ router.get('/export', async (req, res) => {
         FROM mv_staff_performance p JOIN staff s ON s.id = p.staff_id 
         WHERE p.restaurant_id=$1 AND p.date >= CURRENT_DATE - $2::integer ORDER BY p.date DESC
       `, [tid(req), days]);
+      rows = q.rows;
+    } else if (type === 'z-report') {
+      // Z-Report is a daily summary of today's register
+      const targetDate = req.query.date || 'CURRENT_DATE';
+      const q = await db.query(`
+        SELECT 
+          DATE(created_at AT TIME ZONE 'UTC') as date,
+          COUNT(id) as total_orders,
+          SUM(subtotal) as subtotal,
+          SUM(tax_amount) as tax_amount,
+          SUM(discount_amount) as discount_amount,
+          SUM(total) as gross_total,
+          payment_method
+        FROM orders
+        WHERE restaurant_id = $1 
+          AND status != 'cancelled'
+          AND DATE(created_at AT TIME ZONE 'UTC') = ${targetDate === 'CURRENT_DATE' ? 'CURRENT_DATE' : '$2'}
+        GROUP BY DATE(created_at AT TIME ZONE 'UTC'), payment_method
+      `, targetDate === 'CURRENT_DATE' ? [tid(req)] : [tid(req), targetDate]);
       rows = q.rows;
     }
 

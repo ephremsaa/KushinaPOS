@@ -1,34 +1,95 @@
 import React from 'react';
-import { XCircle, Mail } from 'lucide-react';
+import { XCircle, Mail, RefreshCw, MessageCircle, ChefHat } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { Button, Card } from '../components/ui';
 
 export default function RejectedPage() {
   const { user, signOut } = useAuth();
-  const reason = user?.restaurant?.rejection_reason;
+  const reason = (user as any)?.restaurant?.rejection_reason;
+
   return (
-    <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md text-center">
-        <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
-          <XCircle className="w-10 h-10 text-red-500" />
-        </div>
-        <h1 className="font-display font-bold text-2xl text-surface-900 mb-3">Application Rejected</h1>
-        <p className="text-surface-500 mb-4">
-          Unfortunately, your restaurant application was not approved.
-        </p>
-        {Boolean(reason) && (
-          <div className="card mb-6 text-left border border-red-200 bg-red-50">
-            <p className="text-sm font-semibold text-surface-700 mb-1">Reason:</p>
-            <p className="text-sm text-surface-600">{String(reason)}</p>
+    <div className="min-h-screen bg-gradient-to-br from-surface-50 to-surface-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg text-center animate-fade-in">
+
+        {/* Brand mark */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-glow-sm">
+            <ChefHat className="w-5 h-5 text-white" />
           </div>
-        )}
-        <p className="text-surface-500 mb-8 text-sm">
-          If you believe this is a mistake, please contact our support team.
+          <span className="font-display font-black text-xl text-surface-900 tracking-tight">
+            kushina<span className="text-brand-500">POS</span>
+          </span>
+        </div>
+
+        {/* Status icon — neutral, not all-red */}
+        <div className="w-20 h-20 bg-surface-100 border-4 border-surface-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+          <XCircle className="w-10 h-10 text-surface-400" />
+        </div>
+
+        <h1 className="font-display font-black text-2xl text-surface-900 mb-3">
+          Application Not Approved
+        </h1>
+        <p className="text-surface-500 mb-6 max-w-sm mx-auto leading-relaxed">
+          After reviewing your application, we were unable to approve it at this time.
         </p>
-        <div className="flex gap-3 justify-center">
-          <a href="mailto:support@kushina.pos" className="btn-primary gap-2">
-            <Mail className="w-4 h-4" /> Contact support
-          </a>
-          <button onClick={signOut} className="btn-secondary">Sign out</button>
+
+        {/* Rejection reason — always show, never hide */}
+        {reason ? (
+          <Card className="mb-6 text-left border-l-4 border-red-400 p-5">
+            <p className="text-xs font-black uppercase tracking-wider text-red-600 mb-2">
+              Reason provided by reviewer
+            </p>
+            <p className="text-sm text-surface-700 leading-relaxed">{String(reason)}</p>
+          </Card>
+        ) : (
+          <Card className="mb-6 text-left p-5">
+            <p className="text-xs font-black uppercase tracking-wider text-surface-400 mb-2">
+              No specific reason was provided
+            </p>
+            <p className="text-sm text-surface-600 leading-relaxed">
+              Contact our support team and reference your email address — they can give you details.
+            </p>
+          </Card>
+        )}
+
+        {/* What you can do — actionable, not vague */}
+        <Card className="mb-6 text-left p-5">
+          <h3 className="font-bold text-surface-900 text-sm mb-3">What you can do</h3>
+          <ul className="space-y-2.5 text-sm text-surface-600">
+            <li className="flex items-start gap-2.5">
+              <Mail className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>Contact support</strong> — email us with your business details and we'll explain the decision.
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <RefreshCw className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>Re-apply</strong> — if you've resolved the issue raised, you can submit a new application.
+              </span>
+            </li>
+            <li className="flex items-start gap-2.5">
+              <MessageCircle className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>Appeal the decision</strong> — if you believe this is a mistake, we're happy to review it again.
+              </span>
+            </li>
+          </ul>
+        </Card>
+
+        <div className="flex gap-3">
+          <Button
+            variant="primary"
+            fullWidth
+            icon={<Mail className="w-4 h-4" />}
+            as="a"
+            href="mailto:support@kushina.pos"
+          >
+            Contact Support
+          </Button>
+          <Button variant="ghost" fullWidth onClick={signOut}>
+            Sign Out
+          </Button>
         </div>
       </div>
     </div>

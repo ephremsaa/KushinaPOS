@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
   logo_url                TEXT,
   business_license_url    TEXT,
   slug                    TEXT UNIQUE,
+  previous_slugs          JSONB DEFAULT '[]'::jsonb,
   status                  TEXT NOT NULL DEFAULT 'pending'
                           CHECK (status IN ('pending','active','suspended','rejected')),
   rejection_reason        TEXT,
@@ -161,6 +162,24 @@ CREATE TABLE IF NOT EXISTS tables (
                 CHECK (status IN ('available','occupied','reserved','cleaning')),
   created_at    TIMESTAMPTZ DEFAULT NOW(),
   updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─────────────────────────────────────────────
+-- RESERVATIONS
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reservations (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  restaurant_id   UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  table_id        UUID REFERENCES tables(id) ON DELETE SET NULL,
+  customer_name   TEXT NOT NULL,
+  customer_phone  TEXT NOT NULL,
+  party_size      INT NOT NULL DEFAULT 2,
+  reservation_time TIMESTAMPTZ NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending','confirmed','seated','cancelled','no_show')),
+  notes           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ─────────────────────────────────────────────

@@ -19,7 +19,12 @@ pool.connect((err, client, release) => {
     process.exit(1);
   }
   release();
-  console.log('✅ Connected to PostgreSQL (Supabase Cloud)');
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    console.log(`✅ Connected to PostgreSQL (${url.pathname.slice(1)} on ${url.hostname})`);
+  } catch {
+    console.log('✅ Connected to PostgreSQL');
+  }
 });
 
 module.exports = pool;

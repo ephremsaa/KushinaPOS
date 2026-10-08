@@ -105,11 +105,26 @@ export default function AdminLayout() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950 font-sans text-slate-100 selection:bg-orange-500 selection:text-white">
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex">
-        <Sidebar />
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-950 font-sans text-slate-100 selection:bg-orange-500 selection:text-white">
+
+      {/* ── Platform Admin Identity Band ─────────────────────────────── */}
+      {/* This band is the primary visual signal that you are in the control room, */}
+      {/* NOT in your restaurant. It must be visible at all times. */}
+      <div className="admin-band flex-shrink-0 z-[60]">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-3.5 h-3.5 opacity-80" />
+          <span className="uppercase tracking-widest">Platform Admin — KushinaPOS Control Room</span>
+        </div>
+        <span className="opacity-70 font-mono text-[11px]">
+          {user?.email}
+        </span>
       </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:flex">
+          <Sidebar />
+        </div>
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
@@ -175,6 +190,7 @@ export default function AdminLayout() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-900 text-slate-100">
           <Outlet />
         </main>
+      </div>
       </div>
     </div>
   );

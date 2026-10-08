@@ -21,7 +21,7 @@ export interface AuthUser {
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, remember?: boolean) => Promise<void>;
   staffSignIn: (slug: string, pin: string) => Promise<void>;
   signOut: () => void;
   register: (data: Record<string, unknown>) => Promise<void>;
@@ -54,9 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, remember: boolean = true) {
     const { token, user: raw } = await authApi.login(email, password);
-    setToken(token);
+    setToken(token, remember);
     setUser(buildUser(raw as Record<string, unknown>));
   }
 

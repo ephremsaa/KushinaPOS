@@ -25,6 +25,29 @@ async function triggerAuto86(client, restaurantId) {
       [ids]
     );
   }
+
+  // Also check for low stock threshold crosses to emit alerts
+  const { rows: lowStockItems } = await client.query(
+    `SELECT id, name, quantity, unit, low_stock_threshold
+     FROM inventory_items
+     WHERE restaurant_id = $1 AND quantity <= low_stock_threshold AND quantity > 0`,
+    [restaurantId]
+  );
+
+  if (lowStockItems.length > 0) {
+    const { notify } = require('./notifyService');
+    for (const item of lowStockItems) {
+      // notifyService will handle duplicate prevention if it has it, otherwise we emit
+      await notify({
+        restaurant_id: restaurantId,
+        type: 'low_stock',
+        title: `⚠️ Low Stock Alert: ${item.name}`,
+        message: `Quantity has dropped to ${item.quantity} ${item.unit} (Threshold: ${item.low_stock_threshold} ${item.unit}).`,
+        target_role: 'manager',
+        metadata: { item_id: item.id, item_name: item.name, quantity: item.quantity, threshold: item.low_stock_threshold }
+      }).catch(err => console.error('Failed to emit low stock alert:', err));
+    }
+  }
 }
 
 module.exports = {

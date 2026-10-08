@@ -99,16 +99,30 @@ router.get('/items', async (req, res) => {
 router.post('/items', requireManager, async (req, res) => {
   const { name, description, price, category_id, preparation_time_minutes, is_available, sort_order, image_url, tags, station } = req.body;
   if (!name || price === undefined) return res.status(400).json({ error: 'name and price required' });
+  const validCategoryId = (category_id && typeof category_id === 'string' && category_id.trim() !== '') ? category_id.trim() : null;
   try {
     const { rows } = await db.query(
       `INSERT INTO menu_items (restaurant_id, name, description, price, category_id, preparation_time_minutes, is_available, sort_order, image_url, tags, station)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [tid(req), name, description || null, price, category_id || null,
-       preparation_time_minutes || 10, is_available !== false, sort_order || 0,
-       image_url || null, tags || [], station || 'General']
+      [
+        tid(req),
+        name.trim(),
+        description ? description.trim() : null,
+        Number(price) || 0,
+        validCategoryId,
+        Number(preparation_time_minutes) || 10,
+        is_available !== false,
+        Number(sort_order) || 0,
+        image_url || null,
+        Array.isArray(tags) ? tags : [],
+        station || 'General'
+      ]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Failed' }); }
+  } catch (err) {
+    console.error('Create menu item error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create menu item' });
+  }
 });
 
 // ── PATCH /api/menu/items/:id ─────────────────────────────────
@@ -119,15 +133,19 @@ router.patch('/items/:id', requireManager, async (req, res) => {
     const params = [];
     let i = 1;
 
-    if (name !== undefined)                    { query += `, name = $${i++}`;                   params.push(name); }
-    if (description !== undefined)             { query += `, description = $${i++}`;            params.push(description); }
-    if (price !== undefined)                   { query += `, price = $${i++}`;                  params.push(price); }
-    if (category_id !== undefined)             { query += `, category_id = $${i++}`;            params.push(category_id === '' ? null : category_id); }
-    if (preparation_time_minutes !== undefined) { query += `, preparation_time_minutes = $${i++}`; params.push(preparation_time_minutes); }
-    if (is_available !== undefined)            { query += `, is_available = $${i++}`;           params.push(is_available); }
-    if (sort_order !== undefined)              { query += `, sort_order = $${i++}`;             params.push(sort_order); }
+    if (name !== undefined)                    { query += `, name = $${i++}`;                   params.push(name.trim()); }
+    if (description !== undefined)             { query += `, description = $${i++}`;            params.push(description ? description.trim() : null); }
+    if (price !== undefined)                   { query += `, price = $${i++}`;                  params.push(Number(price) || 0); }
+    if (category_id !== undefined)             {
+      const validCat = (category_id && typeof category_id === 'string' && category_id.trim() !== '') ? category_id.trim() : null;
+      query += `, category_id = $${i++}`;
+      params.push(validCat);
+    }
+    if (preparation_time_minutes !== undefined) { query += `, preparation_time_minutes = $${i++}`; params.push(Number(preparation_time_minutes) || 10); }
+    if (is_available !== undefined)            { query += `, is_available = $${i++}`;           params.push(Boolean(is_available)); }
+    if (sort_order !== undefined)              { query += `, sort_order = $${i++}`;             params.push(Number(sort_order) || 0); }
     if (image_url !== undefined)               { query += `, image_url = $${i++}`;             params.push(image_url); }
-    if (tags !== undefined)                    { query += `, tags = $${i++}`;                   params.push(tags); }
+    if (tags !== undefined)                    { query += `, tags = $${i++}`;                   params.push(Array.isArray(tags) ? tags : []); }
     if (station !== undefined)                 { query += `, station = $${i++}`;                params.push(station); }
 
     query += ` WHERE id = $${i++} AND restaurant_id = $${i++} RETURNING *`;
@@ -136,7 +154,10 @@ router.patch('/items/:id', requireManager, async (req, res) => {
     const { rows } = await db.query(query, params);
     if (!rows[0]) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Failed' }); }
+  } catch (err) {
+    console.error('Update menu item error:', err);
+    res.status(500).json({ error: err.message || 'Failed to update menu item' });
+  }
 });
 
 // ── DELETE /api/menu/items/:id ────────────────────────────────

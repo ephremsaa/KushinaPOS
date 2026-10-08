@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/db');
+const { notify } = require('../utils/notifyService');
 const router = express.Router();
 
 // Helper: Check operating hours
@@ -36,7 +37,7 @@ async function findActiveRestaurant(slugOrId) {
 
   // 1. Exact match (UUID or exact slug)
   const exact = await db.query(
-    "SELECT * FROM restaurants WHERE status = 'active' AND (id::text = $1 OR LOWER(slug) = $1)",
+    "SELECT * FROM restaurants WHERE status = 'active' AND (id::text = $1 OR LOWER(slug) = $1 OR previous_slugs @> jsonb_build_array($1::text))",
     [cleaned]
   );
   if (exact.rows[0]) return exact.rows[0];
@@ -342,6 +343,44 @@ router.get('/order-status/:orderId', async (req, res) => {
   } catch (err) {
     console.error('Order status fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch order status' });
+  }
+});
+
+// ── POST /api/public/call-waiter ──────────────────────────────
+router.post('/call-waiter', async (req, res) => {
+  const { restaurant_id, table_label, request_type = 'general', notes } = req.body;
+  if (!restaurant_id || !table_label) {
+    return res.status(400).json({ error: 'Restaurant and table are required' });
+  }
+
+  try {
+    const actionLabel = request_type === 'bill'
+      ? 'Requesting Bill / Check 🧾'
+      : request_type === 'water'
+      ? 'Requesting Water / Napkins 💧'
+      : 'Calling Waiter Assistance 🙋‍♂️';
+
+    const title = `🔔 Table ${table_label}: ${actionLabel}`;
+    const message = notes 
+      ? `Table ${table_label} requested: ${actionLabel}. Note: "${notes}"`
+      : `Table ${table_label} needs assistance: ${actionLabel}.`;
+
+    await notify({
+      restaurant_id,
+      type: 'new_online_order',
+      title,
+      message,
+      target_role: 'all',
+      metadata: { table_label, request_type, notes },
+    });
+
+    res.json({
+      success: true,
+      message: 'Staff has been notified! A team member will assist you shortly.',
+    });
+  } catch (err) {
+    console.error('Call waiter error:', err);
+    res.status(500).json({ error: 'Failed to notify staff' });
   }
 });
 

@@ -4,10 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ShoppingBag, Clock, MapPin, Phone, Search, AlertCircle,
   CheckCircle2, Plus, Minus, X, ArrowRight, UtensilsCrossed,
-  Truck, Store, CreditCard, ChevronRight, Loader2, Sparkles, Check
+  Truck, Store, CreditCard, ChevronRight, Loader2, Sparkles, Check,
+  Bell, Droplets, Receipt, MessageSquare, UserCheck
 } from 'lucide-react';
 import { publicApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { LanguageSwitcher } from '../../components/ui';
 
 interface CartItem {
   menu_item_id: string;
@@ -23,6 +26,7 @@ export default function PublicMenuPage() {
   const { slug, tableId: urlTableId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const querySlug = slug || 'default';
   const queryTable = urlTableId || searchParams.get('table') || '';
@@ -34,6 +38,14 @@ export default function PublicMenuPage() {
   const [tableLabel, setTableLabel] = useState(queryTable);
   const [tableId, setTableId] = useState('');
   const [tableVerified, setTableVerified] = useState(false);
+
+  // Waiter Buzzer State
+  const [waiterModalOpen, setWaiterModalOpen] = useState(false);
+  const [waiterReqType, setWaiterReqType] = useState<'general' | 'bill' | 'water'>('general');
+  const [waiterNotes, setWaiterNotes] = useState('');
+  const [waiterCalling, setWaiterCalling] = useState(false);
+  const [waiterSuccessMsg, setWaiterSuccessMsg] = useState('');
+  const [waiterCooldown, setWaiterCooldown] = useState(0);
 
   // Customer contact info
   const [customerName, setCustomerName] = useState('');
@@ -89,6 +101,43 @@ export default function PublicMenuPage() {
         });
     }
   }, [querySlug, queryTable]);
+
+  // Waiter Buzzer Cooldown Timer
+  useEffect(() => {
+    if (waiterCooldown <= 0) return;
+    const t = setInterval(() => {
+      setWaiterCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [waiterCooldown]);
+
+  // Call Waiter API Trigger
+  const handleCallWaiter = async () => {
+    if (!restaurant?.id || !tableLabel) {
+      alert('Please enter your table number first.');
+      return;
+    }
+    setWaiterCalling(true);
+    try {
+      const res = await publicApi.callWaiter({
+        restaurant_id: restaurant.id,
+        table_label: tableLabel,
+        request_type: waiterReqType,
+        notes: waiterNotes || undefined,
+      });
+      setWaiterSuccessMsg(res.message || 'Staff notified!');
+      setWaiterCooldown(30);
+      setWaiterNotes('');
+      setTimeout(() => {
+        setWaiterModalOpen(false);
+        setWaiterSuccessMsg('');
+      }, 2500);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to notify staff.');
+    } finally {
+      setWaiterCalling(false);
+    }
+  };
 
   // Dynamic theme colors
   useEffect(() => {
@@ -271,6 +320,7 @@ export default function PublicMenuPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <LanguageSwitcher variant="button" />
             <span className={cn('px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5', restaurant.is_open ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200')}>
               <span className={cn('w-1.5 h-1.5 rounded-full', restaurant.is_open ? 'bg-emerald-500' : 'bg-red-500')} />
               {restaurant.is_open ? 'Open' : 'Closed'}
@@ -299,35 +349,52 @@ export default function PublicMenuPage() {
               className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'dine_in' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
             >
               <UtensilsCrossed className="w-4 h-4" />
-              Dine-In {queryTable && `(Table ${queryTable})`}
+              {t('pos.dine_in', 'Dine-In')} {queryTable && `(Table ${queryTable})`}
             </button>
             <button
               onClick={() => setOrderType('delivery')}
               className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'delivery' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
             >
               <Truck className="w-4 h-4" />
-              Delivery
+              {t('pos.delivery', 'Delivery')}
             </button>
             <button
               onClick={() => setOrderType('takeaway')}
               className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'takeaway' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
             >
               <Store className="w-4 h-4" />
-              Pickup
+              {t('pos.takeaway', 'Takeaway')}
             </button>
           </div>
 
           {/* Mode specific fields */}
           {orderType === 'dine_in' && (
-            <div className="mt-3 pt-3 border-t border-surface-100 flex items-center gap-3">
-              <label className="text-xs font-bold text-surface-700 flex-shrink-0">Table Number:</label>
-              <input
-                type="text"
-                className="input py-1.5 px-3 text-xs rounded-xl"
-                placeholder="e.g. T-1, 4"
-                value={tableLabel}
-                onChange={(e) => setTableLabel(e.target.value)}
-              />
+            <div className="mt-3 pt-3 border-t border-surface-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <label className="text-xs font-bold text-surface-700 flex-shrink-0">{t('menu.table_number', 'Table #')}:</label>
+                <input
+                  type="text"
+                  className="input py-1.5 px-3 text-xs rounded-xl font-bold"
+                  placeholder="e.g. 4"
+                  value={tableLabel}
+                  onChange={(e) => setTableLabel(e.target.value)}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setWaiterModalOpen(true)}
+                className={cn(
+                  'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs',
+                  waiterCooldown > 0
+                    ? 'bg-surface-100 text-surface-400 border border-surface-200'
+                    : 'bg-surface-900 hover:bg-black text-white active:scale-95'
+                )}
+                disabled={waiterCooldown > 0}
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-400" />
+                {waiterCooldown > 0 ? `Called (${waiterCooldown}s)` : t('menu.call_waiter', 'Call Waiter')}
+              </button>
             </div>
           )}
         </div>
@@ -426,19 +493,19 @@ export default function PublicMenuPage() {
         <div className="fixed bottom-4 left-4 right-4 max-w-3xl mx-auto z-40">
           <button
             onClick={() => setIsCartOpen(true)}
-            className="w-full bg-brand-500 text-white rounded-3xl p-4 shadow-xl flex items-center justify-between hover:bg-brand-600 transition-all active:scale-[0.98]"
+            className="w-full bg-gradient-to-r from-brand-600 via-brand-500 to-brand-300 text-white rounded-3xl p-4 shadow-glow flex items-center justify-between hover:brightness-105 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-sm">
+              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-bold text-sm shadow-xs">
                 {totalCartCount}
               </div>
               <div className="text-left">
-                <p className="text-xs font-medium text-white/80">View Order Cart</p>
-                <p className="font-display font-bold text-base">{formatCurrency(cartTotal)}</p>
+                <p className="text-xs font-medium text-white/90">{t('menu.view_cart', 'View Order Cart')}</p>
+                <p className="font-display font-black text-base">{formatCurrency(cartTotal)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 font-bold text-sm bg-white/20 px-3 py-1.5 rounded-2xl">
-              Checkout <ChevronRight className="w-4 h-4" />
+            <div className="flex items-center gap-1 font-extrabold text-sm bg-white/20 px-3.5 py-1.5 rounded-2xl shadow-xs">
+              {t('menu.place_order', 'Checkout')} <ChevronRight className="w-4 h-4" />
             </div>
           </button>
         </div>
@@ -618,6 +685,111 @@ export default function PublicMenuPage() {
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShoppingBag className="w-5 h-5" />}
               {submitting ? 'Placing Order…' : `Place Order · ${formatCurrency(cartTotal)}`}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Waiter Service Buzzer Modal ───────────────────────── */}
+      {waiterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-surface-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                  <Bell className="w-5 h-5 animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-base text-surface-900">
+                    Call Staff
+                  </h3>
+                  <p className="text-xs text-surface-500 font-mono">
+                    Table: <strong>{tableLabel || 'Not specified'}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setWaiterModalOpen(false)}
+                className="p-2 rounded-full hover:bg-surface-100 text-surface-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {waiterSuccessMsg ? (
+              <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-200 text-center space-y-2 animate-fade-in">
+                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                <p className="font-bold text-sm text-emerald-900">{waiterSuccessMsg}</p>
+                <p className="text-xs text-emerald-700">A waiter has been alerted and will arrive at your table shortly.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-surface-700 block mb-2">Select Request:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setWaiterReqType('general')}
+                      className={cn(
+                        'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
+                        waiterReqType === 'general'
+                          ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
+                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                      )}
+                    >
+                      <UserCheck className="w-5 h-5 text-amber-500" />
+                      Waiter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWaiterReqType('bill')}
+                      className={cn(
+                        'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
+                        waiterReqType === 'bill'
+                          ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
+                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                      )}
+                    >
+                      <Receipt className="w-5 h-5 text-emerald-600" />
+                      Bill / Check
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWaiterReqType('water')}
+                      className={cn(
+                        'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
+                        waiterReqType === 'water'
+                          ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
+                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                      )}
+                    >
+                      <Droplets className="w-5 h-5 text-blue-500" />
+                      Water
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-surface-700 block mb-1">Quick Note (optional):</label>
+                  <input
+                    type="text"
+                    className="input text-xs py-2"
+                    placeholder="e.g. Extra napkins, cutlery, change"
+                    value={waiterNotes}
+                    onChange={(e) => setWaiterNotes(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCallWaiter}
+                  disabled={waiterCalling || !tableLabel}
+                  className="btn-primary w-full justify-center py-3.5 gap-2 text-xs font-bold shadow-md"
+                >
+                  {waiterCalling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+                  {waiterCalling ? 'Notifying Waiter…' : `Ring Table ${tableLabel || ''} Buzzer`}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -98,7 +98,7 @@ export default function LandingPage() {
             
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 group">
-              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-tr from-brand-600 via-brand-500 to-amber-400 rounded-2xl flex items-center justify-center shadow-glow-sm group-hover:scale-105 transition-transform duration-300">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 bg-brand-600 rounded-2xl flex items-center justify-center shadow-glow-sm group-hover:scale-105 transition-transform duration-300">
                 <ChefHat className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -106,7 +106,7 @@ export default function LandingPage() {
                   <span className="font-display font-extrabold text-xl sm:text-2xl text-surface-950 tracking-tight">
                     kushina<span className="text-brand-500">POS</span>
                   </span>
-                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-amber-200">
+                  <span className="bg-brand-100 text-brand-800 text-[10px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-brand-200">
                     ETH
                   </span>
                 </div>
@@ -137,7 +137,7 @@ export default function LandingPage() {
               </Link>
               <Link
                 to="/register"
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-brand-500 via-orange-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white font-bold text-sm px-5 py-2.5 rounded-2xl shadow-glow-sm hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm px-5 py-2.5 rounded-2xl shadow-glow-sm hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
                 <span>Start Free Trial</span>
                 <ArrowRight className="w-4 h-4" />
@@ -188,9 +188,9 @@ export default function LandingPage() {
       {/* ── Hero Section with Ambient Lights ── */}
       <section className="relative pt-12 pb-20 sm:pt-20 sm:pb-32 overflow-hidden mesh-gradient">
         {/* Glowing backdrop spheres */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-gradient-to-tr from-brand-500/20 via-orange-400/20 to-amber-300/20 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse-glow" />
-        <div className="absolute top-10 right-10 w-72 h-72 bg-amber-400/15 rounded-full blur-2xl pointer-events-none -z-10 animate-float" />
-        <div className="absolute bottom-10 left-10 w-80 h-80 bg-brand-500/15 rounded-full blur-2xl pointer-events-none -z-10 animate-float-delayed" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[450px] bg-brand-500/15 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse-glow" />
+        <div className="absolute top-10 right-10 w-72 h-72 bg-brand-400/10 rounded-full blur-2xl pointer-events-none -z-10 animate-float" />
+        <div className="absolute bottom-10 left-10 w-80 h-80 bg-brand-500/10 rounded-full blur-2xl pointer-events-none -z-10 animate-float-delayed" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center relative z-10">
           
@@ -225,7 +225,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto mb-14">
             <Link
               to="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-gradient-to-r from-brand-500 via-orange-500 to-amber-500 hover:from-brand-600 hover:to-amber-600 text-white text-base font-bold px-8 py-4 rounded-2xl shadow-glow hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-brand-600 hover:bg-brand-700 text-white text-base font-bold px-8 py-4 rounded-2xl shadow-glow hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
             >
               <span>Register Your Restaurant</span>
               <ArrowRight className="w-5 h-5" />
@@ -323,7 +323,7 @@ export default function LandingPage() {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs sm:text-sm font-bold transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-brand-500 to-amber-500 text-white shadow-glow'
+                      ? 'bg-brand-600 text-white shadow-glow-sm'
                       : 'bg-surface-900/80 hover:bg-surface-800 text-surface-400 hover:text-white border border-surface-800'
                   }`}
                 >
@@ -1296,10 +1296,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── High-Converting Call to Action Banner ── */}
-      <section className="py-20 sm:py-24 bg-gradient-to-r from-brand-600 via-orange-600 to-amber-600 text-white relative overflow-hidden">
+      <section className="py-20 sm:py-24 bg-brand-700 text-white relative overflow-hidden">
         {/* Glow circles */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-300/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-400/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-4 py-1 text-xs font-bold uppercase tracking-wider mb-6">

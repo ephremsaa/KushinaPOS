@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { Network } from '@capacitor/network';
 import { syncEngine, triggerSync } from '../lib/sync';
 
 interface NetworkContextValue {
@@ -18,9 +19,35 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
   const [pendingSyncCount, setPendingSyncCount] = useState(syncEngine.getPendingCount());
 
   useEffect(() => {
+    // 1. Initial status from Capacitor Network
+    Network.getStatus().then(status => {
+      setIsOnline(status.connected);
+    }).catch(() => {
+      setIsOnline(navigator.onLine);
+    });
+
+    // 2. Native listener
+    let listenerHandle: any = null;
+    try {
+      listenerHandle = Network.addListener('networkStatusChange', status => {
+        setIsOnline(status.connected);
+        if (status.connected) {
+          const count = syncEngine.getPendingCount();
+          if (count > 0) {
+            triggerSync((result) => {
+              console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
+              setPendingSyncCount(syncEngine.getPendingCount());
+            });
+          }
+        }
+      });
+    } catch {
+      // Browser fallback
+    }
+
+    // 3. Browser event fallback
     const handleOnline = () => {
       setIsOnline(true);
-      // Auto-sync pending orders when connection is restored
       const count = syncEngine.getPendingCount();
       if (count > 0) {
         triggerSync((result) => {
@@ -33,7 +60,11 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
     return () => {
+      if (listenerHandle && typeof listenerHandle.remove === 'function') {
+        listenerHandle.remove();
+      }
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
