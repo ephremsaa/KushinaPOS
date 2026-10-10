@@ -3,7 +3,25 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 
-// Check magic bytes for JPEG, PNG, WEBP, PDF
+const useLocal = process.env.NODE_ENV !== 'production' && process.env.STORAGE_DRIVER === 'local';
+
+let supabase;
+if (!useLocal) {
+  const { createClient } = require('@supabase/supabase-js');
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('FATAL: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in production.');
+      process.exit(1);
+    } else {
+      console.warn('WARNING: Supabase credentials missing. Uploads will fail unless STORAGE_DRIVER=local is set.');
+    }
+  } else {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  }
+}
+
 function getMimeAndExt(buffer) {
   if (buffer.length < 4) return null;
   // JPEG
@@ -29,17 +47,6 @@ function getMimeAndExt(buffer) {
 
 const memoryStorage = multer.memoryStorage();
 
-/**
- * Creates an upload middleware that verifies magic bytes, saves to a designated folder,
- * and attaches `req.file.url` (and `req.file.localPath`) for the next handler.
- * 
- * @param {Object} options 
- * @param {string} options.fieldName - Name of the form field
- * @param {string} options.folder - Destination folder name (e.g., 'logos')
- * @param {number} options.maxBytes - Max file size in bytes
- * @param {boolean} options.isPrivate - Whether it goes to private-uploads
- * @param {boolean} options.allowPdf - Whether PDF is allowed
- */
 function createUploadMiddleware({ fieldName, folder, maxBytes, isPrivate = false, allowPdf = false }) {
   const upload = multer({ 
     storage: memoryStorage, 
@@ -56,7 +63,6 @@ function createUploadMiddleware({ fieldName, folder, maxBytes, isPrivate = false
         return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, WEBP allowed.' });
       }
       
-      // Specifically reject SVG even if multer allowed it (though magic bytes check already rejects it)
       if (req.file.mimetype === 'image/svg+xml') {
         return res.status(400).json({ error: 'SVG is not allowed.' });
       }
@@ -66,54 +72,93 @@ function createUploadMiddleware({ fieldName, folder, maxBytes, isPrivate = false
       }
 
       const filename = `${crypto.randomUUID()}${fileInfo.ext}`;
-      const baseDir = isPrivate 
-        ? path.join(__dirname, '../../server/private-uploads', folder) 
-        : path.join(__dirname, '../../server/uploads', folder);
       
-      try {
-        await fs.mkdir(baseDir, { recursive: true });
-        const fullPath = path.join(baseDir, filename);
-        await fs.writeFile(fullPath, req.file.buffer);
+      if (useLocal) {
+        const baseDir = isPrivate 
+          ? path.join(__dirname, '../../server/private-uploads', folder) 
+          : path.join(__dirname, '../../server/uploads', folder);
+        try {
+          await fs.mkdir(baseDir, { recursive: true });
+          const fullPath = path.join(baseDir, filename);
+          await fs.writeFile(fullPath, req.file.buffer);
+          
+          req.file.url = isPrivate 
+            ? `/api/private-uploads/${folder}/${filename}` 
+            : `/uploads/${folder}/${filename}`;
+          req.file.localPath = fullPath;
+          return next();
+        } catch (err) {
+          console.error('File write error:', err);
+          return res.status(500).json({ error: 'Failed to save file locally' });
+        }
+      } else {
+        if (!supabase) return res.status(500).json({ error: 'Supabase storage not configured' });
         
-        req.file.url = isPrivate 
-          ? `/api/private-uploads/${folder}/${filename}` 
-          : `/uploads/${folder}/${filename}`;
-        req.file.localPath = fullPath;
+        const bucket = isPrivate ? 'private-docs' : 'public-assets';
+        const filePath = `${folder}/${filename}`;
         
-        next();
-      } catch (err) {
-        console.error('File write error:', err);
-        res.status(500).json({ error: 'Failed to save file' });
+        const { error } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, req.file.buffer, { contentType: fileInfo.mime });
+          
+        if (error) {
+          console.error('Supabase upload error:', error);
+          return res.status(500).json({ error: 'Failed to upload file to storage' });
+        }
+        
+        if (isPrivate) {
+          req.file.url = `/api/private-uploads/${folder}/${filename}`;
+        } else {
+          const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+          req.file.url = publicData.publicUrl;
+        }
+        return next();
       }
     });
   };
 }
 
-/**
- * Deletes an old uploaded file if replaced.
- * @param {string} url - The URL string stored in DB
- */
 async function deleteOldUpload(url) {
   if (!url) return;
   try {
-    let localPath = '';
-    if (url.startsWith('/api/private-uploads/')) {
-      localPath = path.join(__dirname, '../../server/private-uploads', url.replace('/api/private-uploads/', ''));
-    } else if (url.startsWith('/uploads/')) {
-      localPath = path.join(__dirname, '../../server/uploads', url.replace('/uploads/', ''));
-    }
-    if (localPath) {
-      await fs.unlink(localPath);
+    if (useLocal) {
+      let localPath = '';
+      if (url.startsWith('/api/private-uploads/')) {
+        localPath = path.join(__dirname, '../../server/private-uploads', url.replace('/api/private-uploads/', ''));
+      } else if (url.startsWith('/uploads/')) {
+        localPath = path.join(__dirname, '../../server/uploads', url.replace('/uploads/', ''));
+      }
+      if (localPath) await fs.unlink(localPath);
+    } else {
+      if (!supabase) return;
+      if (url.startsWith('/api/private-uploads/')) {
+        const filePath = url.replace('/api/private-uploads/', '');
+        await supabase.storage.from('private-docs').remove([filePath]);
+      } else if (url.startsWith('http')) {
+        // Public url format: https://.../public-assets/<folder>/<filename>
+        const matches = url.match(/public-assets\/(.+)$/);
+        if (matches && matches[1]) {
+          await supabase.storage.from('public-assets').remove([matches[1]]);
+        }
+      }
     }
   } catch (err) {
-    // Ignore ENOENT (file already deleted or missing)
     if (err.code !== 'ENOENT') {
       console.error(`Failed to delete old upload ${url}:`, err);
     }
   }
 }
 
+async function getPrivateSignedUrl(filePath) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase.storage.from('private-docs').createSignedUrl(filePath, 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 module.exports = {
   createUploadMiddleware,
   deleteOldUpload,
+  getPrivateSignedUrl,
+  useLocal
 };

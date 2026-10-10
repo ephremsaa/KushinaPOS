@@ -54,37 +54,58 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files statically
-const fs = require('fs');
-['uploads/logos', 'uploads/menu-images', 'private-uploads/payment-proofs', 'private-uploads/licenses'].forEach(dir => {
-  fs.mkdirSync(path.join(__dirname, dir), { recursive: true });
-});
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 const { authenticate } = require('./middleware/auth');
 const db = require('./config/db');
+const { useLocal, getPrivateSignedUrl } = require('./utils/uploadHelper');
+
+// Serve uploaded files statically if local
+if (useLocal) {
+  const fs = require('fs');
+  ['uploads/logos', 'uploads/menu-images', 'private-uploads/payment-proofs', 'private-uploads/licenses'].forEach(dir => {
+    fs.mkdirSync(path.join(__dirname, dir), { recursive: true });
+  });
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 // Private uploads (business licenses, payment proofs)
+const servePrivateLocal = useLocal ? express.static(path.join(__dirname, 'private-uploads')) : null;
+
 app.use('/api/private-uploads', authenticate, async (req, res, next) => {
-  if (req.user.role === 'platform_admin') return next();
+  let authorized = false;
+  if (req.user.role === 'platform_admin') authorized = true;
   
-  if (req.user.role === 'restaurant_owner') {
+  if (!authorized && req.user.role === 'restaurant_owner') {
     const urlPath = `/api/private-uploads${req.path}`;
     try {
       if (req.path.startsWith('/licenses/')) {
         const { rows } = await db.query('SELECT id FROM restaurants WHERE business_license_url = $1', [urlPath]);
-        if (rows.length > 0 && rows[0].id === req.user.restaurantId) return next();
+        if (rows.length > 0 && rows[0].id === req.user.restaurantId) authorized = true;
       } else if (req.path.startsWith('/payment-proofs/')) {
         const { rows } = await db.query('SELECT restaurant_id FROM payment_proofs WHERE screenshot_url = $1', [urlPath]);
-        if (rows.length > 0 && rows[0].restaurant_id === req.user.restaurantId) return next();
+        if (rows.length > 0 && rows[0].restaurant_id === req.user.restaurantId) authorized = true;
       }
     } catch (err) {
       console.error('Private upload auth error:', err);
     }
   }
   
-  return res.status(403).json({ error: 'Forbidden: unauthorized access to private file' });
-}, express.static(path.join(__dirname, 'private-uploads')));
+  if (!authorized) {
+    return res.status(403).json({ error: 'Forbidden: unauthorized access to private file' });
+  }
+
+  if (useLocal) {
+    return next();
+  } else {
+    try {
+      const filePath = req.path.replace(/^\//, '');
+      const signedUrl = await getPrivateSignedUrl(filePath);
+      return res.redirect(signedUrl);
+    } catch (err) {
+      console.error('Failed to generate signed URL:', err);
+      return res.status(500).json({ error: 'Failed to access file' });
+    }
+  }
+}, ...(useLocal ? [servePrivateLocal] : []));
 
 // ── Routes ───────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
