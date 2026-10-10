@@ -14,6 +14,7 @@ import { MenuEngineeringMatrix } from '../../components/analytics/MenuEngineerin
 import type { MenuItem, MenuCategory } from '../../types';
 import { globalConfirm } from '../../contexts/ConfirmContext';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -876,7 +877,7 @@ export default function MenuPage() {
                   {/* Image */}
                   <div className="relative h-36 bg-gradient-to-br from-brand-50 to-surface-100 overflow-hidden">
                     {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <img src={assetUrl(item.image_url)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-5xl">🍽️</div>
                     )}

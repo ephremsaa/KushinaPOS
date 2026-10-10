@@ -9,6 +9,7 @@ import type { DataTableColumn } from '../../components/ui';
 import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
 import { useAuth } from '../../contexts/AuthContext';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 
 export default function BillHistoryPage() {
   const { user } = useAuth();
@@ -188,7 +189,7 @@ export default function BillHistoryPage() {
           amountTendered={reprintOrder.total}
           change={0}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
-          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           taxId={(user?.restaurant as any)?.tax_id}
           address={(user?.restaurant as any)?.address}
           phone={(user?.restaurant as any)?.phone}

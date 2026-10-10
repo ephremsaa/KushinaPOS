@@ -12,6 +12,7 @@ import { formatCurrency, cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LanguageSwitcher } from '../../components/ui';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 
 interface CartItem {
   menu_item_id: string;
@@ -305,7 +306,7 @@ export default function PublicMenuPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {restaurant.logo_url ? (
-              <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-2xl object-cover border border-default flex-shrink-0" />
+              <img src={assetUrl(restaurant.logo_url)} alt={restaurant.name} className="w-12 h-12 rounded-2xl object-cover border border-default flex-shrink-0" />
             ) : (
               <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center text-brand-600 font-bold text-xl flex-shrink-0">
                 {restaurant.name.charAt(0)}
@@ -453,7 +454,7 @@ export default function PublicMenuPage() {
               return (
                 <div key={item.id} className="bg-surface rounded-3xl border border-default/80 p-4 flex gap-4 items-center shadow-xs hover:border-brand-300 transition-all">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 border border-surface-100" />
+                    <img src={assetUrl(item.image_url)} alt={item.name} className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 border border-surface-100" />
                   ) : (
                     <div className="w-20 h-20 rounded-2xl bg-surface-100 flex items-center justify-center text-surface-400 flex-shrink-0">
                       <UtensilsCrossed className="w-8 h-8" />

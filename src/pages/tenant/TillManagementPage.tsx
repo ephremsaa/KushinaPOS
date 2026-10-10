@@ -11,6 +11,7 @@ import {
   Building2, Printer, Sparkles, X, Plus, Minus
 } from 'lucide-react';
 import { Button, Input, Badge, Card } from '../../components/ui';
+import { assetUrl } from '../../lib/assetUrl';
 
 const ETB_DENOMINATIONS = [1000, 500, 200, 100, 50, 10, 5, 1];
 
@@ -494,7 +495,7 @@ export default function TillManagementPage() {
         <ThermalZReport
           data={zReportData}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
-          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           taxId={(user?.restaurant as any)?.tax_id}
           address={(user?.restaurant as any)?.address}
           phone={(user?.restaurant as any)?.phone}

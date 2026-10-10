@@ -11,6 +11,7 @@ import { billingApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency, formatDate, formatRelative, cn } from '../../lib/utils';
 import type { PaymentProof, SubscriptionPlan } from '../../types';
+import { assetUrl, openPrivateDocument } from '../../lib/assetUrl';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -742,12 +743,9 @@ export default function BillingPage() {
 
                 {/* Screenshot thumbnail */}
                 {proof.screenshot_url && (
-                  <button onClick={() => setLightboxUrl(proof.screenshot_url)}
-                    className="w-12 h-12 rounded-xl overflow-hidden border border-default flex-shrink-0 hover:border-brand-300 hover:shadow-md transition-all relative group">
-                    <img src={proof.screenshot_url} alt="Proof" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <ExternalLink className="w-3.5 h-3.5 text-white" />
-                    </div>
+                  <button onClick={() => openPrivateDocument(proof.screenshot_url)}
+                    className="w-12 h-12 rounded-xl bg-surface-100 border border-default flex items-center justify-center flex-shrink-0 hover:border-brand-300 hover:shadow-md transition-all group">
+                    <ExternalLink className="w-5 h-5 text-muted group-hover:text-brand-500" />
                   </button>
                 )}
 

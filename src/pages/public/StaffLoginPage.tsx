@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { Loader2, WifiOff, AlertTriangle, ChefHat, ShieldCheck, KeyRound } from 'lucide-react';
 import { PinPad } from '../../components/ui';
 import { cn, isDarkColor } from '../../lib/utils';
+import { assetUrl } from '../../lib/assetUrl';
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
@@ -209,7 +210,7 @@ export default function StaffLoginPage() {
         <div className="flex flex-col items-center mb-10 text-center">
           {restaurant.logo_url ? (
             <img
-              src={restaurant.logo_url}
+              src={assetUrl(restaurant.logo_url)}
               alt={restaurant.name}
               className="w-28 h-28 rounded-3xl object-cover shadow-2xl mb-5 border-2"
               style={{ borderColor: `${themeColor}60` }}

@@ -16,6 +16,7 @@ import { Button, Badge, Modal, Input, LanguageSwitcher, EmptyState } from '../..
 import { QuickPaymentModal, ThermalReceipt } from '../../components/pos';
 import { globalConfirm } from '../../contexts/ConfirmContext';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 import type {
   MenuItem, MenuCategory, Table,
   ModifierChoice, TableStatus, MenuModifier, Order
@@ -841,7 +842,7 @@ export default function POSPage() {
                   >
                     {item.image_url ? (
                       <div className="w-full h-32 rounded-[1.5rem] overflow-hidden mb-3 shadow-xs">
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={assetUrl(item.image_url)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       </div>
                     ) : (
                       <div className="w-full h-32 rounded-[1.5rem] mb-3 flex items-center justify-center border bg-gradient-to-br from-brand-50 to-surface-100 border-brand-100/50">
@@ -1105,7 +1106,7 @@ export default function POSPage() {
           amountTendered={receiptData.tendered}
           change={receiptData.change}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
-          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           taxId={(user?.restaurant as any)?.tax_id}
           address={(user?.restaurant as any)?.address}
           phone={(user?.restaurant as any)?.phone}

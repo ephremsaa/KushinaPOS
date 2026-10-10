@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
 import type { Order, OrderItem } from '../../types';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 import {
   Wallet, CheckCircle, Clock, Banknote, CreditCard, Smartphone, Building2,
   X, Printer, Users, SplitSquareHorizontal, ShieldAlert, QrCode,
@@ -352,7 +353,7 @@ export default function CheckoutPage() {
           amountTendered={lastPaidData.tendered}
           change={lastPaidData.change}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
-          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           taxId={(user?.restaurant as any)?.tax_id}
           address={(user?.restaurant as any)?.address}
           phone={(user?.restaurant as any)?.phone}

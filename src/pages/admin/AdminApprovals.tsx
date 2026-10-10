@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, XCircle, Eye, Clock, ShieldAlert, Sparkles, Building2, MapPin, Mail, Phone, FileText } from 'lucide-react';
 import { adminApi } from '../../lib/api';
 import { formatRelative, formatDate } from '../../lib/utils';
+import { openPrivateDocument } from '../../lib/assetUrl';
 
 function ApproveModal({ restaurant, onClose }: { restaurant: Record<string, unknown>; onClose: () => void }) {
   const qc = useQueryClient();
@@ -64,17 +65,15 @@ function ApproveModal({ restaurant, onClose }: { restaurant: Record<string, unkn
         </div>
 
         {Boolean(restaurant.business_license_url) && (
-          <a 
-            href={restaurant.business_license_url as string} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-all text-xs font-bold"
+          <button 
+            onClick={() => openPrivateDocument(restaurant.business_license_url as string)}
+            className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition-all text-xs font-bold"
           >
             <span className="flex items-center gap-2">
               <Eye className="w-4 h-4" /> View Submitted Business License / Documents
             </span>
             <span className="text-[10px] uppercase font-black bg-orange-500/20 px-2 py-0.5 rounded">PDF / Image</span>
-          </a>
+          </button>
         )}
 
         {/* Rejection reason box */}

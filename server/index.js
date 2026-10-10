@@ -126,8 +126,14 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/public', require('./routes/public'));
 
 // ── Health check ─────────────────────────────────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString(), version: '1.0.0' });
+app.get('/api/health', async (req, res) => {
+  try {
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
+    await Promise.race([db.query('SELECT 1'), timeout]);
+    res.status(200).json({ status: 'ok', db: 'ok', time: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ status: 'degraded', db: 'down' });
+  }
 });
 
 // ── 404 catch-all ────────────────────────────────────────────
@@ -144,6 +150,22 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
+
+// ── Boot Validation ──────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    console.error('FATAL: JWT_SECRET must be at least 32 characters long in production.');
+    process.exit(1);
+  }
+  if (!process.env.ALLOWED_ORIGINS) {
+    console.error('FATAL: ALLOWED_ORIGINS is required in production.');
+    process.exit(1);
+  }
+  if (!process.env.FRONTEND_URL) {
+    console.error('FATAL: FRONTEND_URL is required in production.');
+    process.exit(1);
+  }
+}
 
 // ── Start ─────────────────────────────────────────────────────
 const server = app.listen(PORT, () => {

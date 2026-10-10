@@ -15,6 +15,7 @@ import { TableStandModal } from '../../components/pos';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useToast } from '../../components/ui/Toast';
 import { globalConfirm } from '../../contexts/ConfirmContext';
+import { assetUrl } from '../../lib/assetUrl';
 
 const STATUS_CONFIG: Record<TableStatus, { bg: string; border: string; text: string; dot: string; label: string; badgeStatus: 'ready' | 'cancelled' | 'pending' | 'served' }> = {
   available: {
@@ -534,7 +535,7 @@ export default function TablesPage() {
           table={standModal.table}
           allTables={tables}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
-          restaurantLogo={(user?.restaurant as any)?.logo_url}
+          restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           restaurantSlug={(user?.restaurant as any)?.slug ?? user?.restaurantId ?? 'menu'}
           themeColor={(user?.restaurant as any)?.theme_color ?? '#2F7D32'}
           onClose={() => setStandModal({ open: false })}

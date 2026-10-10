@@ -13,6 +13,7 @@ import { cn, generateId, applyTheme, isDarkColor, getContrastRatio } from '../..
 import { Button, Input, Modal, Badge, Card, Toggle, LargeToggle } from '../../components/ui';
 import { extractColorPalette, type ExtractedColorPalette } from '../../lib/colorExtractor';
 import { globalToast } from '../../components/ui/Toast';
+import { assetUrl } from '../../lib/assetUrl';
 import type {
   OperatingHours, DayHours, ExtraTaxRate,
   Printer as PrinterType, KDSStationConfig,
@@ -572,7 +573,7 @@ export default function SettingsPage() {
                       {logoFile ? (
                         <img src={URL.createObjectURL(logoFile)} alt="Preview" className="w-full h-full object-cover" />
                       ) : r?.logo_url ? (
-                        <img src={r.logo_url as string} alt="Logo" className="w-full h-full object-cover" />
+                        <img src={assetUrl(r.logo_url as string)} alt="Logo" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-3xl">🍽️</span>
                       )}

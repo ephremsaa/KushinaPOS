@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle, Eye, CreditCard, ExternalLink, Building2, Calend
 import { adminApi } from '../../lib/api';
 import { formatCurrency, formatRelative, formatDateTime } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
+import { openPrivateDocument } from '../../lib/assetUrl';
 import type { PaymentProof } from '../../types';
 
 function PaymentModal({ proof, onClose }: { proof: PaymentProof; onClose: () => void }) {
@@ -67,14 +68,12 @@ function PaymentModal({ proof, onClose }: { proof: PaymentProof; onClose: () => 
 
           {proof.screenshot_url && (
             <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 text-center">
-              <a 
-                href={proof.screenshot_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
+              <button 
+                onClick={() => openPrivateDocument(proof.screenshot_url)}
                 className="inline-flex items-center gap-2 text-xs font-bold text-orange-400 hover:text-orange-300"
               >
                 <ExternalLink className="w-4 h-4" /> Open Transfer Receipt Screenshot
-              </a>
+              </button>
             </div>
           )}
 

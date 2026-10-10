@@ -14,6 +14,7 @@ import { cn, getInitials } from '../lib/utils';
 import type { StaffRole } from '../types';
 
 import NotificationBell from '../components/NotificationBell';
+import { assetUrl } from '../lib/assetUrl';
 
 export interface NavItem {
   to: string;
@@ -96,7 +97,7 @@ export default function TenantLayout() {
       >
         {user?.restaurant?.logo_url ? (
           <img
-            src={user.restaurant.logo_url as string}
+            src={assetUrl(user.restaurant.logo_url as string)}
             alt="Logo"
             className="w-10 h-10 rounded-2xl object-cover border bg-surface flex-shrink-0 shadow-sm ring-2 ring-brand-500/40"
             style={{ borderColor: 'var(--card-border, #E2E8F0)' }}
@@ -236,7 +237,7 @@ export default function TenantLayout() {
           </button>
           <div className="flex items-center gap-2">
             {user?.restaurant?.logo_url ? (
-              <img src={user.restaurant.logo_url as string} alt="Logo" className="w-7 h-7 rounded-lg object-cover border border-surface-100 bg-surface" />
+              <img src={assetUrl(user.restaurant.logo_url as string)} alt="Logo" className="w-7 h-7 rounded-lg object-cover border border-surface-100 bg-surface" />
             ) : (
               <ChefHat className="w-5 h-5 text-brand-500" />
             )}
