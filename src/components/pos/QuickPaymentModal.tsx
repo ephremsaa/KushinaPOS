@@ -128,7 +128,7 @@ export function QuickPaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl flex flex-col max-h-[92vh] border border-surface-200/80 overflow-hidden">
+      <div className="bg-surface rounded-[2.5rem] w-full max-w-xl shadow-2xl flex flex-col max-h-[92vh] border border-default/80 overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-surface-100 flex items-center justify-between bg-surface-50/50">
           <div className="flex items-center gap-3">
@@ -137,10 +137,10 @@ export function QuickPaymentModal({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-display font-black text-lg text-surface-900 leading-tight">Fast Settle & Checkout</h3>
+                <h3 className="font-display font-black text-lg text-primary leading-tight">Fast Settle & Checkout</h3>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-brand-100 text-brand-700">#{shortOrderId}</span>
               </div>
-              <p className="text-xs text-surface-500">
+              <p className="text-xs text-muted">
                 {order.table_label ? `Table ${order.table_label} · ` : ''}
                 {order.order_type?.replace('_', ' ').toUpperCase() || 'DINE IN'}
               </p>
@@ -168,7 +168,7 @@ export function QuickPaymentModal({
               <button
                 type="button"
                 onClick={() => setShowSplit(true)}
-                className="px-3 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                className="px-3 py-2 rounded-2xl bg-surface/10 hover:bg-surface/20 border border-white/20 text-xs font-bold text-white flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
               >
                 <Split className="w-4 h-4 text-gold-400" />
                 <span>Split Bill</span>
@@ -196,7 +196,7 @@ export function QuickPaymentModal({
                   'p-3.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center relative overflow-hidden',
                   method === 'cash'
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm shadow-emerald-500/20 ring-2 ring-emerald-500/20'
-                    : 'border-surface-200 bg-white hover:border-surface-300 text-surface-700'
+                    : 'border-default bg-surface hover:border-surface-300 text-surface-700'
                 )}
               >
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', method === 'cash' ? 'bg-emerald-500 text-white' : 'bg-surface-100 text-surface-600')}>
@@ -214,7 +214,7 @@ export function QuickPaymentModal({
                   'p-3.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center relative overflow-hidden',
                   method === 'telebirr'
                     ? 'border-violet-500 bg-violet-50 text-violet-900 shadow-sm shadow-violet-500/20 ring-2 ring-violet-500/20'
-                    : 'border-surface-200 bg-white hover:border-surface-300 text-surface-700'
+                    : 'border-default bg-surface hover:border-surface-300 text-surface-700'
                 )}
               >
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', method === 'telebirr' ? 'bg-violet-500 text-white' : 'bg-surface-100 text-surface-600')}>
@@ -232,7 +232,7 @@ export function QuickPaymentModal({
                   'p-3.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center relative overflow-hidden',
                   method === 'cbe_birr'
                     ? 'border-purple-600 bg-purple-50 text-purple-900 shadow-sm shadow-purple-500/20 ring-2 ring-purple-500/20'
-                    : 'border-surface-200 bg-white hover:border-surface-300 text-surface-700'
+                    : 'border-default bg-surface hover:border-surface-300 text-surface-700'
                 )}
               >
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', method === 'cbe_birr' ? 'bg-purple-600 text-white' : 'bg-surface-100 text-surface-600')}>
@@ -250,7 +250,7 @@ export function QuickPaymentModal({
                   'p-3.5 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center relative overflow-hidden',
                   method === 'card'
                     ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm shadow-blue-500/20 ring-2 ring-blue-500/20'
-                    : 'border-surface-200 bg-white hover:border-surface-300 text-surface-700'
+                    : 'border-default bg-surface hover:border-surface-300 text-surface-700'
                 )}
               >
                 <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center', method === 'card' ? 'bg-blue-500 text-white' : 'bg-surface-100 text-surface-600')}>
@@ -281,7 +281,7 @@ export function QuickPaymentModal({
                       key={bill}
                       type="button"
                       onClick={() => handleAddBill(bill)}
-                      className="px-3.5 py-2 rounded-xl bg-surface-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-surface-200 font-bold text-xs text-surface-800 transition-all cursor-pointer active:scale-95"
+                      className="px-3.5 py-2 rounded-xl bg-surface-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-default font-bold text-xs text-surface-800 transition-all cursor-pointer active:scale-95"
                     >
                       +{bill} ETB
                     </button>
@@ -298,8 +298,8 @@ export function QuickPaymentModal({
 
               {/* Tendered Input & Live Change Readout */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-4 rounded-2xl bg-surface-50 border border-surface-200">
-                  <label className="text-xs font-bold text-surface-500 block mb-1">Amount Tendered</label>
+                <div className="p-4 rounded-2xl bg-surface-50 border border-default">
+                  <label className="text-xs font-bold text-muted block mb-1">Amount Tendered</label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-surface-400 font-mono">ETB</span>
                     <input
@@ -307,7 +307,7 @@ export function QuickPaymentModal({
                       placeholder="0.00"
                       value={tenderedInput}
                       onChange={e => setTenderedInput(e.target.value)}
-                      className="w-full text-2xl font-black text-surface-900 font-mono bg-transparent outline-none"
+                      className="w-full text-2xl font-black text-primary font-mono bg-transparent outline-none"
                     />
                   </div>
                 </div>
@@ -316,7 +316,7 @@ export function QuickPaymentModal({
                   'p-4 rounded-2xl border transition-all flex flex-col justify-center',
                   changeDue > 0
                     ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                    : 'bg-surface-50 border-surface-200 text-surface-700'
+                    : 'bg-surface-50 border-default text-surface-700'
                 )}>
                   <label className="text-xs font-bold block mb-1 opacity-75">Change Due</label>
                   <p className="text-2xl font-black font-mono tracking-tight">
@@ -338,7 +338,7 @@ export function QuickPaymentModal({
                         ? 'bg-red-50 text-red-600 hover:bg-red-100 col-span-1'
                         : k === 'DEL'
                         ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 col-span-1'
-                        : 'bg-white text-surface-800 hover:bg-surface-50'
+                        : 'bg-surface text-surface-800 hover:bg-surface-50'
                     )}
                   >
                     {k}
@@ -350,7 +350,7 @@ export function QuickPaymentModal({
 
           {/* Telebirr / CBE Birr QR Code Panel */}
           {(method === 'telebirr' || method === 'cbe_birr') && (
-            <div className="p-5 rounded-3xl bg-surface-50 border border-surface-200 space-y-4 animate-fade-in">
+            <div className="p-5 rounded-3xl bg-surface-50 border border-default space-y-4 animate-fade-in">
               <div className="flex items-center gap-4">
                 <div className={cn(
                   'w-24 h-24 rounded-2xl flex items-center justify-center p-2 shadow-inner border',
@@ -362,15 +362,15 @@ export function QuickPaymentModal({
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <p className="font-black text-sm text-surface-900 capitalize">
+                    <p className="font-black text-sm text-primary capitalize">
                       {method === 'telebirr' ? 'Telebirr SuperApp QR' : 'CBE Birr Digital Transfer'}
                     </p>
                   </div>
-                  <p className="text-xs text-surface-500 font-mono">
-                    Merchant: <strong className="text-surface-900">{restaurantPhone}</strong>
+                  <p className="text-xs text-muted font-mono">
+                    Merchant: <strong className="text-primary">{restaurantPhone}</strong>
                   </p>
-                  <p className="text-xs text-surface-500 font-mono">
-                    Ref ID: <strong className="text-surface-900">KUS-{shortOrderId}</strong>
+                  <p className="text-xs text-muted font-mono">
+                    Ref ID: <strong className="text-primary">KUS-{shortOrderId}</strong>
                   </p>
                   <p className="text-xs font-bold text-brand-600">
                     Amount: {formatCurrency(grandTotal)}
@@ -387,7 +387,7 @@ export function QuickPaymentModal({
                   placeholder="e.g. TLB89472910 or CBE991203"
                   value={referenceCode}
                   onChange={e => setReferenceCode(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-surface-200 bg-white font-mono text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-default bg-surface font-mono text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
                 />
               </div>
             </div>
@@ -395,12 +395,12 @@ export function QuickPaymentModal({
 
           {/* Card / POS Reference Panel */}
           {method === 'card' && (
-            <div className="p-5 rounded-3xl bg-surface-50 border border-surface-200 space-y-3 animate-fade-in">
+            <div className="p-5 rounded-3xl bg-surface-50 border border-default space-y-3 animate-fade-in">
               <div className="flex items-center gap-3">
                 <CreditCard className="w-8 h-8 text-blue-600" />
                 <div>
-                  <p className="font-bold text-sm text-surface-900">Swipe or Tap on Bank POS Terminal</p>
-                  <p className="text-xs text-surface-500">Insert card authorization code below once approved</p>
+                  <p className="font-bold text-sm text-primary">Swipe or Tap on Bank POS Terminal</p>
+                  <p className="text-xs text-muted">Insert card authorization code below once approved</p>
                 </div>
               </div>
               <input
@@ -408,7 +408,7 @@ export function QuickPaymentModal({
                 placeholder="POS Auth / Approval Code (e.g. AUTH-4821)"
                 value={referenceCode}
                 onChange={e => setReferenceCode(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-surface-200 bg-white font-mono text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
+                className="w-full px-4 py-2.5 rounded-xl border border-default bg-surface font-mono text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none"
               />
             </div>
           )}

@@ -15,33 +15,32 @@ import type { StaffRole } from '../types';
 
 import NotificationBell from '../components/NotificationBell';
 
-interface NavItem {
+export interface NavItem {
   to: string;
   icon: React.ElementType;
-  label: string;
   i18nKey: string;
   end?: boolean;
   roles?: StaffRole[];
   badge?: string;
 }
 
-const navItems: NavItem[] = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Overview', i18nKey: 'nav.dashboard', end: true, roles: ['owner', 'manager'] },
-  { to: '/dashboard/pos', icon: Store, label: 'POS Terminal', i18nKey: 'nav.pos', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { to: '/dashboard/checkout', icon: Wallet, label: 'Checkout', i18nKey: 'checkout.title', roles: ['owner', 'manager', 'cashier'] },
-  { to: '/dashboard/till', icon: Banknote, label: 'Cash Drawer', i18nKey: 'till.title', roles: ['owner', 'manager', 'cashier'] },
-  { to: '/dashboard/bill-history', icon: Receipt, label: 'Bill History', i18nKey: 'bills.title', roles: ['owner', 'manager', 'cashier'] },
-  { to: '/dashboard/orders', icon: UtensilsCrossed, label: 'Live Orders', i18nKey: 'nav.orders', roles: ['owner', 'manager', 'waiter'] },
-  { to: '/dashboard/kitchen', icon: Monitor, label: 'KDS Display', i18nKey: 'nav.kitchen', roles: ['owner', 'manager', 'kitchen'] },
-  { to: '/dashboard/tables', icon: Table2, label: 'Floor Plan', i18nKey: 'nav.tables', roles: ['owner', 'manager', 'cashier', 'waiter'] },
-  { to: '/dashboard/reservations', icon: Calendar, label: 'Reservations', i18nKey: 'nav.reservations', roles: ['owner', 'manager', 'cashier'] },
-  { to: '/dashboard/menu', icon: BookOpen, label: 'Menu Items', i18nKey: 'nav.menu', roles: ['owner', 'manager'] },
-  { to: '/dashboard/staff', icon: Users, label: 'Staff Team', i18nKey: 'nav.staff', roles: ['owner', 'manager'] },
-  { to: '/dashboard/inventory', icon: Package, label: 'Stock Room', i18nKey: 'nav.inventory', roles: ['owner', 'manager'] },
-  { to: '/dashboard/notifications', icon: Bell, label: 'Alerts', i18nKey: 'nav.notifications', roles: ['owner', 'manager', 'cashier'] },
-  { to: '/dashboard/reports', icon: BarChart3, label: 'Analytics', i18nKey: 'nav.reports', roles: ['owner', 'manager'] },
-  { to: '/dashboard/billing', icon: CreditCard, label: 'Subscription', i18nKey: 'nav.billing', roles: ['owner'] },
-  { to: '/dashboard/settings', icon: Settings, label: 'Settings', i18nKey: 'nav.settings', roles: ['owner'] },
+export const navItems: NavItem[] = [
+  { to: '/dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard', end: true, roles: ['owner', 'manager'] },
+  { to: '/dashboard/pos', icon: Store, i18nKey: 'nav.pos', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { to: '/dashboard/checkout', icon: Wallet, i18nKey: 'checkout.title', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/till', icon: Banknote, i18nKey: 'till.title', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/bill-history', icon: Receipt, i18nKey: 'bills.title', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/orders', icon: UtensilsCrossed, i18nKey: 'nav.orders', roles: ['owner', 'manager', 'waiter'] },
+  { to: '/dashboard/kitchen', icon: Monitor, i18nKey: 'nav.kitchen', roles: ['owner', 'manager', 'kitchen'] },
+  { to: '/dashboard/tables', icon: Table2, i18nKey: 'nav.tables', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { to: '/dashboard/reservations', icon: Calendar, i18nKey: 'nav.reservations', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/menu', icon: BookOpen, i18nKey: 'nav.menu', roles: ['owner', 'manager'] },
+  { to: '/dashboard/staff', icon: Users, i18nKey: 'nav.staff', roles: ['owner', 'manager'] },
+  { to: '/dashboard/inventory', icon: Package, i18nKey: 'nav.inventory', roles: ['owner', 'manager'] },
+  { to: '/dashboard/notifications', icon: Bell, i18nKey: 'nav.notifications', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/reports', icon: BarChart3, i18nKey: 'nav.reports', roles: ['owner', 'manager'] },
+  { to: '/dashboard/billing', icon: CreditCard, i18nKey: 'nav.billing', roles: ['owner'] },
+  { to: '/dashboard/settings', icon: Settings, i18nKey: 'nav.settings', roles: ['owner'] },
 ];
 
 export default function TenantLayout() {
@@ -79,7 +78,7 @@ export default function TenantLayout() {
 
   // Extract current page title for breadcrumb
   const currentNav = navItems.find(n => n.to === location.pathname || (n.to !== '/dashboard' && location.pathname.startsWith(n.to)));
-  const pageTitle = currentNav ? t(currentNav.i18nKey, currentNav.label) : t('nav.dashboard', 'Dashboard');
+  const pageTitle = currentNav ? t(currentNav.i18nKey) : t('nav.dashboard', 'Dashboard');
 
   const renderSidebar = () => (
     <aside
@@ -99,7 +98,7 @@ export default function TenantLayout() {
           <img
             src={user.restaurant.logo_url as string}
             alt="Logo"
-            className="w-10 h-10 rounded-2xl object-cover border bg-white flex-shrink-0 shadow-sm ring-2 ring-brand-500/40"
+            className="w-10 h-10 rounded-2xl object-cover border bg-surface flex-shrink-0 shadow-sm ring-2 ring-brand-500/40"
             style={{ borderColor: 'var(--card-border, #E2E8F0)' }}
           />
         ) : (
@@ -109,13 +108,13 @@ export default function TenantLayout() {
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="font-display font-black text-sm leading-tight truncate text-surface-900">
+            <p className="font-display font-black text-sm leading-tight truncate text-primary">
               {String(restaurantName)}
             </p>
             <span className="w-2 h-2 rounded-full bg-gold-500 flex-shrink-0" title="Kushina Verified" />
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-surface-500">kushinaPOS</span>
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-muted">kushinaPOS</span>
             <span className="w-1 h-1 rounded-full opacity-40 bg-current" />
             <span className={cn('text-[10px] font-bold uppercase', isOnline ? 'text-brand-600' : 'text-red-500')}>
               {isOnline ? 'Online' : 'Offline'}
@@ -126,7 +125,7 @@ export default function TenantLayout() {
 
       {/* Navigation List */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
-        {visibleNavItems.map(({ to, icon: Icon, label, i18nKey, end }) => (
+        {visibleNavItems.map(({ to, icon: Icon, i18nKey, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -140,7 +139,7 @@ export default function TenantLayout() {
             onClick={() => setSidebarOpen(false)}
           >
             <Icon className="w-4 h-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-            <span className="truncate">{t(i18nKey, label)}</span>
+            <span className="truncate">{t(i18nKey)}</span>
           </NavLink>
         ))}
       </nav>
@@ -161,10 +160,10 @@ export default function TenantLayout() {
             {getInitials(userName)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-xs leading-none truncate text-surface-900">
+            <p className="font-bold text-xs leading-none truncate text-primary">
               {String(userName)}
             </p>
-            <p className="text-[10px] font-semibold mt-1 capitalize flex items-center gap-1 text-surface-500">
+            <p className="text-[10px] font-semibold mt-1 capitalize flex items-center gap-1 text-muted">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
               {String(staffRole?.replace('_', ' '))}
             </p>
@@ -198,7 +197,7 @@ export default function TenantLayout() {
           </div>
           <button
             onClick={stopImpersonating}
-            className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-xl transition-colors border border-white/30 cursor-pointer">
+            className="bg-surface/20 hover:bg-surface/30 px-3 py-1 rounded-xl transition-colors border border-white/30 cursor-pointer">
             Exit to Control Room
           </button>
         </div>
@@ -230,14 +229,14 @@ export default function TenantLayout() {
           }}
         >
           <button
-            className="p-2 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-2 rounded-2xl hover:bg-surface/10 transition-colors cursor-pointer"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-5 h-5" style={{ color: 'var(--text-main, #0f172a)' }} />
           </button>
           <div className="flex items-center gap-2">
             {user?.restaurant?.logo_url ? (
-              <img src={user.restaurant.logo_url as string} alt="Logo" className="w-7 h-7 rounded-lg object-cover border border-surface-100 bg-white" />
+              <img src={user.restaurant.logo_url as string} alt="Logo" className="w-7 h-7 rounded-lg object-cover border border-surface-100 bg-surface" />
             ) : (
               <ChefHat className="w-5 h-5 text-brand-500" />
             )}

@@ -5,6 +5,8 @@ import { reservationsApi, tablesApi } from '../../lib/api';
 import { Button, Modal, Input } from '../../components/ui';
 import { cn, formatDateTime, formatCurrency } from '../../lib/utils';
 import type { Reservation, Table } from '../../types';
+import { globalConfirm } from '../../contexts/ConfirmContext';
+import { globalToast } from '../../components/ui/Toast';
 
 export default function ReservationsPage() {
   const qc = useQueryClient();
@@ -34,7 +36,7 @@ export default function ReservationsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-fade-in">
-      <div className="page-header bg-white/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
+      <div className="page-header bg-surface/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
         <div>
           <h1 className="page-title">Reservations</h1>
           <p className="page-subtitle">Manage upcoming bookings and walk-ins</p>
@@ -46,7 +48,7 @@ export default function ReservationsPage() {
             onChange={(e) => setDate(e.target.value)}
             className="w-40"
           />
-          <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => openModal()}>
+          <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={async () => openModal()}>
             New Booking
           </Button>
         </div>
@@ -55,14 +57,14 @@ export default function ReservationsPage() {
       {isLoading ? (
         <div className="space-y-4">
            {[...Array(3)].map((_, i) => (
-             <div key={i} className="h-20 bg-white/60 rounded-2xl animate-pulse" />
+             <div key={i} className="h-20 bg-surface/60 rounded-2xl animate-pulse" />
            ))}
         </div>
       ) : reservations.length === 0 ? (
         <div className="card text-center py-20">
           <CalendarIcon className="w-12 h-12 text-surface-300 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-surface-900">No reservations</h3>
-          <p className="text-surface-500 mt-1">No bookings found for {date}</p>
+          <h3 className="text-lg font-bold text-primary">No reservations</h3>
+          <p className="text-muted mt-1">No bookings found for {date}</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -74,7 +76,7 @@ export default function ReservationsPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  <h3 className="font-bold text-lg text-surface-900 flex items-center gap-2">
+                  <h3 className="font-bold text-lg text-primary flex items-center gap-2">
                     {res.customer_name}
                     <span className={cn(
                       "text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-bold",
@@ -86,7 +88,7 @@ export default function ReservationsPage() {
                       {res.status.replace('_', ' ')}
                     </span>
                   </h3>
-                  <div className="flex items-center gap-4 text-sm text-surface-500">
+                  <div className="flex items-center gap-4 text-sm text-muted">
                     <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {res.customer_phone}</span>
                     <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {res.party_size} people</span>
                     {res.table_label && (
@@ -159,7 +161,7 @@ function ReservationModal({ res, tables, onClose, onSaved }: any) {
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to save reservation');
+      globalToast.info('Failed to save reservation');
     } finally {
       setLoading(false);
     }
@@ -167,7 +169,7 @@ function ReservationModal({ res, tables, onClose, onSaved }: any) {
 
   const remove = async () => {
     if (!res) return;
-    if (!confirm('Cancel this reservation?')) return;
+    if (!(await globalConfirm('Cancel this reservation?'))) return;
     await reservationsApi.update(res.id, { status: 'cancelled' });
     onSaved();
     onClose();

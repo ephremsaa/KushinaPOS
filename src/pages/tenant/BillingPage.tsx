@@ -52,7 +52,7 @@ function StatusBadge({ status }: { status: string }) {
     trial:   'bg-blue-100 text-blue-700 border-blue-200',
     grace:   'bg-amber-100 text-amber-700 border-amber-200',
     expired: 'bg-red-100 text-red-700 border-red-200',
-    cancelled: 'bg-surface-100 text-surface-600 border-surface-200',
+    cancelled: 'bg-surface-100 text-surface-600 border-default',
   };
   return (
     <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border', map[status] ?? map.expired)}>
@@ -127,7 +127,7 @@ function PlanCard({
   return (
     <div className={cn(
       'relative rounded-3xl border-2 p-6 flex flex-col transition-all duration-200',
-      isCurrent ? `${colors.border} shadow-lg bg-white` : 'border-surface-200 bg-white/60 hover:border-surface-300 hover:shadow-md'
+      isCurrent ? `${colors.border} shadow-lg bg-surface` : 'border-default bg-surface/60 hover:border-surface-300 hover:shadow-md'
     )}>
       {isCurrent && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
@@ -142,13 +142,13 @@ function PlanCard({
           <Icon className="w-5 h-5" />
         </div>
         <div>
-          <p className="font-display font-bold text-surface-900">{plan.name}</p>
-          <p className="text-xs text-surface-500">{plan.max_staff} staff · {plan.max_pos_terminals} terminal{plan.max_pos_terminals > 1 ? 's' : ''}</p>
+          <p className="font-display font-bold text-primary">{plan.name}</p>
+          <p className="text-xs text-muted">{plan.max_staff} staff · {plan.max_pos_terminals} terminal{plan.max_pos_terminals > 1 ? 's' : ''}</p>
         </div>
       </div>
 
       <div className="mb-5">
-        <p className="text-2xl font-display font-bold text-surface-900">
+        <p className="text-2xl font-display font-bold text-primary">
           ETB {plan.price_monthly.toLocaleString()}
           <span className="text-sm font-normal text-surface-400">/mo</span>
         </p>
@@ -165,7 +165,7 @@ function PlanCard({
       </div>
 
       {isCurrent ? (
-        <button disabled className="btn btn-sm w-full justify-center bg-surface-100 text-surface-500 cursor-not-allowed">
+        <button disabled className="btn btn-sm w-full justify-center bg-surface-100 text-muted cursor-not-allowed">
           <Check className="w-3.5 h-3.5" /> Current
         </button>
       ) : (
@@ -213,14 +213,14 @@ function PlanChangeModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+      <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
         <div className="flex items-center gap-3 mb-4">
           <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center', isUpgrade ? 'bg-brand-100' : 'bg-amber-100')}>
             {isUpgrade ? <ArrowUpRight className="w-5 h-5 text-brand-600" /> : <ArrowDownRight className="w-5 h-5 text-amber-600" />}
           </div>
           <div>
-            <p className="font-display font-bold text-surface-900">{isUpgrade ? 'Upgrade' : 'Downgrade'} Plan</p>
-            <p className="text-sm text-surface-500">{currentPlan.plan_name} → {selectedPlan.name}</p>
+            <p className="font-display font-bold text-primary">{isUpgrade ? 'Upgrade' : 'Downgrade'} Plan</p>
+            <p className="text-sm text-muted">{currentPlan.plan_name} → {selectedPlan.name}</p>
           </div>
           <button onClick={onClose} className="ml-auto p-2 hover:bg-surface-100 rounded-xl"><X className="w-4 h-4" /></button>
         </div>
@@ -256,14 +256,14 @@ function CancelModal({ sub, onConfirm, onClose, loading }: {
   const [reason, setReason] = useState('');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
+      <div className="bg-surface rounded-3xl shadow-2xl w-full max-w-md p-6 animate-fade-in">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-2xl bg-red-100 flex items-center justify-center">
             <Ban className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <p className="font-display font-bold text-surface-900">Cancel Subscription</p>
-            <p className="text-sm text-surface-500">Access continues until {formatDate(sub.current_period_end)}</p>
+            <p className="font-display font-bold text-primary">Cancel Subscription</p>
+            <p className="text-sm text-muted">Access continues until {formatDate(sub.current_period_end)}</p>
           </div>
           <button onClick={onClose} className="ml-auto p-2 hover:bg-surface-100 rounded-xl"><X className="w-4 h-4" /></button>
         </div>
@@ -345,8 +345,8 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
         <div className="w-16 h-16 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 className="w-8 h-8 text-emerald-600" />
         </div>
-        <p className="font-display font-bold text-lg text-surface-900">Payment submitted!</p>
-        <p className="text-sm text-surface-500 mt-1">Our team will review within 24 hours.</p>
+        <p className="font-display font-bold text-lg text-primary">Payment submitted!</p>
+        <p className="text-sm text-muted mt-1">Our team will review within 24 hours.</p>
       </div>
     );
   }
@@ -362,7 +362,7 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
               onClick={() => setMethod(m)}
               className={cn(
                 'py-3 px-4 rounded-2xl border-2 text-sm font-bold transition-all',
-                method === m ? 'border-brand-400 bg-brand-50 text-brand-700 shadow-sm' : 'border-surface-200 text-surface-600 hover:border-surface-300'
+                method === m ? 'border-brand-400 bg-brand-50 text-brand-700 shadow-sm' : 'border-default text-surface-600 hover:border-surface-300'
               )}
             >
               {m === 'telebirr' ? '📱 Telebirr' : m === 'cbe' ? '🏦 CBE' : '💰 Other'}
@@ -395,13 +395,13 @@ function PaymentSubmitSection({ subscriptionId, onSuccess }: {
           onClick={() => fileInputRef.current?.click()}
           className={cn(
             'flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-all',
-            dragOver ? 'border-brand-400 bg-brand-50 scale-[1.01]' : 'border-surface-200 hover:border-brand-300 hover:bg-surface-50'
+            dragOver ? 'border-brand-400 bg-brand-50 scale-[1.01]' : 'border-default hover:border-brand-300 hover:bg-surface-50'
           )}
         >
           {file ? (
             <>
               <img src={URL.createObjectURL(file)} alt="Preview"
-                className="w-24 h-24 object-cover rounded-xl border border-surface-200 mb-1" />
+                className="w-24 h-24 object-cover rounded-xl border border-default mb-1" />
               <p className="text-sm font-semibold text-surface-700">{file.name}</p>
               <p className="text-xs text-surface-400">{(file.size / 1024).toFixed(1)} KB · Click to change</p>
             </>
@@ -572,11 +572,11 @@ export default function BillingPage() {
 
       {/* ── Cancellation notice ── */}
       {sub?.cancel_at_period_end && (
-        <div className="flex items-center gap-4 p-4 bg-surface-50 border border-surface-200 rounded-3xl">
-          <Ban className="w-5 h-5 text-surface-500 flex-shrink-0" />
+        <div className="flex items-center gap-4 p-4 bg-surface-50 border border-default rounded-3xl">
+          <Ban className="w-5 h-5 text-muted flex-shrink-0" />
           <div className="flex-1 text-sm">
             <span className="font-bold text-surface-800">Cancels on {formatDate(sub.current_period_end)}</span>
-            <span className="text-surface-500 ml-2">— you have full access until then.</span>
+            <span className="text-muted ml-2">— you have full access until then.</span>
           </div>
           <button onClick={handleReactivate} disabled={reactivateLoading}
             className="btn-secondary btn-sm gap-1.5 flex-shrink-0">
@@ -594,8 +594,8 @@ export default function BillingPage() {
               <Shield className="w-6 h-6 text-brand-500" />
             </div>
             <div>
-              <p className="text-sm text-surface-500 mb-0.5">Current plan</p>
-              <h2 className="font-display font-bold text-2xl text-surface-900">
+              <p className="text-sm text-muted mb-0.5">Current plan</p>
+              <h2 className="font-display font-bold text-2xl text-primary">
                 {usageLoading ? '—' : sub?.plan_name ?? 'No plan'}
               </h2>
             </div>
@@ -612,8 +612,8 @@ export default function BillingPage() {
             { label: 'POS terminals', value: sub?.max_pos_terminals != null ? `1 of ${sub.max_pos_terminals}` : '—' },
           ].map(({ label, value }) => (
             <div key={label} className="p-3 bg-surface-50 rounded-2xl">
-              <p className="text-xs text-surface-500 mb-0.5">{label}</p>
-              <p className="font-bold text-surface-900 text-sm">{value}</p>
+              <p className="text-xs text-muted mb-0.5">{label}</p>
+              <p className="font-bold text-primary text-sm">{value}</p>
             </div>
           ))}
         </div>
@@ -621,7 +621,7 @@ export default function BillingPage() {
         {/* Usage meters */}
         {sub && usage && (
           <div className="space-y-3 mb-6 p-4 bg-surface-50 rounded-2xl">
-            <p className="text-xs font-bold text-surface-500 uppercase tracking-wider mb-2">Usage</p>
+            <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">Usage</p>
             <UsageMeter label="Staff seats" used={usage.staff_count} max={sub.max_staff} icon={Users} />
             <UsageMeter label="POS Terminals" used={1} max={sub.max_pos_terminals} icon={Monitor} />
           </div>
@@ -639,7 +639,7 @@ export default function BillingPage() {
               return (
                 <span key={key} className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
-                  enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-surface-100 text-surface-400 border-surface-200 line-through'
+                  enabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-surface-100 text-surface-400 border-default line-through'
                 )}>
                   {enabled ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {label}
                 </span>
@@ -662,7 +662,7 @@ export default function BillingPage() {
       {/* ── Plan comparison ── */}
       {plans.length > 0 && (
         <div>
-          <h3 className="font-display font-bold text-lg text-surface-900 mb-4 flex items-center gap-2">
+          <h3 className="font-display font-bold text-lg text-primary mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-brand-500" /> Available Plans
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -691,8 +691,8 @@ export default function BillingPage() {
             <CreditCard className="w-5 h-5 text-emerald-600" />
           </div>
           <div>
-            <h3 className="font-display font-bold text-lg text-surface-900">Submit Payment</h3>
-            <p className="text-sm text-surface-500">Telebirr, CBE, or bank transfer</p>
+            <h3 className="font-display font-bold text-lg text-primary">Submit Payment</h3>
+            <p className="text-sm text-muted">Telebirr, CBE, or bank transfer</p>
           </div>
         </div>
         <PaymentSubmitSection subscriptionId={sub?.id} onSuccess={() => { refetchProofs(); invalidateAll(); }} />
@@ -700,21 +700,21 @@ export default function BillingPage() {
 
       {/* ── Payment history ── */}
       <div className="card">
-        <h3 className="font-display font-bold text-lg text-surface-900 mb-5">Payment History</h3>
+        <h3 className="font-display font-bold text-lg text-primary mb-5">Payment History</h3>
 
         {proofs.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-14 h-14 bg-surface-100 rounded-3xl flex items-center justify-center mx-auto mb-3">
               <Package className="w-7 h-7 text-surface-300" />
             </div>
-            <p className="text-sm font-semibold text-surface-500">No payments yet</p>
+            <p className="text-sm font-semibold text-muted">No payments yet</p>
             <p className="text-xs text-surface-400 mt-0.5">Submit your first payment proof above</p>
           </div>
         ) : (
           <div className="space-y-3">
             {proofs.map(proof => (
               <div key={proof.id}
-                className="flex items-center gap-4 p-4 bg-surface-50/80 rounded-2xl border border-surface-100 hover:border-surface-200 transition-all">
+                className="flex items-center gap-4 p-4 bg-surface-50/80 rounded-2xl border border-surface-100 hover:border-default transition-all">
                 {/* Status icon */}
                 <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0', {
                   'bg-emerald-100': proof.status === 'approved',
@@ -729,10 +729,10 @@ export default function BillingPage() {
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="font-bold text-surface-900 text-sm">{formatCurrency(proof.amount)}</p>
+                    <p className="font-bold text-primary text-sm">{formatCurrency(proof.amount)}</p>
                     <span className="text-xs text-surface-400 capitalize">· {proof.payment_method}</span>
                   </div>
-                  <p className="text-xs text-surface-500 mt-0.5">{formatRelative(proof.submitted_at)}</p>
+                  <p className="text-xs text-muted mt-0.5">{formatRelative(proof.submitted_at)}</p>
                   {proof.rejection_reason && (
                     <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" /> {proof.rejection_reason}
@@ -743,7 +743,7 @@ export default function BillingPage() {
                 {/* Screenshot thumbnail */}
                 {proof.screenshot_url && (
                   <button onClick={() => setLightboxUrl(proof.screenshot_url)}
-                    className="w-12 h-12 rounded-xl overflow-hidden border border-surface-200 flex-shrink-0 hover:border-brand-300 hover:shadow-md transition-all relative group">
+                    className="w-12 h-12 rounded-xl overflow-hidden border border-default flex-shrink-0 hover:border-brand-300 hover:shadow-md transition-all relative group">
                     <img src={proof.screenshot_url} alt="Proof" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <ExternalLink className="w-3.5 h-3.5 text-white" />

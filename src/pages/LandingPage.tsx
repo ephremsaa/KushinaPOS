@@ -89,11 +89,11 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-surface-900 selection:bg-brand-500 selection:text-white font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 text-primary selection:bg-brand-500 selection:text-white font-sans antialiased overflow-x-hidden">
       
       {/* ── Modern Floating Glassmorphic Header ── */}
       <header className="sticky top-0 sm:top-4 z-50 px-2 sm:px-6">
-        <nav className="max-w-7xl mx-auto bg-white/85 backdrop-blur-2xl border border-surface-200/80 sm:rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
+        <nav className="max-w-7xl mx-auto bg-surface/85 backdrop-blur-2xl border border-default/80 sm:rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
           <div className="px-4 sm:px-6 flex items-center justify-between h-16 sm:h-20">
             
             {/* Logo */}
@@ -115,16 +115,16 @@ export default function LandingPage() {
             </Link>
 
             {/* Desktop Navigation Links */}
-            <div className="hidden lg:flex items-center gap-1 bg-surface-100/70 p-1.5 rounded-full border border-surface-200/50 text-sm font-semibold text-surface-600">
-              <a href="#features" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all">Features</a>
-              <a href="#demo" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all text-brand-600 flex items-center gap-1.5">
+            <div className="hidden lg:flex items-center gap-1 bg-surface-100/70 p-1.5 rounded-full border border-default/50 text-sm font-semibold text-surface-600">
+              <a href="#features" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all">Features</a>
+              <a href="#demo" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all text-brand-600 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-brand-500" />
                 Live Demo
               </a>
-              <a href="#payments" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all">Telebirr & CBE</a>
-              <a href="#pricing" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all">Pricing</a>
-              <a href="#testimonials" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all">Restaurants</a>
-              <a href="#faq" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-white transition-all">FAQ</a>
+              <a href="#payments" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all">Telebirr & CBE</a>
+              <a href="#pricing" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all">Pricing</a>
+              <a href="#testimonials" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all">Restaurants</a>
+              <a href="#faq" className="px-4 py-1.5 rounded-full hover:text-surface-950 hover:bg-surface transition-all">FAQ</a>
             </div>
 
             {/* Action Buttons */}
@@ -151,7 +151,7 @@ export default function LandingPage() {
               </Link>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-surface-600 hover:text-surface-900 bg-surface-100 rounded-xl"
+                className="p-2 text-surface-600 hover:text-primary bg-surface-100 rounded-xl"
                 aria-label="Toggle Menu"
               >
                 <div className="w-5 h-4 flex flex-col justify-between">
@@ -166,7 +166,7 @@ export default function LandingPage() {
 
           {/* Mobile Drawer */}
           {mobileMenuOpen && (
-            <div className="sm:hidden border-t border-surface-200/60 p-4 space-y-3 bg-white/95 backdrop-blur-xl rounded-b-3xl">
+            <div className="sm:hidden border-t border-default/60 p-4 space-y-3 bg-surface/95 backdrop-blur-xl rounded-b-3xl">
               <div className="grid grid-cols-2 gap-2 text-center text-sm font-semibold">
                 <a href="#features" onClick={() => setMobileMenuOpen(false)} className="p-2.5 bg-surface-50 rounded-xl">Features</a>
                 <a href="#demo" onClick={() => setMobileMenuOpen(false)} className="p-2.5 bg-brand-50 text-brand-700 rounded-xl">Live Demo</a>
@@ -195,7 +195,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center relative z-10">
           
           {/* Status announcement badge */}
-          <div className="inline-flex items-center gap-2.5 bg-white/90 backdrop-blur-md border border-brand-200/80 shadow-sm rounded-full px-4 py-2 text-xs sm:text-sm font-semibold text-surface-800 mb-8 hover:border-brand-300 transition-all cursor-pointer">
+          <div className="inline-flex items-center gap-2.5 bg-surface/90 backdrop-blur-md border border-brand-200/80 shadow-sm rounded-full px-4 py-2 text-xs sm:text-sm font-semibold text-surface-800 mb-8 hover:border-brand-300 transition-all cursor-pointer">
             <span className="flex h-2.5 w-2.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
@@ -203,7 +203,7 @@ export default function LandingPage() {
             <span className="font-bold text-brand-600">NEW:</span>
             <span>Telebirr QR & CBE Automatic Payment Reconciliation</span>
             <span className="hidden md:inline text-surface-400">|</span>
-            <span className="hidden md:inline text-surface-500 font-medium">100% Offline-First Mode</span>
+            <span className="hidden md:inline text-muted font-medium">100% Offline-First Mode</span>
           </div>
 
           {/* Main Hero Headline */}
@@ -232,7 +232,7 @@ export default function LandingPage() {
             </Link>
             <a
               href="#demo"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white hover:bg-surface-50 text-surface-800 border border-surface-200/90 text-base font-bold px-7 py-4 rounded-2xl shadow-sm hover:shadow transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-surface hover:bg-surface-50 text-surface-800 border border-default/90 text-base font-bold px-7 py-4 rounded-2xl shadow-sm hover:shadow transition-all"
             >
               <Sparkles className="w-4 h-4 text-brand-500" />
               <span>Try Live Simulator</span>
@@ -240,14 +240,14 @@ export default function LandingPage() {
           </div>
 
           {/* Quick Credibility Trust Pillars */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-4 border-t border-surface-200/60">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-4 border-t border-default/60">
             <div className="flex items-center justify-center gap-2.5 p-2">
               <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">
                 <Wifi className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-surface-900">100% Offline Mode</p>
-                <p className="text-[11px] text-surface-500">Zero order loss if WiFi drops</p>
+                <p className="text-xs font-bold text-primary">100% Offline Mode</p>
+                <p className="text-[11px] text-muted">Zero order loss if WiFi drops</p>
               </div>
             </div>
 
@@ -256,8 +256,8 @@ export default function LandingPage() {
                 <CreditCard className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-surface-900">Telebirr & CBE</p>
-                <p className="text-[11px] text-surface-500">Instant QR & Reference check</p>
+                <p className="text-xs font-bold text-primary">Telebirr & CBE</p>
+                <p className="text-[11px] text-muted">Instant QR & Reference check</p>
               </div>
             </div>
 
@@ -266,8 +266,8 @@ export default function LandingPage() {
                 <Zap className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-surface-900">&lt; 0.2s Touch Speed</p>
-                <p className="text-[11px] text-surface-500">Blazing fast cashier flow</p>
+                <p className="text-xs font-bold text-primary">&lt; 0.2s Touch Speed</p>
+                <p className="text-[11px] text-muted">Blazing fast cashier flow</p>
               </div>
             </div>
 
@@ -276,8 +276,8 @@ export default function LandingPage() {
                 <Shield className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <p className="text-xs font-bold text-surface-900">Multi-Tenant Cloud</p>
-                <p className="text-[11px] text-surface-500">Private & isolated data</p>
+                <p className="text-xs font-bold text-primary">Multi-Tenant Cloud</p>
+                <p className="text-[11px] text-muted">Private & isolated data</p>
               </div>
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function LandingPage() {
                 <span className="w-3 h-3 rounded-full bg-red-500/80" />
                 <span className="w-3 h-3 rounded-full bg-amber-500/80" />
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                <span className="ml-2 font-mono text-[11px] text-surface-500">kushinaPOS Terminal v2.4 · Habesha Bistro Bole</span>
+                <span className="ml-2 font-mono text-[11px] text-muted">kushinaPOS Terminal v2.4 · Habesha Bistro Bole</span>
               </div>
               <div className="flex items-center gap-4">
                 <span className="inline-flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
@@ -431,7 +431,7 @@ export default function LandingPage() {
                     {/* Cart Items List */}
                     <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1 mb-4">
                       {simCart.length === 0 ? (
-                        <div className="text-center py-6 text-surface-500 text-xs">
+                        <div className="text-center py-6 text-muted text-xs">
                           Click items on the left to add to order
                         </div>
                       ) : (
@@ -443,7 +443,7 @@ export default function LandingPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-surface-300 font-bold">{(item.price * item.qty).toLocaleString()} ETB</span>
-                              <button onClick={() => removeFromCart(item.id)} className="text-surface-500 hover:text-red-400">
+                              <button onClick={() => removeFromCart(item.id)} className="text-muted hover:text-red-400">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -680,7 +680,7 @@ export default function LandingPage() {
             {/* TAB 5: QR MENU ORDERING */}
             {activeTab === 'qr' && (
               <div className="flex flex-col sm:flex-row items-center justify-center gap-8 py-4">
-                <div className="w-56 bg-white text-surface-900 rounded-3xl p-4 shadow-2xl border-4 border-surface-800">
+                <div className="w-56 bg-surface text-primary rounded-3xl p-4 shadow-2xl border-4 border-surface-800">
                   <div className="w-12 h-1 bg-surface-300 rounded-full mx-auto mb-3" />
                   <div className="text-center mb-3">
                     <p className="text-[10px] uppercase font-bold text-brand-600 tracking-wider">Habesha Lounge</p>
@@ -690,7 +690,7 @@ export default function LandingPage() {
                     <QrCode className="w-28 h-28 mx-auto text-brand-700" />
                     <p className="text-[9px] text-brand-800 font-semibold mt-1">Scan with phone camera</p>
                   </div>
-                  <p className="text-[10px] text-surface-500 text-center">Customers browse, order, & pay without waiting for a printed menu.</p>
+                  <p className="text-[10px] text-muted text-center">Customers browse, order, & pay without waiting for a printed menu.</p>
                 </div>
                 <div className="max-w-md space-y-3 text-left">
                   <span className="badge-orange text-xs">Self-Service QR Technology</span>
@@ -713,7 +713,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Ethiopian Payment Ecosystem Deep-Dive ── */}
-      <section id="payments" className="py-20 bg-white border-b border-surface-200/60">
+      <section id="payments" className="py-20 bg-surface border-b border-default/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -735,33 +735,33 @@ export default function LandingPage() {
               </p>
 
               <div className="space-y-4 pt-2">
-                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-surface-200/80">
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-default/80">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold flex-shrink-0">
                     <QrCode className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-surface-900">Dynamic Telebirr QR Codes</h4>
-                    <p className="text-xs text-surface-500 mt-0.5">The exact Birr amount and order ID are pre-encoded into the QR code so guests pay in 3 seconds.</p>
+                    <h4 className="font-bold text-sm text-primary">Dynamic Telebirr QR Codes</h4>
+                    <p className="text-xs text-muted mt-0.5">The exact Birr amount and order ID are pre-encoded into the QR code so guests pay in 3 seconds.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-surface-200/80">
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-default/80">
                   <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 font-bold flex-shrink-0">
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-surface-900">CBE Mobile Banking Approval</h4>
-                    <p className="text-xs text-surface-500 mt-0.5">Upload payment slip screenshots or type the transaction reference code for immediate till reconciliation.</p>
+                    <h4 className="font-bold text-sm text-primary">CBE Mobile Banking Approval</h4>
+                    <p className="text-xs text-muted mt-0.5">Upload payment slip screenshots or type the transaction reference code for immediate till reconciliation.</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-surface-200/80">
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-surface-50 border border-default/80">
                   <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 font-bold flex-shrink-0">
                     <Utensils className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-surface-900">80mm Thermal Receipt Printing</h4>
-                    <p className="text-xs text-surface-500 mt-0.5">Auto-print formatted customer bills & kitchen prep tickets in Amharic & English with Ethiopian VAT breakdown.</p>
+                    <h4 className="font-bold text-sm text-primary">80mm Thermal Receipt Printing</h4>
+                    <p className="text-xs text-muted mt-0.5">Auto-print formatted customer bills & kitchen prep tickets in Amharic & English with Ethiopian VAT breakdown.</p>
                   </div>
                 </div>
               </div>
@@ -782,7 +782,7 @@ export default function LandingPage() {
                   <div className="text-center py-4 bg-surface-950/60 rounded-2xl border border-surface-800">
                     <p className="text-xs text-surface-400 mb-1">Total Bill for Table 4</p>
                     <p className="font-display font-extrabold text-3xl text-emerald-400">1,240.00 ETB</p>
-                    <div className="mt-4 p-3 bg-white inline-block rounded-2xl shadow-inner">
+                    <div className="mt-4 p-3 bg-surface inline-block rounded-2xl shadow-inner">
                       <QrCode className="w-32 h-32 text-surface-950" />
                     </div>
                     <p className="text-[11px] text-surface-400 mt-2 font-mono">telebirr://pay?ref=KSH-8491&amt=1240</p>
@@ -823,13 +823,13 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             {/* Feature 1 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600 mb-6">
                   <Wifi className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Offline-First Engine</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Offline-First Engine</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Never stop taking orders when Ethio Telecom or local WiFi disconnects. Orders store locally on tablets and automatically sync to the cloud when online.
                 </p>
               </div>
@@ -840,13 +840,13 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600 mb-6">
                   <Zap className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Kitchen Display (KDS)</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Kitchen Display (KDS)</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Replace messy paper kitchen slips with high-visibility color-coded kitchen displays. Chefs see timers, special notes, and order priorities in real time.
                 </p>
               </div>
@@ -857,13 +857,13 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-6">
                   <Layers className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Table & Floor Map</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Table & Floor Map</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Visual layout of your dining rooms, lounge, and outdoor patio. Move guests, split checks across multiple payers, or merge tables seamlessly.
                 </p>
               </div>
@@ -874,13 +874,13 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 4 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 mb-6">
                   <Utensils className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Recipe Stock Deduction</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Recipe Stock Deduction</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Link menu dishes to raw ingredients (kg of meat, liters of oil, onions, teff flour). Every order automatically deducts inventory and triggers low-stock alerts.
                 </p>
               </div>
@@ -891,13 +891,13 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 5 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600 mb-6">
                   <Users className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Staff Shifts & 4-Digit PINs</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Staff Shifts & 4-Digit PINs</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Fast waiter & cashier switching on shared tablets via 4-digit PINs. Track clock-in attendance, tips, sales per staff, and prevent unauthorized voids.
                 </p>
               </div>
@@ -908,13 +908,13 @@ export default function LandingPage() {
             </div>
 
             {/* Feature 6 */}
-            <div className="card-hover bg-white p-8 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="card-hover bg-surface p-8 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600 mb-6">
                   <BarChart3 className="w-6 h-6" />
                 </div>
-                <h3 className="font-display font-bold text-xl text-surface-900 mb-2">Cloud Sales Analytics</h3>
-                <p className="text-sm text-surface-500 leading-relaxed">
+                <h3 className="font-display font-bold text-xl text-primary mb-2">Cloud Sales Analytics</h3>
+                <p className="text-sm text-muted leading-relaxed">
                   Monitor your daily profit, top performing dishes, cash drawer balances, and peak customer hours from your smartphone anywhere in the world.
                 </p>
               </div>
@@ -930,7 +930,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Transparent Pricing with Toggle ── */}
-      <section id="pricing" className="py-20 sm:py-28 bg-white relative">
+      <section id="pricing" className="py-20 sm:py-28 bg-surface relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           
           <div className="text-center max-w-3xl mx-auto mb-14">
@@ -946,11 +946,11 @@ export default function LandingPage() {
             </p>
 
             {/* Billing Toggle */}
-            <div className="inline-flex items-center gap-3 bg-surface-100 p-1.5 rounded-2xl border border-surface-200/80">
+            <div className="inline-flex items-center gap-3 bg-surface-100 p-1.5 rounded-2xl border border-default/80">
               <button
                 onClick={() => setIsAnnualBilling(false)}
                 className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
-                  !isAnnualBilling ? 'bg-white text-surface-950 shadow-sm' : 'text-surface-600 hover:text-surface-900'
+                  !isAnnualBilling ? 'bg-surface text-surface-950 shadow-sm' : 'text-surface-600 hover:text-primary'
                 }`}
               >
                 Monthly Billing
@@ -958,7 +958,7 @@ export default function LandingPage() {
               <button
                 onClick={() => setIsAnnualBilling(true)}
                 className={`px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all ${
-                  isAnnualBilling ? 'bg-brand-500 text-white shadow-sm' : 'text-surface-600 hover:text-surface-900'
+                  isAnnualBilling ? 'bg-brand-500 text-white shadow-sm' : 'text-surface-600 hover:text-primary'
                 }`}
               >
                 <span>Annual Billing</span>
@@ -973,11 +973,11 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
             
             {/* Starter Plan */}
-            <div className="bg-surface-50/80 border border-surface-200 rounded-3xl p-8 flex flex-col justify-between hover:shadow-lg transition-all duration-300">
+            <div className="bg-surface-50/80 border border-default rounded-3xl p-8 flex flex-col justify-between hover:shadow-lg transition-all duration-300">
               <div>
                 <div className="mb-4">
-                  <h3 className="font-display font-bold text-2xl text-surface-900">Starter</h3>
-                  <p className="text-xs text-surface-500 mt-1">Ideal for small coffee shops, juice bars, & bistros.</p>
+                  <h3 className="font-display font-bold text-2xl text-primary">Starter</h3>
+                  <p className="text-xs text-muted mt-1">Ideal for small coffee shops, juice bars, & bistros.</p>
                 </div>
 
                 <div className="mb-6">
@@ -985,7 +985,7 @@ export default function LandingPage() {
                     <span className="font-display font-extrabold text-4xl text-surface-950">
                       {isAnnualBilling ? '416' : '500'}
                     </span>
-                    <span className="text-sm font-bold text-surface-500">ETB / month</span>
+                    <span className="text-sm font-bold text-muted">ETB / month</span>
                   </div>
                   <p className="text-xs text-surface-400 mt-1">
                     {isAnnualBilling ? 'Billed 5,000 ETB annually' : 'Billed monthly'}
@@ -1022,7 +1022,7 @@ export default function LandingPage() {
             </div>
 
             {/* Growth Plan (MOST POPULAR) */}
-            <div className="bg-white border-2 border-brand-500 rounded-3xl p-8 flex flex-col justify-between shadow-glow relative transform lg:-translate-y-2">
+            <div className="bg-surface border-2 border-brand-500 rounded-3xl p-8 flex flex-col justify-between shadow-glow relative transform lg:-translate-y-2">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                 <span className="bg-gradient-to-r from-brand-500 to-amber-500 text-white px-4 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-md">
                   ★ MOST POPULAR
@@ -1031,8 +1031,8 @@ export default function LandingPage() {
 
               <div>
                 <div className="mb-4 pt-2">
-                  <h3 className="font-display font-bold text-2xl text-surface-900">Growth</h3>
-                  <p className="text-xs text-surface-500 mt-1">For full-service restaurants, lounges, & bars.</p>
+                  <h3 className="font-display font-bold text-2xl text-primary">Growth</h3>
+                  <p className="text-xs text-muted mt-1">For full-service restaurants, lounges, & bars.</p>
                 </div>
 
                 <div className="mb-6">
@@ -1040,7 +1040,7 @@ export default function LandingPage() {
                     <span className="font-display font-extrabold text-4xl text-brand-600">
                       {isAnnualBilling ? '1,000' : '1,200'}
                     </span>
-                    <span className="text-sm font-bold text-surface-500">ETB / month</span>
+                    <span className="text-sm font-bold text-muted">ETB / month</span>
                   </div>
                   <p className="text-xs text-surface-400 mt-1">
                     {isAnnualBilling ? 'Billed 12,000 ETB annually' : 'Billed monthly'}
@@ -1081,11 +1081,11 @@ export default function LandingPage() {
             </div>
 
             {/* Enterprise Plan */}
-            <div className="bg-surface-50/80 border border-surface-200 rounded-3xl p-8 flex flex-col justify-between hover:shadow-lg transition-all duration-300">
+            <div className="bg-surface-50/80 border border-default rounded-3xl p-8 flex flex-col justify-between hover:shadow-lg transition-all duration-300">
               <div>
                 <div className="mb-4">
-                  <h3 className="font-display font-bold text-2xl text-surface-900">Enterprise</h3>
-                  <p className="text-xs text-surface-500 mt-1">For multi-branch restaurant chains & hotel dining.</p>
+                  <h3 className="font-display font-bold text-2xl text-primary">Enterprise</h3>
+                  <p className="text-xs text-muted mt-1">For multi-branch restaurant chains & hotel dining.</p>
                 </div>
 
                 <div className="mb-6">
@@ -1093,7 +1093,7 @@ export default function LandingPage() {
                     <span className="font-display font-extrabold text-4xl text-surface-950">
                       {isAnnualBilling ? '2,083' : '2,500'}
                     </span>
-                    <span className="text-sm font-bold text-surface-500">ETB / month</span>
+                    <span className="text-sm font-bold text-muted">ETB / month</span>
                   </div>
                   <p className="text-xs text-surface-400 mt-1">
                     {isAnnualBilling ? 'Billed 25,000 ETB annually' : 'Billed monthly'}
@@ -1136,7 +1136,7 @@ export default function LandingPage() {
           </div>
 
           {/* Guarantee pill */}
-          <div className="text-center mt-12 text-xs text-surface-500">
+          <div className="text-center mt-12 text-xs text-muted">
             🔒 No credit card required. Cancel anytime. We assist with hardware setup in Addis Ababa.
           </div>
 
@@ -1144,21 +1144,21 @@ export default function LandingPage() {
       </section>
 
       {/* ── Testimonials from Ethiopian Restaurant Owners ── */}
-      <section id="testimonials" className="py-20 bg-surface-100/70 border-t border-b border-surface-200/60">
+      <section id="testimonials" className="py-20 bg-surface-100/70 border-t border-b border-default/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           
           <div className="text-center max-w-2xl mx-auto mb-14">
             <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-surface-950 tracking-tight mb-3">
               Trusted by 500+ restaurants across Ethiopia
             </h2>
-            <p className="text-surface-500 text-sm sm:text-base">
+            <p className="text-muted text-sm sm:text-base">
               See what managers and head chefs in Addis Ababa are saying about kushinaPOS.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            <div className="bg-white p-7 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-surface p-7 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-1 text-amber-400 mb-4">
                   {[...Array(5)].map((_, i) => (
@@ -1175,13 +1175,13 @@ export default function LandingPage() {
                   YD
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-surface-900">Yared Dawit</h4>
+                  <h4 className="font-bold text-sm text-primary">Yared Dawit</h4>
                   <p className="text-xs text-surface-400">General Manager · Habesha Bistro (Bole)</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-7 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-surface p-7 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-1 text-amber-400 mb-4">
                   {[...Array(5)].map((_, i) => (
@@ -1198,13 +1198,13 @@ export default function LandingPage() {
                   SH
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-surface-900">Selamawit Haile</h4>
+                  <h4 className="font-bold text-sm text-primary">Selamawit Haile</h4>
                   <p className="text-xs text-surface-400">Founder & Head Chef · Lucy Grill (Kazanchis)</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white p-7 rounded-3xl border border-surface-200/80 shadow-sm flex flex-col justify-between">
+            <div className="bg-surface p-7 rounded-3xl border border-default/80 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-1 text-amber-400 mb-4">
                   {[...Array(5)].map((_, i) => (
@@ -1221,7 +1221,7 @@ export default function LandingPage() {
                   TB
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-surface-900">Tewodros Bekele</h4>
+                  <h4 className="font-bold text-sm text-primary">Tewodros Bekele</h4>
                   <p className="text-xs text-surface-400">Operations Director · Abyssinia Roasters (Piassa)</p>
                 </div>
               </div>
@@ -1233,14 +1233,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── Interactive FAQ Section ── */}
-      <section id="faq" className="py-20 bg-white">
+      <section id="faq" className="py-20 bg-surface">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           
           <div className="text-center mb-12">
             <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-surface-950 tracking-tight mb-3">
               Frequently Asked Questions
             </h2>
-            <p className="text-surface-500 text-sm">
+            <p className="text-muted text-sm">
               Have questions about hardware, payments, or setting up? We’re here to help.
             </p>
           </div>
@@ -1270,11 +1270,11 @@ export default function LandingPage() {
             ].map((item, idx) => (
               <div
                 key={idx}
-                className="border border-surface-200 rounded-2xl overflow-hidden transition-colors"
+                className="border border-default rounded-2xl overflow-hidden transition-colors"
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full p-5 text-left font-bold text-surface-900 flex items-center justify-between gap-4 bg-surface-50/50 hover:bg-surface-50"
+                  className="w-full p-5 text-left font-bold text-primary flex items-center justify-between gap-4 bg-surface-50/50 hover:bg-surface-50"
                 >
                   <span className="text-sm sm:text-base">{item.q}</span>
                   {openFaq === idx ? (
@@ -1284,7 +1284,7 @@ export default function LandingPage() {
                   )}
                 </button>
                 {openFaq === idx && (
-                  <div className="p-5 pt-0 bg-surface-50/50 text-surface-600 text-sm leading-relaxed border-t border-surface-200/40">
+                  <div className="p-5 pt-0 bg-surface-50/50 text-surface-600 text-sm leading-relaxed border-t border-default/40">
                     {item.a}
                   </div>
                 )}
@@ -1298,11 +1298,11 @@ export default function LandingPage() {
       {/* ── High-Converting Call to Action Banner ── */}
       <section className="py-20 sm:py-24 bg-brand-700 text-white relative overflow-hidden">
         {/* Glow circles */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-surface/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-brand-400/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-4 py-1 text-xs font-bold uppercase tracking-wider mb-6">
+          <div className="inline-flex items-center gap-2 bg-surface/20 backdrop-blur-md rounded-full px-4 py-1 text-xs font-bold uppercase tracking-wider mb-6">
             <Sparkles className="w-3.5 h-3.5" />
             Modernize Your Restaurant Today
           </div>
@@ -1319,7 +1319,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/register"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white text-brand-600 hover:bg-brand-50 text-base font-extrabold px-9 py-4 rounded-2xl shadow-2xl hover:scale-105 transition-all duration-200"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-surface text-brand-600 hover:bg-brand-50 text-base font-extrabold px-9 py-4 rounded-2xl shadow-2xl hover:scale-105 transition-all duration-200"
             >
               <span>Register Your Restaurant</span>
               <ArrowRight className="w-5 h-5" />
@@ -1403,7 +1403,7 @@ export default function LandingPage() {
 
           </div>
 
-          <div className="pt-8 border-t border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-surface-500">
+          <div className="pt-8 border-t border-surface-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted">
             <p>© {new Date().getFullYear()} kushinaPOS Inc. Built with pride for Ethiopian Restaurants.</p>
             <div className="flex items-center gap-4">
               <span>Privacy Policy</span>

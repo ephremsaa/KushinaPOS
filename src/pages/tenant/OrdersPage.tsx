@@ -71,14 +71,14 @@ function CancelModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl p-6 space-y-4">
+      <div className="bg-surface rounded-[2rem] w-full max-w-sm shadow-2xl p-6 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 bg-red-100 rounded-2xl flex items-center justify-center flex-shrink-0">
             <XCircle className="w-6 h-6 text-red-600" />
           </div>
           <div>
-            <p className="font-bold text-surface-900">Cancel Order</p>
-            <p className="text-xs text-surface-500">#{order.id.split('-')[0].toUpperCase()} · {formatCurrency(order.total)}</p>
+            <p className="font-bold text-primary">Cancel Order</p>
+            <p className="text-xs text-muted">#{order.id.split('-')[0].toUpperCase()} · {formatCurrency(order.total)}</p>
           </div>
         </div>
 
@@ -96,7 +96,7 @@ function CancelModal({
                 onClick={() => setReason(p)}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
-                  reason === p ? 'bg-red-500 border-red-500 text-white' : 'bg-surface-50 border-surface-200 text-surface-600 hover:border-red-300'
+                  reason === p ? 'bg-red-500 border-red-500 text-white' : 'bg-surface-50 border-default text-surface-600 hover:border-red-300'
                 )}
               >{p}</button>
             ))}
@@ -168,7 +168,7 @@ function OrderDetail({
               </span>
             )}
           </div>
-          <h3 className="font-display font-bold text-2xl text-surface-900">
+          <h3 className="font-display font-bold text-2xl text-primary">
             {order.table_label ? `Table ${order.table_label}` : (order.customer_name || TypeInfo.label)}
           </h3>
           <p className="text-surface-400 text-sm mt-0.5">
@@ -217,7 +217,7 @@ function OrderDetail({
                   <span className="w-7 h-7 rounded-xl bg-brand-100 text-brand-700 text-sm font-extrabold flex items-center justify-center flex-shrink-0">
                     {item.quantity}
                   </span>
-                  <span className="font-semibold text-surface-900 text-sm">{item.menu_item_name}</span>
+                  <span className="font-semibold text-primary text-sm">{item.menu_item_name}</span>
                 </div>
                 <span className="text-sm font-bold text-surface-700">
                   {formatCurrency(item.quantity * item.unit_price)}
@@ -242,11 +242,11 @@ function OrderDetail({
 
       {/* Totals */}
       <div className="border-t border-surface-100 pt-4 mb-5 space-y-1.5 text-sm">
-        <div className="flex justify-between text-surface-500">
+        <div className="flex justify-between text-muted">
           <span>Subtotal</span><span>{formatCurrency(order.subtotal)}</span>
         </div>
         {order.tax_amount > 0 && (
-          <div className="flex justify-between text-surface-500">
+          <div className="flex justify-between text-muted">
             <span>Tax</span><span>{formatCurrency(order.tax_amount)}</span>
           </div>
         )}
@@ -256,11 +256,11 @@ function OrderDetail({
           </div>
         )}
         {(order as any).tip_amount > 0 && (
-          <div className="flex justify-between text-surface-500">
+          <div className="flex justify-between text-muted">
             <span>Tip</span><span>{formatCurrency((order as any).tip_amount)}</span>
           </div>
         )}
-        <div className="flex justify-between font-extrabold text-lg text-surface-900 border-t border-surface-100 pt-2 mt-1">
+        <div className="flex justify-between font-extrabold text-lg text-primary border-t border-surface-100 pt-2 mt-1">
           <span>Total</span>
           <span className="text-brand-600">{formatCurrency(order.total)}</span>
         </div>
@@ -434,10 +434,10 @@ export default function OrdersPage() {
           {/* Header */}
           <div className="mb-5 flex items-start justify-between">
             <div>
-              <h1 className="font-display font-bold text-2xl text-surface-900 flex items-center gap-2">
+              <h1 className="font-display font-bold text-2xl text-primary flex items-center gap-2">
                 <ClipboardList className="w-6 h-6 text-brand-500" /> Orders
               </h1>
-              <p className="text-surface-500 text-sm mt-0.5">
+              <p className="text-muted text-sm mt-0.5">
                 {filtered.length} order{filtered.length !== 1 ? 's' : ''} · auto-updates every 8s
                 {isFetching && !isLoading && <RefreshCw className="w-3 h-3 inline ml-1.5 animate-spin text-brand-400" />}
               </p>
@@ -507,7 +507,7 @@ export default function OrdersPage() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Status filter */}
                 <div>
-                  <label className="text-xs font-bold text-surface-500 uppercase tracking-widest mb-1.5 block">Status</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-widest mb-1.5 block">Status</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(['all', 'new', 'preparing', 'ready', 'served', 'cancelled'] as OrderStatus[]).map(s => (
                       <button
@@ -517,7 +517,7 @@ export default function OrdersPage() {
                           'px-2.5 py-1 rounded-full text-xs font-bold border transition-all',
                           statusFilter === s
                             ? 'bg-brand-500 border-brand-500 text-white'
-                            : 'bg-surface-50 border-surface-200 text-surface-600 hover:border-brand-300'
+                            : 'bg-surface-50 border-default text-surface-600 hover:border-brand-300'
                         )}
                       >
                         {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
@@ -531,7 +531,7 @@ export default function OrdersPage() {
 
                 {/* Type filter */}
                 <div>
-                  <label className="text-xs font-bold text-surface-500 uppercase tracking-widest mb-1.5 block">Type</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-widest mb-1.5 block">Type</label>
                   <div className="flex flex-wrap gap-1.5">
                     {(['all', 'dine_in', 'takeaway', 'delivery'] as OrderType[]).map(t => (
                       <button
@@ -541,7 +541,7 @@ export default function OrdersPage() {
                           'px-2.5 py-1 rounded-full text-xs font-bold border transition-all',
                           typeFilter === t
                             ? 'bg-brand-500 border-brand-500 text-white'
-                            : 'bg-surface-50 border-surface-200 text-surface-600 hover:border-brand-300'
+                            : 'bg-surface-50 border-default text-surface-600 hover:border-brand-300'
                         )}
                       >
                         {t === 'all' ? 'All' : ORDER_TYPE_CONFIG[t].label}
@@ -552,12 +552,12 @@ export default function OrdersPage() {
 
                 {/* Date from */}
                 <div>
-                  <label className="text-xs font-bold text-surface-500 uppercase tracking-widest mb-1.5 block">From</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-widest mb-1.5 block">From</label>
                   <input type="date" className="input w-full text-sm" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
                 </div>
                 {/* Date to */}
                 <div>
-                  <label className="text-xs font-bold text-surface-500 uppercase tracking-widest mb-1.5 block">To</label>
+                  <label className="text-xs font-bold text-muted uppercase tracking-widest mb-1.5 block">To</label>
                   <input type="date" className="input w-full text-sm" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                 </div>
               </div>
@@ -583,12 +583,12 @@ export default function OrdersPage() {
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border',
                   statusFilter === s
                     ? 'bg-brand-500 border-brand-500 text-white shadow-sm'
-                    : 'bg-white border-surface-200 text-surface-600 hover:border-brand-200'
+                    : 'bg-surface border-default text-surface-600 hover:border-brand-200'
                 )}
               >
                 {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
                 {s !== 'all' && statusCounts[s] != null && (
-                  <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-extrabold', statusFilter === s ? 'bg-white/20 text-white' : 'bg-surface-100 text-surface-500')}>
+                  <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-extrabold', statusFilter === s ? 'bg-surface/20 text-white' : 'bg-surface-100 text-muted')}>
                     {statusCounts[s] ?? 0}
                   </span>
                 )}
@@ -626,7 +626,7 @@ export default function OrdersPage() {
                       ? 'bg-brand-50 border-brand-400 shadow-md'
                       : isStale
                         ? 'bg-red-50/60 border-red-200 hover:border-red-300'
-                        : 'bg-white border-surface-200 hover:border-brand-200 hover:shadow-sm'
+                        : 'bg-surface border-default hover:border-brand-200 hover:shadow-sm'
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -636,7 +636,7 @@ export default function OrdersPage() {
                         {sc.label}
                       </span>
                       <div className="min-w-0">
-                        <p className="font-bold text-surface-900 truncate">
+                        <p className="font-bold text-primary truncate">
                           {order.table_label ? `Table ${order.table_label}` : (order.customer_name || tc.label)}
                         </p>
                         <p className="text-xs text-surface-400 flex items-center gap-1.5 mt-0.5">

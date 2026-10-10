@@ -90,6 +90,15 @@ export default function StaffLoginPage() {
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
 
+  // Check for expired session parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('expired')) {
+      setError('Your session ended. Please sign in again.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   // Load restaurant config
   useEffect(() => {
     async function loadConfig() {

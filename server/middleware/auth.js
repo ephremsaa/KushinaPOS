@@ -1,10 +1,37 @@
 const jwt = require('jsonwebtoken');
 
+const db = require('../config/db');
+
+// Cache for restaurant and staff status: { [id]: { status, expiresAt } }
+const statusCache = new Map();
+
+async function checkStatusWithCache(type, id) {
+  const now = Date.now();
+  const cacheKey = `${type}_${id}`;
+  const cached = statusCache.get(cacheKey);
+  
+  if (cached && cached.expiresAt > now) {
+    return cached.status;
+  }
+
+  let status = null;
+  if (type === 'restaurant') {
+    const { rows } = await db.query("SELECT status FROM restaurants WHERE id = $1", [id]);
+    status = rows.length > 0 ? rows[0].status : null;
+  } else if (type === 'staff') {
+    const { rows } = await db.query("SELECT is_active FROM staff WHERE id = $1", [id]);
+    status = rows.length > 0 ? rows[0].is_active : false;
+  }
+
+  statusCache.set(cacheKey, { status, expiresAt: now + 60000 }); // 60 seconds
+  return status;
+}
+
 /**
  * Verifies Bearer JWT and attaches decoded payload to req.user
  * Payload: { userId, email, role, restaurantId, staffRole }
  */
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
@@ -13,6 +40,23 @@ function authenticate(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+    
+    // Check tenant status
+    if (decoded.role === 'restaurant_owner' || decoded.role === 'staff') {
+      const restStatus = await checkStatusWithCache('restaurant', decoded.restaurantId);
+      if (restStatus !== 'active') {
+        return res.status(403).json({ code: 'RESTAURANT_SUSPENDED', error: 'Restaurant is suspended or inactive' });
+      }
+    }
+    
+    // Check staff active status
+    if (decoded.role === 'staff') {
+      const isActive = await checkStatusWithCache('staff', decoded.userId);
+      if (!isActive) {
+        return res.status(403).json({ code: 'STAFF_DISABLED', error: 'Staff account disabled' });
+      }
+    }
+    
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });

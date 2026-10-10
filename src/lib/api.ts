@@ -36,6 +36,17 @@ export function clearToken() {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
+export class ApiError extends Error {
+  status: number;
+  data: any;
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 // ── Base fetch wrapper ────────────────────────────────────────
 async function request<T = unknown>(
   method: string,
@@ -59,11 +70,25 @@ async function request<T = unknown>(
       : undefined,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({})); // Safe to ignore: empty body is not an error
 
   if (!res.ok) {
+    // Handle session invalidation (401 or specific 403 codes)
+    if (res.status === 401 || (res.status === 403 && (data?.code === 'STAFF_DISABLED' || data?.code === 'RESTAURANT_SUSPENDED'))) {
+      clearToken();
+      sessionStorage.setItem('redirect_after_login', window.location.pathname);
+      
+      const match = window.location.pathname.match(/^\/r\/([^\/]+)/);
+      const loginPath = match ? `/r/${match[1]}/staff/login` : '/login';
+      
+      if (window.location.pathname !== loginPath) {
+        window.location.href = `${loginPath}?expired=1`;
+        return new Promise(() => {}); // wait for redirect
+      }
+    }
+
     const message = data?.error || `Request failed: ${res.status} ${res.statusText}`;
-    throw new Error(message);
+    throw new ApiError(message, res.status, data);
   }
 
   return data as T;

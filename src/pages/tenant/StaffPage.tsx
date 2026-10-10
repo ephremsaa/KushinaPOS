@@ -166,7 +166,7 @@ function StaffPanel({
                 {isNew ? <Users className="w-6 h-6" /> : getInitials(form.name || 'N')}
               </div>
               <div>
-                <h3 className="font-display font-bold text-xl text-surface-900">
+                <h3 className="font-display font-bold text-xl text-primary">
                   {isNew ? 'New Staff Member' : form.name}
                 </h3>
                 {!isNew && (
@@ -186,7 +186,7 @@ function StaffPanel({
             {TABS.map(t => (
               <button key={t.key} onClick={() => setTab(t.key as any)}
                 className={cn('flex-1 py-2 rounded-xl text-sm font-bold transition-all',
-                  tab === t.key ? 'bg-[var(--card-bg)] shadow-sm text-surface-900' : 'text-surface-500 hover:text-surface-700')}>
+                  tab === t.key ? 'bg-[var(--card-bg)] shadow-sm text-primary' : 'text-muted hover:text-surface-700')}>
                 {t.label}
               </button>
             ))}
@@ -237,14 +237,14 @@ function StaffPanel({
                           'flex items-center gap-3 p-3 rounded-2xl border-2 transition-all text-left',
                           form.role === r
                             ? 'border-brand-400 bg-brand-50'
-                            : 'border-surface-200 hover:border-brand-200 bg-[var(--card-bg)]'
+                            : 'border-default hover:border-brand-200 bg-[var(--card-bg)]'
                         )}
                       >
                         <div className={cn('w-8 h-8 rounded-xl bg-gradient-to-br flex-shrink-0', ROLE_COLORS[r])}>
                           <Shield className="w-4 h-4 text-white m-2" />
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-surface-900">{getRoleLabel(r)}</p>
+                          <p className="font-bold text-sm text-primary">{getRoleLabel(r)}</p>
                         </div>
                       </button>
                     ))}
@@ -402,7 +402,7 @@ function StaffPanel({
                     <div key={s.id} className="bg-surface-50 rounded-2xl p-3 border border-surface-100">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-surface-900">
+                          <p className="text-sm font-bold text-primary">
                             {new Date(s.clocked_in_at).toLocaleDateString('en-ET', { weekday: 'short', month: 'short', day: 'numeric' })}
                           </p>
                           <p className="text-xs text-surface-400 mt-0.5">
@@ -478,8 +478,8 @@ function ClockModal({
           <div className={cn('w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3', action === 'in' ? 'bg-emerald-100' : 'bg-amber-100')}>
             {action === 'in' ? <LogIn className="w-8 h-8 text-emerald-600" /> : <LogOut className="w-8 h-8 text-amber-600" />}
           </div>
-          <h3 className="font-bold text-surface-900">Clock {action === 'in' ? 'In' : 'Out'}</h3>
-          <p className="text-sm text-surface-500 mt-1">{staff.name}</p>
+          <h3 className="font-bold text-primary">Clock {action === 'in' ? 'In' : 'Out'}</h3>
+          <p className="text-sm text-muted mt-1">{staff.name}</p>
           <p className="text-xs text-surface-400">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         {action === 'out' && (
@@ -646,7 +646,7 @@ export default function StaffPage() {
             {[['active', 'Active'], ['inactive', 'Inactive'], ['all', 'All']].map(([v, l]) => (
               <button key={v} onClick={() => setFilterActive(v)}
                 className={cn('px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
-                  filterActive === v ? 'bg-[var(--card-bg)] shadow-sm text-surface-900' : 'text-surface-500')}>
+                  filterActive === v ? 'bg-[var(--card-bg)] shadow-sm text-primary' : 'text-muted')}>
                 {l}
               </button>
             ))}
@@ -661,7 +661,7 @@ export default function StaffPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-20 bg-[var(--card-bg)] rounded-3xl border border-surface-100">
             <Users className="w-14 h-14 text-surface-200 mx-auto mb-4" />
-            <p className="text-surface-500 font-semibold">No staff members found</p>
+            <p className="text-muted font-semibold">No staff members found</p>
             {canOwner && <button className="btn-primary mt-4" onClick={() => setPanel({ mode: 'new' })}>Add First Staff Member</button>}
           </div>
         ) : (
@@ -674,7 +674,7 @@ export default function StaffPage() {
                   key={s.id}
                   className={cn(
                     'bg-[var(--card-bg)] rounded-3xl border-2 p-5 transition-all hover:shadow-md hover:-translate-y-0.5 cursor-pointer group',
-                    !s.is_active ? 'opacity-60 border-surface-100' : 'border-surface-200 hover:border-brand-200'
+                    !s.is_active ? 'opacity-60 border-surface-100' : 'border-default hover:border-brand-200'
                   )}
                   onClick={() => setPanel({ mode: 'edit', staff: s })}
                 >
@@ -691,7 +691,7 @@ export default function StaffPage() {
                         )}
                       </div>
                       <div>
-                        <p className="font-bold text-surface-900 text-sm">{s.name}</p>
+                        <p className="font-bold text-primary text-sm">{s.name}</p>
                         <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full', getRoleBadgeClass(s.role))}>
                           {getRoleLabel(s.role)}
                         </span>
@@ -704,11 +704,11 @@ export default function StaffPage() {
 
                   {/* Contact */}
                   <div className="space-y-1 mb-4">
-                    <p className="text-xs text-surface-500 flex items-center gap-1.5">
+                    <p className="text-xs text-muted flex items-center gap-1.5">
                       <Mail className="w-3 h-3" /> {s.email}
                     </p>
                     {(s as any).phone && (
-                      <p className="text-xs text-surface-500 flex items-center gap-1.5">
+                      <p className="text-xs text-muted flex items-center gap-1.5">
                         <Phone className="w-3 h-3" /> {(s as any).phone}
                       </p>
                     )}
@@ -738,7 +738,7 @@ export default function StaffPage() {
                       ) : (
                         <button
                           onClick={() => setClockModal({ staff: s, action: 'in' })}
-                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-surface-50 border border-surface-200 hover:bg-emerald-50 hover:border-emerald-200 rounded-xl py-1.5 transition-colors"
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-surface-50 border border-default hover:bg-emerald-50 hover:border-emerald-200 rounded-xl py-1.5 transition-colors"
                         >
                           <LogIn className="w-3.5 h-3.5" /> Clock In
                         </button>

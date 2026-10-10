@@ -6,6 +6,7 @@ import { formatCurrency, cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
 import type { Order, OrderItem } from '../../types';
+import { globalToast } from '../../components/ui/Toast';
 import {
   Wallet, CheckCircle, Clock, Banknote, CreditCard, Smartphone, Building2,
   X, Printer, Users, SplitSquareHorizontal, ShieldAlert, QrCode,
@@ -54,8 +55,8 @@ function VoidModal({
             <ShieldAlert className="w-6 h-6 text-red-600" />
           </div>
           <div>
-            <p className="font-bold text-surface-900">Void Order</p>
-            <p className="text-xs text-surface-500">Requires manager authorization</p>
+            <p className="font-bold text-primary">Void Order</p>
+            <p className="text-xs text-muted">Requires manager authorization</p>
           </div>
         </div>
 
@@ -106,8 +107,8 @@ function TableStatusModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
       <div className="rounded-[2rem] w-full max-w-xs shadow-2xl p-6" style={{ backgroundColor: 'var(--modal-bg)', color: 'var(--text-main)' }}>
-        <p className="font-bold text-surface-900 text-lg mb-1">Table {tableLabel} — next status?</p>
-        <p className="text-sm text-surface-500 mb-6">Payment complete. What should the table status be?</p>
+        <p className="font-bold text-primary text-lg mb-1">Table {tableLabel} — next status?</p>
+        <p className="text-sm text-muted mb-6">Payment complete. What should the table status be?</p>
         <div className="flex flex-col gap-3">
           <button
             onClick={() => onChoose('available')}
@@ -300,7 +301,7 @@ export default function CheckoutPage() {
       setSelectedOrder(null);
       setSplits([]);
     } catch (err: any) {
-      alert(err?.response?.data?.error ?? 'Payment failed. Please try again.');
+      globalToast.info(err?.response?.data?.error ?? 'Payment failed. Please try again.');
     } finally {
       setProcessing(false);
       setShowTableModal(false);
@@ -327,7 +328,7 @@ export default function CheckoutPage() {
       setSelectedOrder(null);
       setShowVoid(false);
     } catch (err: any) {
-      alert(err?.response?.data?.error ?? 'Void failed');
+      globalToast.info(err?.response?.data?.error ?? 'Void failed');
     } finally {
       setProcessing(false);
     }
@@ -374,10 +375,10 @@ export default function CheckoutPage() {
         {/* ── Left: Order List ─────────────────────────────────── */}
         <div className="w-80 flex flex-col flex-shrink-0">
           <div className="mb-5">
-            <h2 className="font-display font-bold text-2xl text-surface-900 flex items-center gap-2">
+            <h2 className="font-display font-bold text-2xl text-primary flex items-center gap-2">
               <Wallet className="w-6 h-6 text-brand-500" /> Checkout
             </h2>
-            <p className="text-surface-500 text-sm mt-0.5">
+            <p className="text-muted text-sm mt-0.5">
               {unpaidOrders.length} bill{unpaidOrders.length !== 1 ? 's' : ''} pending
             </p>
           </div>
@@ -400,12 +401,12 @@ export default function CheckoutPage() {
                   'w-full text-left p-4 rounded-[1.5rem] border-2 transition-all',
                   selectedOrder?.id === order.id
                     ? 'bg-brand-50 border-brand-400 shadow-sm'
-                    : 'bg-white border-surface-200 hover:border-brand-200 hover:shadow-sm'
+                    : 'bg-surface border-default hover:border-brand-200 hover:shadow-sm'
                 )}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <p className="font-bold text-surface-900">
+                    <p className="font-bold text-primary">
                       {order.table_label ? `Table ${order.table_label}` : (order.customer_name || 'Takeaway')}
                     </p>
                     <p className="text-xs text-surface-400">
@@ -444,7 +445,7 @@ export default function CheckoutPage() {
               {/* Header */}
               <div className="card flex items-start justify-between">
                 <div>
-                  <h3 className="font-display font-bold text-2xl text-surface-900">
+                  <h3 className="font-display font-bold text-2xl text-primary">
                     {selectedOrder.table_label ? `Table ${selectedOrder.table_label}` : (selectedOrder.customer_name || 'Takeaway')}
                   </h3>
                   <p className="text-surface-400 text-sm mt-0.5">
@@ -461,7 +462,7 @@ export default function CheckoutPage() {
 
               {/* Order Summary */}
               <div className="card">
-                <h4 className="font-bold text-surface-900 mb-4 flex items-center gap-2">
+                <h4 className="font-bold text-primary mb-4 flex items-center gap-2">
                   <ChevronRight className="w-4 h-4 text-brand-500" /> Order Summary
                 </h4>
                 <div className="space-y-2 mb-5">
@@ -484,17 +485,17 @@ export default function CheckoutPage() {
                         {item.quantity}× {item.menu_item_name}
                         {item.notes && <span className="text-amber-500 italic ml-1 text-xs">({item.notes})</span>}
                       </span>
-                      <span className="font-medium text-surface-900 ml-4">{formatCurrency(item.quantity * item.unit_price)}</span>
+                      <span className="font-medium text-primary ml-4">{formatCurrency(item.quantity * item.unit_price)}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="border-t border-surface-100 pt-4 space-y-1.5 text-sm">
-                  <div className="flex justify-between text-surface-500">
+                  <div className="flex justify-between text-muted">
                     <span>Subtotal</span><span>{formatCurrency(selectedOrder.subtotal)}</span>
                   </div>
                   {selectedOrder.tax_amount > 0 && (
-                    <div className="flex justify-between text-surface-500">
+                    <div className="flex justify-between text-muted">
                       <span>Tax</span><span>{formatCurrency(selectedOrder.tax_amount)}</span>
                     </div>
                   )}
@@ -504,11 +505,11 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   {tipAmount > 0 && (
-                    <div className="flex justify-between text-surface-500">
+                    <div className="flex justify-between text-muted">
                       <span>Tip</span><span>{formatCurrency(tipAmount)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-extrabold text-xl text-surface-900 border-t border-surface-200 pt-3 mt-1">
+                  <div className="flex justify-between font-extrabold text-xl text-primary border-t border-default pt-3 mt-1">
                     <span>Total Due</span>
                     <span className="text-brand-600">{formatCurrency(grandTotal)}</span>
                   </div>
@@ -517,7 +518,7 @@ export default function CheckoutPage() {
 
               {/* Tip */}
               <div className="card">
-                <h4 className="font-bold text-surface-900 mb-3 flex items-center gap-2">
+                <h4 className="font-bold text-primary mb-3 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-brand-500" /> Tip
                 </h4>
                 <div className="flex gap-2 flex-wrap">
@@ -529,7 +530,7 @@ export default function CheckoutPage() {
                         'px-4 py-2 rounded-2xl text-sm font-bold border-2 transition-all',
                         tipPercent === pct
                           ? 'bg-brand-500 border-brand-500 text-white'
-                          : 'bg-surface-50 border-surface-200 text-surface-700 hover:border-brand-300'
+                          : 'bg-surface-50 border-default text-surface-700 hover:border-brand-300'
                       )}
                     >
                       <Percent className="w-3 h-3 inline mr-0.5" />{pct}
@@ -549,7 +550,7 @@ export default function CheckoutPage() {
               {/* Split Bill */}
               <div className="card">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-surface-900 flex items-center gap-2">
+                  <h4 className="font-bold text-primary flex items-center gap-2">
                     <SplitSquareHorizontal className="w-4 h-4 text-brand-500" /> Split Bill
                   </h4>
                   <div className="flex gap-2">
@@ -603,7 +604,7 @@ export default function CheckoutPage() {
 
                 {splitMode === 'items' && (
                   <div className="space-y-3">
-                    <p className="text-xs text-surface-500">Tap items above to assign them to each guest. Unassigned items appear as shared.</p>
+                    <p className="text-xs text-muted">Tap items above to assign them to each guest. Unassigned items appear as shared.</p>
                     <div className="flex gap-2 flex-wrap mb-2">
                       {guests.map((g, gi) => (
                         <button
@@ -620,7 +621,7 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-surface-400" />
-                      <span className="text-sm text-surface-500">Guests:</span>
+                      <span className="text-sm text-muted">Guests:</span>
                       <button onClick={() => { setGuestCount(Math.max(2, guestCount - 1)); initGuests(Math.max(2, guestCount - 1)); }} className="w-7 h-7 rounded-full bg-surface-100 flex items-center justify-center text-sm"><Minus className="w-3 h-3" /></button>
                       <span className="font-bold text-sm">{guestCount}</span>
                       <button onClick={() => { setGuestCount(guestCount + 1); initGuests(guestCount + 1); }} className="w-7 h-7 rounded-full bg-brand-500 text-white flex items-center justify-center text-sm"><Plus className="w-3 h-3" /></button>
@@ -631,7 +632,7 @@ export default function CheckoutPage() {
 
               {/* Payment Method */}
               <div className="card">
-                <h4 className="font-bold text-surface-900 mb-4 flex items-center gap-2">
+                <h4 className="font-bold text-primary mb-4 flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-brand-500" /> Payment Method
                 </h4>
                 <div className="grid grid-cols-3 gap-3 mb-5">
@@ -643,7 +644,7 @@ export default function CheckoutPage() {
                         'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all font-bold text-sm',
                         paymentMethod === id
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : 'border-surface-200 bg-white text-surface-600 hover:border-surface-300'
+                          : 'border-default bg-surface text-surface-600 hover:border-surface-300'
                       )}
                     >
                       <Icon className="w-6 h-6" />
@@ -657,11 +658,11 @@ export default function CheckoutPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-3">
                       <label className="text-sm font-semibold text-surface-600 w-24 flex-shrink-0">Tendered</label>
-                      <div className="flex-1 flex items-center gap-2 p-3 rounded-2xl border border-surface-200 bg-surface-50">
+                      <div className="flex-1 flex items-center gap-2 p-3 rounded-2xl border border-default bg-surface-50">
                         <span className="text-sm font-bold text-surface-400 font-mono">ETB</span>
                         <input
                           type="number"
-                          className="w-full bg-transparent text-right font-black text-xl font-mono text-surface-900 outline-none"
+                          className="w-full bg-transparent text-right font-black text-xl font-mono text-primary outline-none"
                           placeholder="0.00"
                           value={amountTendered}
                           onChange={e => setAmountTendered(e.target.value)}
@@ -685,7 +686,7 @@ export default function CheckoutPage() {
 
                     {/* Quick ETB Cash Bill Chips */}
                     <div className="space-y-1.5">
-                      <p className="text-xs font-bold text-surface-500">Quick ETB Bills</p>
+                      <p className="text-xs font-bold text-muted">Quick ETB Bills</p>
                       <div className="flex gap-2 flex-wrap">
                         <button
                           type="button"
@@ -702,7 +703,7 @@ export default function CheckoutPage() {
                               const curr = parseFloat(amountTendered) || 0;
                               setAmountTendered((curr + v).toString());
                             }}
-                            className="px-3.5 py-2 text-xs font-bold bg-surface-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-surface-200 rounded-xl transition-all cursor-pointer active:scale-95"
+                            className="px-3.5 py-2 text-xs font-bold bg-surface-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 border border-default rounded-xl transition-all cursor-pointer active:scale-95"
                           >
                             +{v} ETB
                           </button>
@@ -722,7 +723,7 @@ export default function CheckoutPage() {
                 {/* Telebirr / CBE Birr / Bank Transfer QR code preview */}
                 {(paymentMethod === 'telebirr' || paymentMethod === 'cbe_birr' || paymentMethod === 'bank_transfer') && splits.length === 0 && (
                   <div className="flex flex-col gap-3 animate-fade-in">
-                    <div className="p-4 rounded-2xl bg-surface-50 border border-surface-200 flex items-center gap-4">
+                    <div className="p-4 rounded-2xl bg-surface-50 border border-default flex items-center gap-4">
                       <div className={cn(
                         'w-20 h-20 rounded-2xl flex items-center justify-center p-2 text-white flex-shrink-0 shadow-inner',
                         paymentMethod === 'telebirr' ? 'bg-violet-600' : paymentMethod === 'cbe_birr' ? 'bg-purple-700' : 'bg-blue-600'
@@ -730,10 +731,10 @@ export default function CheckoutPage() {
                         {paymentMethod === 'bank_transfer' ? <Building2 className="w-12 h-12" /> : <QrCode className="w-12 h-12" />}
                       </div>
                       <div className="space-y-1 min-w-0">
-                        <p className="font-bold text-sm text-surface-900">
+                        <p className="font-bold text-sm text-primary">
                           {paymentMethod === 'telebirr' ? 'Telebirr SuperApp QR' : paymentMethod === 'cbe_birr' ? 'CBE Birr Digital Transfer' : 'Bank Transfer'}
                         </p>
-                        <p className="text-xs text-surface-500 font-mono">
+                        <p className="text-xs text-muted font-mono">
                           Account: <strong>{(user?.restaurant as any)?.phone || '+251 91 123 4567'}</strong>
                         </p>
                         <p className="text-xs text-brand-600 font-bold font-mono">
@@ -819,7 +820,7 @@ export default function CheckoutPage() {
                 disabled={processing || !canPay}
                 className="w-full btn-primary py-4 text-lg font-bold shadow-glow shadow-brand-500/40 relative overflow-hidden group rounded-3xl disabled:opacity-50"
               >
-                <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full transition-transform duration-500 -translate-x-full skew-x-12" />
+                <div className="absolute inset-0 bg-surface/20 group-hover:translate-x-full transition-transform duration-500 -translate-x-full skew-x-12" />
                 {processing ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

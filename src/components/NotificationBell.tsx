@@ -95,7 +95,7 @@ export default function NotificationBell() {
       {/* Bell Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2.5 rounded-2xl bg-white/80 border border-surface-200/80 hover:bg-surface-100 text-surface-700 transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center"
+        className="relative p-2.5 rounded-2xl bg-surface/80 border border-default/80 hover:bg-surface-100 text-surface-700 transition-all shadow-sm active:scale-95 cursor-pointer flex items-center justify-center"
         title="Notification Center"
       >
         <Bell className="w-5 h-5 text-surface-700" />
@@ -108,11 +108,11 @@ export default function NotificationBell() {
 
       {/* Notification Drawer / Popover */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-white border border-surface-200/80 shadow-2xl z-50 overflow-hidden animate-fade-in text-surface-900">
+        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl bg-surface border border-default/80 shadow-2xl z-50 overflow-hidden animate-fade-in text-primary">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-surface-100 bg-surface-50/80">
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-bold text-base text-surface-900">Notifications</h3>
+              <h3 className="font-display font-bold text-base text-primary">Notifications</h3>
               {unreadCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-extrabold bg-brand-50 text-brand-600 border border-brand-200">
                   {unreadCount} new
@@ -141,7 +141,7 @@ export default function NotificationBell() {
           <div className="flex gap-1 p-2 bg-surface-100/60 border-b border-surface-100 text-xs">
             <button
               className={`flex-1 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                activeTab === 'all' ? 'bg-white shadow text-surface-900' : 'text-surface-500 hover:text-surface-800'
+                activeTab === 'all' ? 'bg-surface shadow text-primary' : 'text-muted hover:text-surface-800'
               }`}
               onClick={() => setActiveTab('all')}
             >
@@ -149,7 +149,7 @@ export default function NotificationBell() {
             </button>
             <button
               className={`flex-1 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                activeTab === 'unread' ? 'bg-white shadow text-surface-900' : 'text-surface-500 hover:text-surface-800'
+                activeTab === 'unread' ? 'bg-surface shadow text-primary' : 'text-muted hover:text-surface-800'
               }`}
               onClick={() => setActiveTab('unread')}
             >
@@ -179,13 +179,13 @@ export default function NotificationBell() {
                     !n.is_read ? 'bg-brand-50/40 border-l-4 border-brand-500' : ''
                   }`}
                 >
-                  <div className="w-8 h-8 rounded-xl bg-surface-100 border border-surface-200/80 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-xl bg-surface-100 border border-default/80 flex items-center justify-center flex-shrink-0 mt-0.5">
                     {getNotificationIcon(n.type)}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <p className={`text-xs leading-tight truncate ${!n.is_read ? 'font-bold text-surface-900' : 'font-medium text-surface-700'}`}>
+                      <p className={`text-xs leading-tight truncate ${!n.is_read ? 'font-bold text-primary' : 'font-medium text-surface-700'}`}>
                         {n.title}
                       </p>
                       {!n.is_read && (
@@ -198,7 +198,7 @@ export default function NotificationBell() {
                         </button>
                       )}
                     </div>
-                    <p className="text-[11px] text-surface-500 line-clamp-2 leading-relaxed mb-1">
+                    <p className="text-[11px] text-muted line-clamp-2 leading-relaxed mb-1">
                       {n.message}
                     </p>
                     <div className="flex items-center justify-between text-[10px] text-surface-400">

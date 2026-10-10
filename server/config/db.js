@@ -11,12 +11,17 @@ const pool = new Pool({
       : false,
 });
 
+// Add error handler for idle clients
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+});
+
 // Test connection on startup
 pool.connect((err, client, release) => {
   if (err) {
     console.error('❌ Database connection failed:', err.message);
     console.error('   Check DATABASE_URL in server/.env');
-    process.exit(1);
+    return;
   }
   release();
   try {

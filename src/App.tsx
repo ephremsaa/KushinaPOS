@@ -7,6 +7,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { ProtectedRoute, AdminRoute, TenantRoute } from './components/ProtectedRoute';
 import { SyncStatusBanner } from './components/SyncStatusBanner';
 import { ToastProvider }    from './components/ui/Toast';
+import { ConfirmProvider }  from './contexts/ConfirmContext';
 
 // Lazy loaded pages
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
@@ -168,10 +169,12 @@ export default function App() {
         <NetworkProvider>
           <LanguageProvider>
             <ToastProvider>
-              <BrowserRouter>
-                <AppRoutes />
-                <SyncStatusBanner />
-              </BrowserRouter>
+              <ConfirmProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                  <SyncStatusBanner />
+                </BrowserRouter>
+              </ConfirmProvider>
             </ToastProvider>
           </LanguageProvider>
         </NetworkProvider>

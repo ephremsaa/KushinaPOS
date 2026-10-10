@@ -161,20 +161,20 @@ export function SplitBillModal({
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-        <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl border border-surface-200 overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="bg-surface rounded-[2.5rem] w-full max-w-2xl shadow-2xl border border-default overflow-hidden flex flex-col max-h-[90vh]">
           
           {/* Header */}
-          <div className="px-6 py-4 border-b border-surface-200 flex items-center justify-between bg-surface-50">
+          <div className="px-6 py-4 border-b border-default flex items-center justify-between bg-surface-50">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-200 text-brand-700 flex items-center justify-center shadow-xs">
                 <Split className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-display font-black text-lg text-surface-900 leading-tight">
+                <h3 className="font-display font-black text-lg text-primary leading-tight">
                   Split Bill & Settle
                 </h3>
-                <p className="text-xs text-surface-500">
-                  {order.table_label ? `Table ${order.table_label} · ` : ''} Total Bill: <span className="font-bold font-mono text-surface-900">{formatCurrency(grandTotal)}</span>
+                <p className="text-xs text-muted">
+                  {order.table_label ? `Table ${order.table_label} · ` : ''} Total Bill: <span className="font-bold font-mono text-primary">{formatCurrency(grandTotal)}</span>
                 </p>
               </div>
             </div>
@@ -186,14 +186,14 @@ export function SplitBillModal({
           <div className="p-6 overflow-y-auto space-y-5 flex-1">
             
             {/* Split Mode Selector & Split Count */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-50 p-3.5 rounded-2xl border border-surface-200">
-              <div className="flex gap-1.5 p-1 bg-white rounded-xl border border-surface-200 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-50 p-3.5 rounded-2xl border border-default">
+              <div className="flex gap-1.5 p-1 bg-surface rounded-xl border border-default w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setSplitMode('equal')}
                   className={cn(
                     'px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center',
-                    splitMode === 'equal' ? 'bg-brand-500 text-white shadow-xs' : 'text-surface-600 hover:text-surface-900'
+                    splitMode === 'equal' ? 'bg-brand-500 text-white shadow-xs' : 'text-surface-600 hover:text-primary'
                   )}
                 >
                   <Users className="w-3.5 h-3.5" /> Equal Split
@@ -203,7 +203,7 @@ export function SplitBillModal({
                   onClick={() => setSplitMode('itemized')}
                   className={cn(
                     'px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-1 sm:flex-initial justify-center',
-                    splitMode === 'itemized' ? 'bg-brand-500 text-white shadow-xs' : 'text-surface-600 hover:text-surface-900'
+                    splitMode === 'itemized' ? 'bg-brand-500 text-white shadow-xs' : 'text-surface-600 hover:text-primary'
                   )}
                 >
                   <Utensils className="w-3.5 h-3.5" /> By Items
@@ -222,7 +222,7 @@ export function SplitBillModal({
                       'w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer',
                       splitCount === num
                         ? 'bg-surface-900 text-white shadow-xs'
-                        : 'bg-white border border-surface-200 text-surface-600 hover:bg-surface-100'
+                        : 'bg-surface border border-default text-surface-600 hover:bg-surface-100'
                     )}
                   >
                     {num}
@@ -242,7 +242,7 @@ export function SplitBillModal({
                     'p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between cursor-pointer',
                     activeShareIdx === idx
                       ? 'border-brand-500 bg-brand-50/50 ring-2 ring-brand-500/20 shadow-xs'
-                      : 'border-surface-200 bg-white hover:border-surface-300',
+                      : 'border-default bg-surface hover:border-surface-300',
                     share.isPaid && 'bg-emerald-50/70 border-emerald-300'
                   )}
                 >
@@ -256,7 +256,7 @@ export function SplitBillModal({
                       <span className="w-2 h-2 rounded-full bg-surface-300" />
                     )}
                   </div>
-                  <p className="text-base font-black font-mono text-surface-900 leading-tight">
+                  <p className="text-base font-black font-mono text-primary leading-tight">
                     {formatCurrency(share.amount)}
                   </p>
                   <span className="text-[10px] font-bold text-surface-400 mt-1 capitalize truncate">
@@ -268,13 +268,13 @@ export function SplitBillModal({
 
             {/* Itemized Mode Item Assignment Tray */}
             {splitMode === 'itemized' && (
-              <div className="bg-surface-50 p-4 rounded-2xl border border-surface-200 space-y-2">
+              <div className="bg-surface-50 p-4 rounded-2xl border border-default space-y-2">
                 <p className="text-xs font-bold text-surface-700">Assign Items to Diners:</p>
                 <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
                   {orderItems.map((item: any) => {
                     const currentDiner = itemAssignments[item.id] ?? 0;
                     return (
-                      <div key={item.id} className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-surface-200 text-xs">
+                      <div key={item.id} className="flex items-center justify-between bg-surface p-2.5 rounded-xl border border-default text-xs">
                         <span className="font-bold text-surface-800 truncate flex-1">{item.quantity}x {item.menu_item_name || item.name}</span>
                         <span className="font-mono font-bold text-surface-600 mr-3">{formatCurrency(item.total_price || item.unit_price * item.quantity)}</span>
                         <div className="flex gap-1">
@@ -300,13 +300,13 @@ export function SplitBillModal({
             )}
 
             {/* Active Share Payment Box */}
-            <div className="bg-white p-5 rounded-3xl border border-surface-200 shadow-xs space-y-4">
+            <div className="bg-surface p-5 rounded-3xl border border-default shadow-xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-surface-100">
                 <div>
-                  <h4 className="font-display font-bold text-sm text-surface-900">
+                  <h4 className="font-display font-bold text-sm text-primary">
                     Settle {currentActiveShare.label}
                   </h4>
-                  <p className="text-xs text-surface-500">
+                  <p className="text-xs text-muted">
                     Share amount due: <span className="font-bold font-mono text-brand-700">{formatCurrency(currentActiveShare.amount)}</span>
                   </p>
                 </div>
@@ -337,7 +337,7 @@ export function SplitBillModal({
                             'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer',
                             selectedMethod === pm.id
                               ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs font-extrabold'
-                              : 'border-surface-200 text-surface-600 hover:bg-surface-50'
+                              : 'border-default text-surface-600 hover:bg-surface-50'
                           )}
                         >
                           <Icon className="w-4 h-4" />
@@ -407,10 +407,10 @@ export function SplitBillModal({
           </div>
 
           {/* Footer & Progress Bar */}
-          <div className="p-4 border-t border-surface-200 bg-surface-50 flex items-center justify-between">
+          <div className="p-4 border-t border-default bg-surface-50 flex items-center justify-between">
             <div className="text-xs">
-              <span className="text-surface-500">Remaining Balance: </span>
-              <span className="font-mono font-bold text-surface-900">{formatCurrency(remainingBalance)}</span>
+              <span className="text-muted">Remaining Balance: </span>
+              <span className="font-mono font-bold text-primary">{formatCurrency(remainingBalance)}</span>
             </div>
 
             <div className="flex items-center gap-2">

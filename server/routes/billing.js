@@ -1,6 +1,4 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const { authenticate, requireTenant, requireOwner } = require('../middleware/auth');
@@ -9,22 +7,9 @@ const router = express.Router();
 router.use(authenticate, requireTenant);
 const tid = (req) => req.user.restaurantId;
 
-// Multer setup — save to server/uploads/payment-proofs/
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/payment-proofs')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
-    else cb(new Error('Only image files allowed'));
-  },
-});
+const { createUploadMiddleware } = require('../utils/uploadHelper');
+
+const uploadProof = createUploadMiddleware({ fieldName: 'screenshot', folder: 'payment-proofs', maxBytes: 5 * 1024 * 1024, isPrivate: true, allowPdf: true });
 
 // ── GET /api/billing/subscription ────────────────────────────
 router.get('/subscription', async (req, res) => {
@@ -105,12 +90,12 @@ router.get('/proofs', async (req, res) => {
 });
 
 // ── POST /api/billing/proofs ──────────────────────────────────
-router.post('/proofs', requireOwner, upload.single('screenshot'), async (req, res) => {
+router.post('/proofs', requireOwner, uploadProof, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Screenshot image is required' });
   const { amount, payment_method = 'telebirr', note, subscription_id, reference_number } = req.body;
   if (!amount) return res.status(400).json({ error: 'amount required' });
 
-  const screenshotUrl = `/uploads/payment-proofs/${req.file.filename}`;
+  const screenshotUrl = req.file.url;
 
   try {
     const subResult = await db.query(

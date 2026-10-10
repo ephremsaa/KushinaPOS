@@ -77,16 +77,16 @@ export function ThermalZReport({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
       {/* Modal Container */}
-      <div className="bg-surface-50 rounded-[2rem] w-full max-w-md shadow-2xl border border-surface-200/80 flex flex-col max-h-[95vh] overflow-hidden my-auto">
+      <div className="bg-surface-50 rounded-[2rem] w-full max-w-md shadow-2xl border border-default/80 flex flex-col max-h-[95vh] overflow-hidden my-auto">
         
         {/* Top Control Bar (Hidden during print) */}
-        <div className="p-4 sm:p-5 bg-white border-b border-surface-200/80 flex items-center justify-between print:hidden">
+        <div className="p-4 sm:p-5 bg-surface border-b border-default/80 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-sm">
               <Receipt className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-black text-base text-surface-900 leading-tight">
+              <h3 className="font-display font-black text-base text-primary leading-tight">
                 {isXReport ? 'Mid-Shift X-Report' : 'End-of-Day Z-Report'}
               </h3>
               <p className="text-[11px] text-surface-400 font-mono">
@@ -102,7 +102,7 @@ export function ThermalZReport({
                 onClick={() => setPaperWidth('80mm')}
                 className={cn(
                   'px-2.5 py-1 rounded-lg transition-all',
-                  paperWidth === '80mm' ? 'bg-white shadow-xs text-surface-900' : 'text-surface-500'
+                  paperWidth === '80mm' ? 'bg-surface shadow-xs text-primary' : 'text-muted'
                 )}
               >
                 80mm
@@ -112,7 +112,7 @@ export function ThermalZReport({
                 onClick={() => setPaperWidth('58mm')}
                 className={cn(
                   'px-2.5 py-1 rounded-lg transition-all',
-                  paperWidth === '58mm' ? 'bg-white shadow-xs text-surface-900' : 'text-surface-500'
+                  paperWidth === '58mm' ? 'bg-surface shadow-xs text-primary' : 'text-muted'
                 )}
               >
                 58mm
@@ -133,7 +133,7 @@ export function ThermalZReport({
           <div
             id="thermal-z-report-area"
             className={cn(
-              'bg-white text-surface-900 font-mono text-xs shadow-md p-6 rounded-2xl border border-surface-200/80 transition-all print:shadow-none print:border-none print:p-2 print:m-0',
+              'bg-surface text-primary font-mono text-xs shadow-md p-6 rounded-2xl border border-default/80 transition-all print:shadow-none print:border-none print:p-2 print:m-0',
               paperWidth === '80mm' ? 'w-[320px]' : 'w-[240px] text-[11px] p-4'
             )}
           >
@@ -161,22 +161,22 @@ export function ThermalZReport({
             </div>
 
             {/* Shift Metadata */}
-            <div className="py-3 border-b border-dashed border-surface-200 space-y-1 text-[11px]">
+            <div className="py-3 border-b border-dashed border-default space-y-1 text-[11px]">
               <div className="flex justify-between">
-                <span className="text-surface-500">Shift Session:</span>
+                <span className="text-muted">Shift Session:</span>
                 <span className="font-bold">#{data.sessionId.slice(0, 8).toUpperCase()}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-surface-500">Cashier:</span>
+                <span className="text-muted">Cashier:</span>
                 <span className="font-bold">{data.cashierName}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-surface-500">Opened:</span>
+                <span className="text-muted">Opened:</span>
                 <span>{new Date(data.openedAt).toLocaleString()}</span>
               </div>
               {data.closedAt && (
                 <div className="flex justify-between">
-                  <span className="text-surface-500">Closed:</span>
+                  <span className="text-muted">Closed:</span>
                   <span>{new Date(data.closedAt).toLocaleString()}</span>
                 </div>
               )}
@@ -206,7 +206,7 @@ export function ThermalZReport({
                 <span className="font-bold">{formatCurrency(summary.total_card_sales)}</span>
               </div>
               
-              <div className="flex justify-between font-bold text-sm pt-2 border-t border-dashed border-surface-200 text-black">
+              <div className="flex justify-between font-bold text-sm pt-2 border-t border-dashed border-default text-black">
                 <span>GROSS SALES</span>
                 <span>{formatCurrency(summary.total_sales)}</span>
               </div>
@@ -277,7 +277,7 @@ export function ThermalZReport({
               </div>
               
               {data.notes && (
-                <p className="text-[10px] text-surface-500 pt-1 italic">
+                <p className="text-[10px] text-muted pt-1 italic">
                   Note: {data.notes}
                 </p>
               )}
@@ -285,7 +285,7 @@ export function ThermalZReport({
 
             {/* Sign-off section */}
             <div className="pt-4 pb-2 space-y-5">
-              <div className="flex justify-between text-[10px] text-surface-500">
+              <div className="flex justify-between text-[10px] text-muted">
                 <div className="text-center w-28">
                   <div className="border-b border-black h-8 mb-1" />
                   <span>Cashier Signature</span>
@@ -296,7 +296,7 @@ export function ThermalZReport({
                 </div>
               </div>
               
-              <p className="text-center text-[9px] text-surface-400 border-t border-dashed border-surface-200 pt-2">
+              <p className="text-center text-[9px] text-surface-400 border-t border-dashed border-default pt-2">
                 KushinaPOS Electronic Journal · Verified
               </p>
             </div>
@@ -304,7 +304,7 @@ export function ThermalZReport({
         </div>
 
         {/* Modal Bottom Actions (Hidden during print) */}
-        <div className="p-4 bg-white border-t border-surface-200/80 flex items-center justify-between gap-3 px-6 print:hidden">
+        <div className="p-4 bg-surface border-t border-default/80 flex items-center justify-between gap-3 px-6 print:hidden">
           <button onClick={onClose} className="btn-secondary btn-sm flex-1">
             Done
           </button>

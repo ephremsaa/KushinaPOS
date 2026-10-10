@@ -24,6 +24,16 @@ export default function LoginPage() {
 
   const emailInputRef = useRef<HTMLInputElement>(null);
 
+  // Check for expired session parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('expired')) {
+      setError('Your session ended. Please sign in again.');
+      // Remove query param without refreshing
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location]);
+
   // Autofocus email input when switching modes or mounting
   useEffect(() => {
     emailInputRef.current?.focus();

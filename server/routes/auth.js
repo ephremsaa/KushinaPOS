@@ -6,8 +6,8 @@ const db = require('../config/db');
 const { authLimiter, staffLoginLimiter, bootstrapAdminLimiter, registerLimiter } = require('../middleware/rateLimit');
 const router = express.Router();
 
-function signToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+function signToken(payload, expiresIn = '1d') {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 }
 
 // ── POST /api/auth/register ──────────────────────────────────
@@ -149,7 +149,7 @@ router.post('/staff-login', staffLoginLimiter, async (req, res) => {
       role: 'staff',
       restaurantId: validStaff.restaurant_id,
       staffRole: validStaff.role,
-    });
+    }, '12h');
 
     return res.json({
       token,
@@ -234,6 +234,23 @@ router.get('/me', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Me error:', err);
     res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// ── POST /api/auth/refresh ───────────────────────────────────
+router.post('/refresh', authenticate, async (req, res) => {
+  try {
+    const { exp, iat, ...payload } = req.user;
+    
+    // Only refresh owner or admin tokens, staff tokens are fixed to 12h shift
+    if (payload.role === 'staff') {
+      return res.status(400).json({ error: 'Staff tokens cannot be refreshed' });
+    }
+
+    const token = signToken(payload, '1d');
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 

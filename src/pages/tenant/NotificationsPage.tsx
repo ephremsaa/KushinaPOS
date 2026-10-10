@@ -94,17 +94,17 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/80 p-6 rounded-3xl border border-surface-200/80 shadow-card backdrop-blur-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-surface/80 p-6 rounded-3xl border border-default/80 shadow-card backdrop-blur-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-brand-50 text-brand-600 border border-brand-200 flex items-center gap-1">
               <Bell className="w-3 h-3" /> Real-time Alert Center
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-display font-black text-surface-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-display font-black text-primary tracking-tight">
             Notifications & Alerts
           </h1>
-          <p className="text-surface-500 text-sm mt-1">
+          <p className="text-muted text-sm mt-1">
             Role-routed operational warnings, stock thresholds, billing events, and system alerts
           </p>
         </div>
@@ -120,7 +120,7 @@ export default function NotificationsPage() {
           )}
           <Link
             to="/dashboard/settings"
-            className="px-4 py-2.5 rounded-2xl bg-surface-100 border border-surface-200 text-surface-700 hover:bg-surface-200 font-bold text-xs transition-all flex items-center gap-1.5"
+            className="px-4 py-2.5 rounded-2xl bg-surface-100 border border-default text-surface-700 hover:bg-surface-200 font-bold text-xs transition-all flex items-center gap-1.5"
           >
             <Settings className="w-4 h-4" /> Preferences
           </Link>
@@ -161,11 +161,11 @@ export default function NotificationsPage() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/60 p-4 rounded-3xl border border-surface-200/80 shadow-sm backdrop-blur-md">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface/60 p-4 rounded-3xl border border-default/80 shadow-sm backdrop-blur-md">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400" />
           <input
-            className="w-full rounded-2xl border border-surface-200 bg-white pl-10 pr-4 py-2 text-xs text-surface-900 placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all"
+            className="w-full rounded-2xl border border-default bg-surface pl-10 pr-4 py-2 text-xs text-primary placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500 transition-all"
             placeholder="Search alerts by title or message content…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -174,7 +174,7 @@ export default function NotificationsPage() {
 
         <div className="flex items-center gap-2 overflow-x-auto">
           <select
-            className="rounded-2xl border border-surface-200 bg-white px-3 py-2 text-xs font-semibold text-surface-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
+            className="rounded-2xl border border-default bg-surface px-3 py-2 text-xs font-semibold text-surface-700 focus:outline-none focus:ring-2 focus:ring-brand-500/40"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
           >
@@ -193,7 +193,7 @@ export default function NotificationsPage() {
             className={`px-3 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer border ${
               unreadOnly
                 ? 'bg-brand-500 text-white border-brand-500 shadow-md'
-                : 'bg-white text-surface-600 border-surface-200 hover:bg-surface-100'
+                : 'bg-surface text-surface-600 border-default hover:bg-surface-100'
             }`}
           >
             Unread Only ({unreadCount})
@@ -205,14 +205,14 @@ export default function NotificationsPage() {
       {isLoading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-20 bg-white rounded-3xl animate-pulse border border-surface-200/60" />
+            <div key={i} className="h-20 bg-surface rounded-3xl animate-pulse border border-default/60" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="p-16 text-center rounded-3xl bg-white border border-surface-200/80 shadow-card">
+        <div className="p-16 text-center rounded-3xl bg-surface border border-default/80 shadow-card">
           <Bell className="w-12 h-12 text-surface-300 mx-auto mb-3" />
-          <h3 className="font-display font-bold text-lg text-surface-900">No Notifications Found</h3>
-          <p className="text-surface-500 text-xs mt-1">
+          <h3 className="font-display font-bold text-lg text-primary">No Notifications Found</h3>
+          <p className="text-muted text-xs mt-1">
             {unreadOnly ? 'You have read all your notifications!' : 'Try adjusting your search or filter options.'}
           </p>
         </div>
@@ -223,17 +223,17 @@ export default function NotificationsPage() {
             return (
               <div
                 key={n.id}
-                className={`p-5 rounded-3xl bg-white border shadow-card transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group ${
-                  !n.is_read ? 'border-brand-300 ring-2 ring-brand-500/10 bg-brand-50/20' : 'border-surface-200/80'
+                className={`p-5 rounded-3xl bg-surface border shadow-card transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative group ${
+                  !n.is_read ? 'border-brand-300 ring-2 ring-brand-500/10 bg-brand-50/20' : 'border-default/80'
                 }`}
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-2xl bg-surface-100 border border-surface-200/80 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-11 h-11 rounded-2xl bg-surface-100 border border-default/80 flex items-center justify-center flex-shrink-0 mt-0.5">
                     {getNotificationIcon(n.type)}
                   </div>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className={`text-sm font-bold text-surface-900 ${!n.is_read ? 'text-brand-950 font-black' : ''}`}>
+                      <h4 className={`text-sm font-bold text-primary ${!n.is_read ? 'text-brand-950 font-black' : ''}`}>
                         {n.title}
                       </h4>
                       {!n.is_read && (
@@ -241,7 +241,7 @@ export default function NotificationsPage() {
                           New
                         </span>
                       )}
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-surface-100 text-surface-600 border border-surface-200">
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-surface-100 text-surface-600 border border-default">
                         {n.target_role}
                       </span>
                     </div>

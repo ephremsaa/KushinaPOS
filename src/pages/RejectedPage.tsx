@@ -16,20 +16,20 @@ export default function RejectedPage() {
           <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-glow-sm">
             <ChefHat className="w-5 h-5 text-white" />
           </div>
-          <span className="font-display font-black text-xl text-surface-900 tracking-tight">
+          <span className="font-display font-black text-xl text-primary tracking-tight">
             kushina<span className="text-brand-500">POS</span>
           </span>
         </div>
 
         {/* Status icon — neutral, not all-red */}
-        <div className="w-20 h-20 bg-surface-100 border-4 border-surface-200 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+        <div className="w-20 h-20 bg-surface-100 border-4 border-default rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
           <XCircle className="w-10 h-10 text-surface-400" />
         </div>
 
-        <h1 className="font-display font-black text-2xl text-surface-900 mb-3">
+        <h1 className="font-display font-black text-2xl text-primary mb-3">
           Application Not Approved
         </h1>
-        <p className="text-surface-500 mb-6 max-w-sm mx-auto leading-relaxed">
+        <p className="text-muted mb-6 max-w-sm mx-auto leading-relaxed">
           After reviewing your application, we were unable to approve it at this time.
         </p>
 
@@ -54,7 +54,7 @@ export default function RejectedPage() {
 
         {/* What you can do — actionable, not vague */}
         <Card className="mb-6 text-left p-5">
-          <h3 className="font-bold text-surface-900 text-sm mb-3">What you can do</h3>
+          <h3 className="font-bold text-primary text-sm mb-3">What you can do</h3>
           <ul className="space-y-2.5 text-sm text-surface-600">
             <li className="flex items-start gap-2.5">
               <Mail className="w-4 h-4 text-brand-500 flex-shrink-0 mt-0.5" />

@@ -8,6 +8,7 @@ import { DataTable, Badge, Input, Button } from '../../components/ui';
 import type { DataTableColumn } from '../../components/ui';
 import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
 import { useAuth } from '../../contexts/AuthContext';
+import { globalToast } from '../../components/ui/Toast';
 
 export default function BillHistoryPage() {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export default function BillHistoryPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders-history'] });
     },
-    onError: () => alert('Failed to confirm payment'),
+    onError: () => globalToast.info('Failed to confirm payment'),
   });
 
   const { data: orders = [], isLoading } = useQuery({
@@ -46,11 +47,11 @@ export default function BillHistoryPage() {
       sortable: true,
       render: (_v, row) => (
         <div>
-          <p className="font-mono font-bold text-surface-900 text-sm">
+          <p className="font-mono font-bold text-primary text-sm">
             #{row.id.split('-')[0].toUpperCase()}
           </p>
           {(row.table_label || row.customer_name) && (
-            <p className="text-xs text-surface-500 mt-0.5">
+            <p className="text-xs text-muted mt-0.5">
               {row.table_label ? `Table ${row.table_label}` : row.customer_name}
             </p>
           )}
@@ -73,7 +74,7 @@ export default function BillHistoryPage() {
       label: 'Total',
       sortable: true,
       render: (_v, row) => (
-        <span className="font-mono font-bold text-surface-900 text-sm">
+        <span className="font-mono font-bold text-primary text-sm">
           {formatCurrency(row.total)}
         </span>
       ),
@@ -87,7 +88,7 @@ export default function BillHistoryPage() {
             {row.payment_method?.replace('_', ' ') || 'Unknown'}
           </span>
           {row.payment_reference && (
-            <span className="text-[10px] text-surface-500 font-mono pl-1">
+            <span className="text-[10px] text-muted font-mono pl-1">
               Ref: {row.payment_reference}
             </span>
           )}

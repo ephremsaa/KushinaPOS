@@ -14,6 +14,8 @@ import { formatCurrency, generateId, cn } from '../../lib/utils';
 import { syncEngine } from '../../lib/sync';
 import { Button, Badge, Modal, Input, LanguageSwitcher, EmptyState } from '../../components/ui';
 import { QuickPaymentModal, ThermalReceipt } from '../../components/pos';
+import { globalConfirm } from '../../contexts/ConfirmContext';
+import { globalToast } from '../../components/ui/Toast';
 import type {
   MenuItem, MenuCategory, Table,
   ModifierChoice, TableStatus, MenuModifier, Order
@@ -133,12 +135,12 @@ function ModifierModal({
                   <button
                     key={opt.label}
                     type="button"
-                    onClick={() => toggle(mod, opt.label, opt.price_delta)}
+                    onClick={async () => toggle(mod, opt.label, opt.price_delta)}
                     className={cn(
                       'px-4 py-2 rounded-2xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer',
                       selected
                         ? 'bg-brand-500 border-brand-500 text-white shadow-sm shadow-brand-500/30 scale-105'
-                        : 'bg-surface-50 border-surface-200 text-surface-700 hover:border-brand-300'
+                        : 'bg-surface-50 border-default text-surface-700 hover:border-brand-300'
                     )}
                   >
                     {opt.label}
@@ -188,10 +190,10 @@ function TableSelectionScreen({
   const navigate = useNavigate();
   return (
     <div className="flex flex-col items-center pt-8 h-full animate-fade-in overflow-y-auto pb-10">
-      <h2 className="font-display font-black text-3xl mb-6 text-surface-900">Start New Order</h2>
+      <h2 className="font-display font-black text-3xl mb-6 text-primary">Start New Order</h2>
 
       {/* Order Type Selector */}
-      <div className="flex gap-2 p-1.5 bg-surface-200/50 backdrop-blur-sm rounded-2xl mb-8 border border-surface-200">
+      <div className="flex gap-2 p-1.5 bg-surface-200/50 backdrop-blur-sm rounded-2xl mb-8 border border-default">
         {(['dine_in', 'takeaway', 'delivery'] as const).map(type => (
           <button
             key={type}
@@ -199,7 +201,7 @@ function TableSelectionScreen({
               'px-8 py-3 rounded-xl text-sm font-bold capitalize transition-all duration-300 cursor-pointer',
               orderType === type
                 ? 'bg-[var(--card-bg)] shadow-md text-brand-600 border border-[var(--card-border)]'
-                : 'text-surface-500 hover:text-surface-800'
+                : 'text-muted hover:text-surface-800'
             )}
             onClick={() => setOrderType(type)}
           >
@@ -300,7 +302,7 @@ function OccupiedTableModal({
       <div className="space-y-4">
         <div className="bg-surface-50 rounded-2xl p-4 text-sm">
           <p className="font-semibold text-surface-700 mb-1">Current Order #{existingOrder.local_id || existingOrder.id.slice(0, 6)}</p>
-          <p className="text-surface-500">{existingOrder.order_items?.length ?? 0} item(s) · {formatCurrency(existingOrder.total)}</p>
+          <p className="text-muted">{existingOrder.order_items?.length ?? 0} item(s) · {formatCurrency(existingOrder.total)}</p>
         </div>
 
         <div className="flex flex-col gap-2 pt-2">
@@ -544,8 +546,8 @@ export default function POSPage() {
     setEditingNoteIdx(null);
   };
 
-  const clearOrder = () => {
-    if (window.confirm('Clear entire order and start over?')) {
+  const clearOrder = async () => {
+    if (await globalConfirm('Clear entire order and start over?')) {
       setOrderType('dine_in');
       resetOrder();
     }
@@ -662,7 +664,7 @@ export default function POSPage() {
       }
     } catch (err) {
       console.error('Order failed:', err);
-      alert('Failed to place order. Please try again.');
+      globalToast.info('Failed to place order. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -679,22 +681,22 @@ export default function POSPage() {
           >
             <ArrowLeft className="w-5 h-5 text-surface-600" />
           </button>
-          <h2 className="font-display font-bold text-2xl text-surface-900">Parked Orders</h2>
+          <h2 className="font-display font-bold text-2xl text-primary">Parked Orders</h2>
           <Badge status="pending">{parkedOrders.length}</Badge>
         </div>
 
         {parkedOrders.length === 0 ? (
           <div className="card text-center py-16">
             <PauseCircle className="w-16 h-16 text-surface-200 mx-auto mb-4" />
-            <p className="font-bold text-surface-500">No parked orders</p>
+            <p className="font-bold text-muted">No parked orders</p>
           </div>
         ) : (
           <div className="grid gap-4">
             {parkedOrders.map(p => (
               <div key={p.id} className="card flex items-center gap-4 p-5">
                 <div className="flex-1">
-                  <p className="font-bold text-surface-900">{p.label}</p>
-                  <p className="text-sm text-surface-500">
+                  <p className="font-bold text-primary">{p.label}</p>
+                  <p className="text-sm text-muted">
                     {p.cart.length} item(s) · {formatCurrency(p.cart.reduce((s, i) => s + i.lineTotal, 0))} · Parked {new Date(p.parkedAt).toLocaleTimeString()}
                   </p>
                 </div>
@@ -818,7 +820,7 @@ export default function POSPage() {
                   'flex-shrink-0 px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 cursor-pointer',
                   selectedCategory === cat.id
                     ? 'bg-brand-500 text-white shadow-md shadow-brand-500/30 -translate-y-0.5'
-                    : 'bg-[var(--card-bg)] text-surface-600 hover:bg-surface-50 border border-surface-200/50'
+                    : 'bg-[var(--card-bg)] text-surface-600 hover:bg-surface-50 border border-default/50'
                 )}
                 onClick={() => setSelectedCategory(cat.id)}
               >
@@ -834,7 +836,7 @@ export default function POSPage() {
                 return (
                   <button
                     key={item.id}
-                    className="group rounded-[2rem] border p-3.5 text-left transition-all duration-300 flex flex-col bg-[var(--card-bg)] border-surface-200 hover:border-brand-500 shadow-card hover:shadow-card-hover hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
+                    className="group rounded-[2rem] border p-3.5 text-left transition-all duration-300 flex flex-col bg-[var(--card-bg)] border-default hover:border-brand-500 shadow-card hover:shadow-card-hover hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                     onClick={() => handleItemTap(item)}
                   >
                     {item.image_url ? (
@@ -849,7 +851,7 @@ export default function POSPage() {
                       </div>
                     )}
                     <div className="px-1 flex-1 flex flex-col">
-                      <p className="font-bold text-surface-900 text-sm leading-tight mb-1.5 line-clamp-2">{item.name}</p>
+                      <p className="font-bold text-primary text-sm leading-tight mb-1.5 line-clamp-2">{item.name}</p>
                       <div className="flex items-center justify-between mt-auto pt-1">
                         <p className="font-extrabold text-brand-700 text-base tracking-tight font-mono">
                           {formatCurrency(item.price)}
@@ -873,7 +875,7 @@ export default function POSPage() {
         {/* ── Cart Panel ─────────────────────────────────────────── */}
         <div className="w-96 flex flex-col glass-panel flex-shrink-0 ml-auto h-[calc(100vh-100px)] overflow-hidden -mt-4">
           {/* Cart Header */}
-          <div className="p-4 border-b border-surface-200/50 bg-[var(--card-bg)] flex-shrink-0">
+          <div className="p-4 border-b border-default/50 bg-[var(--card-bg)] flex-shrink-0">
             {/* Order context pill */}
             <div className="flex items-center gap-2 mb-3">
               <div className="flex-1 bg-surface-100 rounded-2xl px-4 py-2.5 flex items-center gap-2">
@@ -926,7 +928,7 @@ export default function POSPage() {
                 <div className="w-20 h-20 bg-[var(--card-bg)] shadow-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-surface-100">
                   <ShoppingCart className="w-10 h-10 text-surface-300" />
                 </div>
-                <p className="text-surface-900 font-bold text-lg tracking-tight">{t('pos.empty_cart', 'Cart is empty')}</p>
+                <p className="text-primary font-bold text-lg tracking-tight">{t('pos.empty_cart', 'Cart is empty')}</p>
                 <p className="text-surface-400 text-sm mt-1">{t('pos.empty_cart_sub', 'Tap items to add them')}</p>
               </div>
             ) : (
@@ -934,7 +936,7 @@ export default function POSPage() {
                 <div key={i} className="bg-[var(--card-bg)] rounded-[1.25rem] shadow-sm border border-surface-100/50 overflow-hidden">
                   <div className="flex items-start gap-3 p-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-surface-900 leading-tight truncate">{item.menuItem.name}</p>
+                      <p className="text-sm font-bold text-primary leading-tight truncate">{item.menuItem.name}</p>
                       {item.modifierChoices.length > 0 && (
                         <p className="text-xs text-brand-600 font-medium mt-0.5">
                           {item.modifierChoices.map(m => m.option_label).join(', ')}
@@ -944,14 +946,14 @@ export default function POSPage() {
                         <p className="text-xs text-amber-600 italic mt-0.5">"{item.notes}"</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5 bg-surface-50 p-1 rounded-full border border-surface-200/50">
+                    <div className="flex items-center gap-1.5 bg-surface-50 p-1 rounded-full border border-default/50">
                       <button
                         className="w-6 h-6 rounded-full bg-[var(--card-bg)] flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm cursor-pointer"
                         onClick={() => updateQuantity(i, -1)}
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-sm font-extrabold w-5 text-center text-surface-900">{item.quantity}</span>
+                      <span className="text-sm font-extrabold w-5 text-center text-primary">{item.quantity}</span>
                       <button
                         className="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center hover:bg-brand-600 transition-colors shadow-sm cursor-pointer"
                         onClick={() => updateQuantity(i, 1)}
@@ -960,7 +962,7 @@ export default function POSPage() {
                       </button>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <p className="text-sm font-extrabold text-surface-900 w-16 text-right font-mono">{formatCurrency(item.lineTotal)}</p>
+                      <p className="text-sm font-extrabold text-primary w-16 text-right font-mono">{formatCurrency(item.lineTotal)}</p>
                       <button
                         className="p-1 text-surface-300 hover:text-amber-500 transition-colors rounded-lg cursor-pointer"
                         onClick={() => setEditingNoteIdx(editingNoteIdx === i ? null : i)}
@@ -991,29 +993,29 @@ export default function POSPage() {
 
           {/* Totals + Actions */}
           {cart.length > 0 && (
-            <div className="p-4 border-t border-surface-200/50 bg-[var(--card-bg)] space-y-2.5 flex-shrink-0 rounded-b-3xl">
-              <div className="flex justify-between text-sm font-medium text-surface-500">
+            <div className="p-4 border-t border-default/50 bg-[var(--card-bg)] space-y-2.5 flex-shrink-0 rounded-b-3xl">
+              <div className="flex justify-between text-sm font-medium text-muted">
                 <span>{t('pos.subtotal', 'Subtotal')}</span>
                 <span className="text-surface-700 font-mono">{formatCurrency(subtotal)}</span>
               </div>
               {taxRate > 0 && (
-                <div className="flex justify-between text-sm font-medium text-surface-500">
+                <div className="flex justify-between text-sm font-medium text-muted">
                   <span>{t('pos.tax', 'Tax')} ({taxRate}%)</span>
                   <span className="text-surface-700 font-mono">{formatCurrency(taxAmount)}</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-sm font-medium text-surface-500">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted">
                 <Tag className="w-3.5 h-3.5" />
                 <span>{t('pos.discount', 'Discount')}</span>
                 <input
                   type="number"
-                  className="input py-1 text-sm h-8 w-20 ml-auto text-right font-bold font-mono text-surface-900 shadow-sm"
+                  className="input py-1 text-sm h-8 w-20 ml-auto text-right font-bold font-mono text-primary shadow-sm"
                   value={discount || ''}
                   placeholder="0"
                   onChange={e => setDiscount(Number(e.target.value) || 0)}
                 />
               </div>
-              <div className="flex justify-between font-extrabold text-surface-900 border-t border-surface-200/50 pt-2.5 mb-1">
+              <div className="flex justify-between font-extrabold text-primary border-t border-default/50 pt-2.5 mb-1">
                 <span className="text-lg">{t('pos.total', 'Total')}</span>
                 <span className="text-brand-600 text-2xl tracking-tight font-mono">{formatCurrency(total)}</span>
               </div>
@@ -1049,7 +1051,7 @@ export default function POSPage() {
                     icon={<Receipt className="w-4 h-4 text-white" />}
                     loading={submitting}
                     onClick={() => {
-                      alert('Bill requested (Cashier notified)');
+                      globalToast.info('Bill requested (Cashier notified)');
                     }}
                   >
                     Request Bill

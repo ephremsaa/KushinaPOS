@@ -4,6 +4,8 @@ import { Search, Store, AlertTriangle, CheckCircle2, UserCheck, X } from 'lucide
 import { adminApi } from '../../lib/api';
 import { formatDate } from '../../lib/utils';
 import type { Restaurant } from '../../types';
+import { globalConfirm } from '../../contexts/ConfirmContext';
+import { globalToast } from '../../components/ui/Toast';
 
 type StatusFilter = 'all' | 'active' | 'pending' | 'suspended' | 'rejected';
 
@@ -58,14 +60,14 @@ export default function AdminRestaurants() {
       setSuspendModal({ open: false });
       setSuspendReason('');
     } catch (err) {
-      alert("Failed to update status");
+      globalToast.info("Failed to update status");
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleImpersonate = async (r: Restaurant) => {
-    if (!window.confirm(`Are you sure you want to impersonate ${r.name}? Your actions will be logged into the audit log.`)) return;
+    if (!(await globalConfirm(`Are you sure you want to impersonate ${r.name}? Your actions will be logged into the audit log.`))) return;
     
     setActionLoading(r.id);
     try {
@@ -75,7 +77,7 @@ export default function AdminRestaurants() {
       localStorage.setItem('token', res.token);
       window.location.href = '/dashboard';
     } catch (err) {
-      alert("Failed to impersonate");
+      globalToast.info("Failed to impersonate");
       setActionLoading(null);
     }
   };

@@ -60,9 +60,9 @@ export function ThermalReceipt({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static print:inset-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-surface print:static print:inset-auto">
       {/* Modal Container */}
-      <div className="bg-white rounded-[2.5rem] w-full max-w-sm shadow-2xl flex flex-col max-h-[92vh] border border-surface-200/80 overflow-hidden print:border-none print:shadow-none print:max-w-none print:w-full print:max-h-none print:rounded-none">
+      <div className="bg-surface rounded-[2.5rem] w-full max-w-sm shadow-2xl flex flex-col max-h-[92vh] border border-default/80 overflow-hidden print:border-none print:shadow-none print:max-w-none print:w-full print:max-h-none print:rounded-none">
         {/* Screen Header (Hidden on Print) */}
         <div className="p-4 sm:p-5 border-b border-surface-100 flex items-center justify-between bg-surface-50/50 print:hidden">
           <div className="flex items-center gap-3">
@@ -70,8 +70,8 @@ export function ThermalReceipt({
               <CheckCircle className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-display font-black text-sm text-surface-900 leading-tight">Payment Settled</p>
-              <p className="text-[11px] text-surface-500">Official Thermal Receipt</p>
+              <p className="font-display font-black text-sm text-primary leading-tight">Payment Settled</p>
+              <p className="text-[11px] text-muted">Official Thermal Receipt</p>
             </div>
           </div>
           <button
@@ -88,17 +88,17 @@ export function ThermalReceipt({
           {/* Top Brand & Header */}
           <div className="text-center space-y-1">
             {showLogo && restaurantLogo ? (
-              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl overflow-hidden border border-surface-200 p-0.5 bg-white shadow-xs">
+              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl overflow-hidden border border-default p-0.5 bg-surface shadow-xs">
                 <img src={restaurantLogo} alt="Logo" className="w-full h-full object-contain" />
               </div>
             ) : null}
 
             <h2 className="font-display font-black text-base tracking-tight text-surface-950 uppercase">{restaurantName}</h2>
-            {address && <p className="text-[11px] text-surface-500 print:text-black">{address}</p>}
-            {phone && <p className="text-[11px] text-surface-500 print:text-black">Tel: {phone}</p>}
+            {address && <p className="text-[11px] text-muted print:text-black">{address}</p>}
+            {phone && <p className="text-[11px] text-muted print:text-black">Tel: {phone}</p>}
             {taxId && <p className="text-[10px] text-surface-400 print:text-black">TIN/VAT: {taxId}</p>}
             {receiptHeader && (
-              <p className="text-[11px] italic text-surface-600 mt-1 border-y border-dashed border-surface-200 py-1 print:border-black">
+              <p className="text-[11px] italic text-surface-600 mt-1 border-y border-dashed border-default py-1 print:border-black">
                 {receiptHeader}
               </p>
             )}
@@ -108,7 +108,7 @@ export function ThermalReceipt({
           <div className="border-t border-dashed border-surface-300 pt-2.5 space-y-0.5 text-[11px] text-surface-600 print:border-black print:text-black">
             <div className="flex justify-between">
               <span>Order #:</span>
-              <span className="font-bold text-surface-900 print:text-black">#{orderShortId}</span>
+              <span className="font-bold text-primary print:text-black">#{orderShortId}</span>
             </div>
             <div className="flex justify-between">
               <span>Date:</span>
@@ -136,13 +136,13 @@ export function ThermalReceipt({
 
           {/* Itemized Lines */}
           <div className="border-t border-b border-dashed border-surface-300 py-2.5 space-y-1.5 print:border-black">
-            <div className="flex justify-between font-bold text-surface-900 text-[11px] uppercase pb-1 border-b border-surface-100 print:text-black print:border-black">
+            <div className="flex justify-between font-bold text-primary text-[11px] uppercase pb-1 border-b border-surface-100 print:text-black print:border-black">
               <span>Item (Qty)</span>
               <span>Total</span>
             </div>
             {(order.order_items || []).map((item, idx) => (
               <div key={item.id || idx} className="space-y-0.5">
-                <div className="flex justify-between items-start text-surface-900 print:text-black">
+                <div className="flex justify-between items-start text-primary print:text-black">
                   <span className="font-bold pr-2 flex-1 leading-tight">
                     {item.quantity}x {item.menu_item_name}
                   </span>
@@ -151,7 +151,7 @@ export function ThermalReceipt({
                   </span>
                 </div>
                 {item.modifier_choices && item.modifier_choices.length > 0 && (
-                  <p className="text-[10px] text-surface-500 pl-4 print:text-black">
+                  <p className="text-[10px] text-muted pl-4 print:text-black">
                     + {item.modifier_choices.map(m => m.option_label).join(', ')}
                   </p>
                 )}
@@ -202,7 +202,7 @@ export function ThermalReceipt({
             <div className="pt-2 border-t border-dashed border-surface-300 space-y-1 text-surface-600 print:border-black print:text-black">
               <div className="flex justify-between items-center">
                 <span>Paid via:</span>
-                <span className="font-bold text-surface-900 capitalize flex items-center print:text-black">
+                <span className="font-bold text-primary capitalize flex items-center print:text-black">
                   {getMethodIcon()}
                   {paymentMethod.replace('_', ' ')}
                 </span>
@@ -237,7 +237,7 @@ export function ThermalReceipt({
         <div className="p-4 border-t border-surface-100 flex gap-3 bg-surface-50/50 print:hidden">
           <button
             onClick={onClose}
-            className="flex-1 py-3 px-4 rounded-2xl border border-surface-200 bg-white hover:bg-surface-100 text-surface-700 font-bold text-sm transition-all cursor-pointer shadow-xs"
+            className="flex-1 py-3 px-4 rounded-2xl border border-default bg-surface hover:bg-surface-100 text-surface-700 font-bold text-sm transition-all cursor-pointer shadow-xs"
           >
             Done
           </button>

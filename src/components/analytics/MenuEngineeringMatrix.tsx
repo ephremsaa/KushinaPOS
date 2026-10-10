@@ -239,7 +239,7 @@ export function MenuEngineeringMatrix() {
             </p>
           </div>
 
-          <div className="flex-shrink-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center sm:text-right min-w-[200px]">
+          <div className="flex-shrink-0 bg-surface/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center sm:text-right min-w-[200px]">
             <p className="text-xs text-surface-300 font-medium">Estimated Monthly Profit Lift</p>
             <p className="text-3xl font-black font-mono text-gold-400 mt-0.5">
               +{formatCurrency(totalProjectedLift)}
@@ -265,37 +265,37 @@ export function MenuEngineeringMatrix() {
               className={cn(
                 'card p-5 text-left transition-all relative overflow-hidden border-2 cursor-pointer',
                 isSelected
-                  ? 'border-brand-500 ring-2 ring-brand-500/20 shadow-md bg-white'
-                  : 'border-surface-200 hover:border-surface-300 bg-white/80'
+                  ? 'border-brand-500 ring-2 ring-brand-500/20 shadow-md bg-surface'
+                  : 'border-default hover:border-surface-300 bg-surface/80'
               )}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center', cfg.badgeBg)}>
                   <Icon className={cn('w-5 h-5', cfg.color)} />
                 </div>
-                <span className="text-2xl font-black font-mono text-surface-900">{count}</span>
+                <span className="text-2xl font-black font-mono text-primary">{count}</span>
               </div>
-              <h4 className="font-display font-black text-sm text-surface-900">{cfg.label}</h4>
-              <p className="text-[11px] text-surface-500 font-medium mt-0.5">{cfg.summary}</p>
+              <h4 className="font-display font-black text-sm text-primary">{cfg.label}</h4>
+              <p className="text-[11px] text-muted font-medium mt-0.5">{cfg.summary}</p>
             </button>
           );
         })}
       </div>
 
       {/* 4-Quadrant Visual Scatter Plot Matrix */}
-      <div className="card p-6 bg-white border border-surface-200 shadow-sm space-y-4">
+      <div className="card p-6 bg-surface border border-default shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-100">
           <div>
-            <h3 className="font-display font-black text-lg text-surface-900">
+            <h3 className="font-display font-black text-lg text-primary">
               Interactive Profit vs Popularity Matrix
             </h3>
-            <p className="text-xs text-surface-500">
+            <p className="text-xs text-muted">
               Hover over points to inspect dish margins, sales counts, and AI actions
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-surface-500">Period:</span>
+            <span className="text-xs font-bold text-muted">Period:</span>
             {(['7d', '30d', '90d'] as const).map(p => (
               <button
                 key={p}
@@ -386,13 +386,13 @@ export function MenuEngineeringMatrix() {
       </div>
 
       {/* Actionable Dishes List */}
-      <div className="card p-6 bg-white border border-surface-200 shadow-sm space-y-4">
+      <div className="card p-6 bg-surface border border-default shadow-sm space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-surface-100">
           <div>
-            <h3 className="font-display font-black text-lg text-surface-900">
+            <h3 className="font-display font-black text-lg text-primary">
               AI Strategy Recommendations
             </h3>
-            <p className="text-xs text-surface-500">
+            <p className="text-xs text-muted">
               Showing {filteredList.length} items {selectedQuadrant !== 'all' ? `in ${selectedQuadrant.toUpperCase()} quadrant` : ''}
             </p>
           </div>
@@ -417,18 +417,18 @@ export function MenuEngineeringMatrix() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h4 className="font-display font-bold text-sm text-surface-900">{item.name}</h4>
+                      <h4 className="font-display font-bold text-sm text-primary">{item.name}</h4>
                       <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-black border', cfg.badgeBg, cfg.badgeText)}>
                         {cfg.label}
                       </span>
                     </div>
-                    <p className="text-xs text-surface-500 mt-0.5">{item.aiRecommendation}</p>
+                    <p className="text-xs text-muted mt-0.5">{item.aiRecommendation}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-4 flex-shrink-0">
                   <div className="text-right">
-                    <p className="text-xs font-mono font-bold text-surface-900">
+                    <p className="text-xs font-mono font-bold text-primary">
                       {formatCurrency(item.price)} <span className="text-[11px] text-surface-400 font-normal">({item.volume} sold)</span>
                     </p>
                     <p className="text-[11px] text-brand-700 font-bold font-mono">

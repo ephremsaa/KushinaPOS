@@ -56,10 +56,10 @@ export function TableStandModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
       {/* Container */}
-      <div className="bg-surface-50 rounded-[2rem] w-full max-w-4xl shadow-2xl border border-surface-200/80 flex flex-col max-h-[95vh] overflow-hidden my-auto">
+      <div className="bg-surface-50 rounded-[2rem] w-full max-w-4xl shadow-2xl border border-default/80 flex flex-col max-h-[95vh] overflow-hidden my-auto">
         
         {/* Modal Top Bar (Hidden during print) */}
-        <div className="p-5 sm:p-6 bg-white border-b border-surface-200/80 flex items-center justify-between print:hidden">
+        <div className="p-5 sm:p-6 bg-surface border-b border-default/80 flex items-center justify-between print:hidden">
           <div className="flex items-center gap-3">
             <div
               className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-md"
@@ -68,10 +68,10 @@ export function TableStandModal({
               <QrCode className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-display font-black text-xl text-surface-900 leading-tight">
+              <h3 className="font-display font-black text-xl text-primary leading-tight">
                 Table QR Stand Generator
               </h3>
-              <p className="text-xs text-surface-500">
+              <p className="text-xs text-muted">
                 {table ? `Table ${table.label} Stand Card` : 'Printable Table QR Stand Cards'}
               </p>
             </div>
@@ -86,7 +86,7 @@ export function TableStandModal({
                   'px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5',
                   printAll
                     ? 'bg-brand-500 text-white border-brand-600 shadow-sm'
-                    : 'bg-surface-100 hover:bg-surface-200 text-surface-700 border-surface-200'
+                    : 'bg-surface-100 hover:bg-surface-200 text-surface-700 border-default'
                 )}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -104,15 +104,15 @@ export function TableStandModal({
         </div>
 
         {/* Style Selector Toolbar (Hidden during print) */}
-        <div className="px-6 py-3 bg-surface-100/70 border-b border-surface-200/60 flex flex-wrap items-center justify-between gap-3 print:hidden">
+        <div className="px-6 py-3 bg-surface-100/70 border-b border-default/60 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-surface-500">Stand Card Style:</span>
+            <span className="text-xs font-bold text-muted">Stand Card Style:</span>
             <div className="flex bg-surface-200/80 p-1 rounded-xl gap-1">
               <button
                 onClick={() => setStandStyle('acrylic')}
                 className={cn(
                   'px-3 py-1 text-xs font-bold rounded-lg transition-all',
-                  standStyle === 'acrylic' ? 'bg-white text-surface-900 shadow-xs' : 'text-surface-600 hover:text-surface-900'
+                  standStyle === 'acrylic' ? 'bg-surface text-primary shadow-xs' : 'text-surface-600 hover:text-primary'
                 )}
               >
                 Acrylic Frame
@@ -121,7 +121,7 @@ export function TableStandModal({
                 onClick={() => setStandStyle('tent')}
                 className={cn(
                   'px-3 py-1 text-xs font-bold rounded-lg transition-all',
-                  standStyle === 'tent' ? 'bg-white text-surface-900 shadow-xs' : 'text-surface-600 hover:text-surface-900'
+                  standStyle === 'tent' ? 'bg-surface text-primary shadow-xs' : 'text-surface-600 hover:text-primary'
                 )}
               >
                 Tent Card
@@ -130,7 +130,7 @@ export function TableStandModal({
                 onClick={() => setStandStyle('minimal')}
                 className={cn(
                   'px-3 py-1 text-xs font-bold rounded-lg transition-all',
-                  standStyle === 'minimal' ? 'bg-white text-surface-900 shadow-xs' : 'text-surface-600 hover:text-surface-900'
+                  standStyle === 'minimal' ? 'bg-surface text-primary shadow-xs' : 'text-surface-600 hover:text-primary'
                 )}
               >
                 Minimal Flyer
@@ -170,10 +170,10 @@ export function TableStandModal({
                 <div
                   key={t.id}
                   className={cn(
-                    'bg-white mx-auto transition-all shadow-xl rounded-[2.5rem] border-2 overflow-hidden flex flex-col justify-between text-center relative print:shadow-none print:rounded-2xl print:break-inside-avoid print:page-break-after-always',
-                    standStyle === 'acrylic' && 'p-7 border-surface-200/80 w-80 min-h-[460px]',
+                    'bg-surface mx-auto transition-all shadow-xl rounded-[2.5rem] border-2 overflow-hidden flex flex-col justify-between text-center relative print:shadow-none print:rounded-2xl print:break-inside-avoid print:page-break-after-always',
+                    standStyle === 'acrylic' && 'p-7 border-default/80 w-80 min-h-[460px]',
                     standStyle === 'tent' && 'p-8 border-dashed border-surface-300 w-84 min-h-[480px]',
-                    standStyle === 'minimal' && 'p-6 border-surface-200 w-72 min-h-[420px]'
+                    standStyle === 'minimal' && 'p-6 border-default w-72 min-h-[420px]'
                   )}
                 >
                   {/* Decorative Brand Header Accent */}
@@ -188,7 +188,7 @@ export function TableStandModal({
                       <img
                         src={restaurantLogo}
                         alt={restaurantName}
-                        className="w-14 h-14 mx-auto object-contain rounded-2xl p-1 bg-surface-50 border border-surface-200/70 shadow-xs"
+                        className="w-14 h-14 mx-auto object-contain rounded-2xl p-1 bg-surface-50 border border-default/70 shadow-xs"
                       />
                     ) : (
                       <div
@@ -198,7 +198,7 @@ export function TableStandModal({
                         {restaurantName.slice(0, 2).toUpperCase()}
                       </div>
                     )}
-                    <h4 className="font-display font-black text-xl text-surface-900 tracking-tight leading-none">
+                    <h4 className="font-display font-black text-xl text-primary tracking-tight leading-none">
                       {restaurantName}
                     </h4>
                   </div>
@@ -219,18 +219,18 @@ export function TableStandModal({
 
                   {/* QR Code with frame */}
                   <div className="my-2">
-                    <div className="p-3.5 bg-surface-50 rounded-3xl border-2 border-surface-200/90 inline-block shadow-inner">
+                    <div className="p-3.5 bg-surface-50 rounded-3xl border-2 border-default/90 inline-block shadow-inner">
                       <img
                         src={qrSrc}
                         alt={`QR Code for Table ${t.label}`}
-                        className="w-44 h-44 mx-auto rounded-xl object-contain bg-white p-1"
+                        className="w-44 h-44 mx-auto rounded-xl object-contain bg-surface p-1"
                       />
                     </div>
                   </div>
 
                   {/* Instructions */}
                   <div className="space-y-1.5 pb-2">
-                    <p className="font-extrabold text-sm text-surface-900 flex items-center justify-center gap-1.5">
+                    <p className="font-extrabold text-sm text-primary flex items-center justify-center gap-1.5">
                       <Smartphone className="w-4 h-4 text-brand-500" />
                       Scan to View Menu & Order
                     </p>
@@ -256,7 +256,7 @@ export function TableStandModal({
         </div>
 
         {/* Bottom Print Note (Hidden during print) */}
-        <div className="p-4 bg-white border-t border-surface-200/80 text-center text-xs text-surface-400 print:hidden flex items-center justify-between px-6">
+        <div className="p-4 bg-surface border-t border-default/80 text-center text-xs text-surface-400 print:hidden flex items-center justify-between px-6">
           <span>💡 Tip: Print on heavy cardstock or A6 acrylic inserts for best table presentation.</span>
           <button onClick={onClose} className="btn-secondary btn-sm">
             Close

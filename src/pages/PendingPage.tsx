@@ -28,7 +28,7 @@ export default function PendingPage() {
           <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-glow-sm">
             <ChefHat className="w-5 h-5 text-white" />
           </div>
-          <span className="font-display font-black text-xl text-surface-900 tracking-tight">
+          <span className="font-display font-black text-xl text-primary tracking-tight">
             kushina<span className="text-brand-500">POS</span>
           </span>
         </div>
@@ -38,13 +38,13 @@ export default function PendingPage() {
           <Clock className="w-10 h-10 text-amber-600" />
         </div>
 
-        <h1 className="font-display font-black text-2xl text-surface-900 mb-3">
+        <h1 className="font-display font-black text-2xl text-primary mb-3">
           Application Under Review
         </h1>
-        <p className="text-surface-500 mb-1 max-w-sm mx-auto leading-relaxed">
+        <p className="text-muted mb-1 max-w-sm mx-auto leading-relaxed">
           Thank you for registering! Our team is reviewing your restaurant application.
         </p>
-        <p className="text-surface-500 mb-6 text-sm max-w-sm mx-auto">
+        <p className="text-muted mb-6 text-sm max-w-sm mx-auto">
           We'll email{' '}
           <span className="font-semibold text-surface-700">{user?.email}</span>{' '}
           once you're approved.
@@ -55,7 +55,7 @@ export default function PendingPage() {
 
         {/* Progress steps */}
         <Card className="mb-6 text-left p-5">
-          <h3 className="font-bold text-surface-900 text-sm mb-4">What happens next</h3>
+          <h3 className="font-bold text-primary text-sm mb-4">What happens next</h3>
           <ol className="space-y-3">
             {STEPS.map((step, i) => (
               <li key={i} className="flex items-center gap-3 text-sm">
@@ -65,11 +65,11 @@ export default function PendingPage() {
                     ? 'bg-emerald-500 text-white'
                     : step.active
                     ? 'bg-amber-100 border-2 border-amber-400 text-amber-700'
-                    : 'bg-surface-100 border-2 border-surface-200 text-surface-400',
+                    : 'bg-surface-100 border-2 border-default text-surface-400',
                 ].join(' ')}>
                   {step.done ? <CheckCircle2 className="w-3.5 h-3.5" /> : i + 1}
                 </div>
-                <span className={step.done ? 'line-through text-surface-400' : step.active ? 'text-amber-700 font-semibold' : 'text-surface-500'}>
+                <span className={step.done ? 'line-through text-surface-400' : step.active ? 'text-amber-700 font-semibold' : 'text-muted'}>
                   {step.label}
                 </span>
                 {step.active && (

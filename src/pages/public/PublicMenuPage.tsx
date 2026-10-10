@@ -11,6 +11,7 @@ import { publicApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { LanguageSwitcher } from '../../components/ui';
+import { globalToast } from '../../components/ui/Toast';
 
 interface CartItem {
   menu_item_id: string;
@@ -114,7 +115,7 @@ export default function PublicMenuPage() {
   // Call Waiter API Trigger
   const handleCallWaiter = async () => {
     if (!restaurant?.id || !tableLabel) {
-      alert('Please enter your table number first.');
+      globalToast.info('Please enter your table number first.');
       return;
     }
     setWaiterCalling(true);
@@ -133,7 +134,7 @@ export default function PublicMenuPage() {
         setWaiterSuccessMsg('');
       }, 2500);
     } catch (err: any) {
-      alert(err?.response?.data?.error || 'Failed to notify staff.');
+      globalToast.info(err?.response?.data?.error || 'Failed to notify staff.');
     } finally {
       setWaiterCalling(false);
     }
@@ -291,8 +292,8 @@ export default function PublicMenuPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-surface-50 p-6 text-center">
         <AlertCircle className="w-14 h-14 text-red-500 mb-3" />
-        <h1 className="text-xl font-bold text-surface-900">Restaurant Not Found</h1>
-        <p className="text-sm text-surface-500 max-w-sm mt-1">The requested restaurant link is invalid or no longer active.</p>
+        <h1 className="text-xl font-bold text-primary">Restaurant Not Found</h1>
+        <p className="text-sm text-muted max-w-sm mt-1">The requested restaurant link is invalid or no longer active.</p>
       </div>
     );
   }
@@ -300,19 +301,19 @@ export default function PublicMenuPage() {
   return (
     <div className="min-h-screen bg-surface-50 pb-28">
       {/* Top Banner Header */}
-      <header className="bg-white border-b border-surface-200 sticky top-0 z-30 shadow-xs">
+      <header className="bg-surface border-b border-default sticky top-0 z-30 shadow-xs">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {restaurant.logo_url ? (
-              <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-2xl object-cover border border-surface-200 flex-shrink-0" />
+              <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-2xl object-cover border border-default flex-shrink-0" />
             ) : (
               <div className="w-12 h-12 bg-brand-50 rounded-2xl flex items-center justify-center text-brand-600 font-bold text-xl flex-shrink-0">
                 {restaurant.name.charAt(0)}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="font-display font-bold text-lg text-surface-900 truncate">{restaurant.name}</h1>
-              <div className="flex items-center gap-2 text-xs text-surface-500">
+              <h1 className="font-display font-bold text-lg text-primary truncate">{restaurant.name}</h1>
+              <div className="flex items-center gap-2 text-xs text-muted">
                 {restaurant.cuisine_type && <span>{restaurant.cuisine_type}</span>}
                 {restaurant.city && <span>· {restaurant.city}</span>}
               </div>
@@ -341,26 +342,26 @@ export default function PublicMenuPage() {
       <main className="max-w-3xl mx-auto px-4 py-4 space-y-4">
         
         {/* Order Mode Switcher */}
-        <div className="bg-white rounded-3xl p-3 border border-surface-200 shadow-xs">
-          <p className="text-xs font-semibold text-surface-500 mb-2 px-1">Order Mode</p>
+        <div className="bg-surface rounded-3xl p-3 border border-default shadow-xs">
+          <p className="text-xs font-semibold text-muted mb-2 px-1">Order Mode</p>
           <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setOrderType('dine_in')}
-              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'dine_in' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
+              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'dine_in' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-default text-surface-600 hover:bg-surface-50')}
             >
               <UtensilsCrossed className="w-4 h-4" />
               {t('pos.dine_in', 'Dine-In')} {queryTable && `(Table ${queryTable})`}
             </button>
             <button
               onClick={() => setOrderType('delivery')}
-              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'delivery' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
+              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'delivery' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-default text-surface-600 hover:bg-surface-50')}
             >
               <Truck className="w-4 h-4" />
               {t('pos.delivery', 'Delivery')}
             </button>
             <button
               onClick={() => setOrderType('takeaway')}
-              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'takeaway' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-surface-200 text-surface-600 hover:bg-surface-50')}
+              className={cn('py-2.5 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 transition-all', orderType === 'takeaway' ? 'border-brand-500 bg-brand-50 text-brand-700 shadow-xs' : 'border-default text-surface-600 hover:bg-surface-50')}
             >
               <Store className="w-4 h-4" />
               {t('pos.takeaway', 'Takeaway')}
@@ -387,7 +388,7 @@ export default function PublicMenuPage() {
                 className={cn(
                   'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs',
                   waiterCooldown > 0
-                    ? 'bg-surface-100 text-surface-400 border border-surface-200'
+                    ? 'bg-surface-100 text-surface-400 border border-default'
                     : 'bg-surface-900 hover:bg-black text-white active:scale-95'
                 )}
                 disabled={waiterCooldown > 0}
@@ -405,7 +406,7 @@ export default function PublicMenuPage() {
             <Search className="w-4 h-4 text-surface-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              className="input pl-10 py-2.5 text-sm rounded-2xl bg-white shadow-xs"
+              className="input pl-10 py-2.5 text-sm rounded-2xl bg-surface shadow-xs"
               placeholder="Search food, drinks, desserts…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -416,7 +417,7 @@ export default function PublicMenuPage() {
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={cn('px-4 py-2 rounded-2xl text-xs font-bold flex-shrink-0 transition-all', selectedCategory === 'all' ? 'bg-brand-500 text-white shadow-xs' : 'bg-white text-surface-600 border border-surface-200 hover:bg-surface-100')}
+              className={cn('px-4 py-2 rounded-2xl text-xs font-bold flex-shrink-0 transition-all', selectedCategory === 'all' ? 'bg-brand-500 text-white shadow-xs' : 'bg-surface text-surface-600 border border-default hover:bg-surface-100')}
             >
               All Items ({items.length})
             </button>
@@ -426,7 +427,7 @@ export default function PublicMenuPage() {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={cn('px-4 py-2 rounded-2xl text-xs font-bold flex-shrink-0 transition-all', selectedCategory === cat.id ? 'bg-brand-500 text-white shadow-xs' : 'bg-white text-surface-600 border border-surface-200 hover:bg-surface-100')}
+                  className={cn('px-4 py-2 rounded-2xl text-xs font-bold flex-shrink-0 transition-all', selectedCategory === cat.id ? 'bg-brand-500 text-white shadow-xs' : 'bg-surface text-surface-600 border border-default hover:bg-surface-100')}
                 >
                   {cat.name} ({catCount})
                 </button>
@@ -438,7 +439,7 @@ export default function PublicMenuPage() {
         {/* Menu Items Grid */}
         <div className="space-y-3">
           {filteredItems.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-3xl border border-surface-200 p-6">
+            <div className="text-center py-12 bg-surface rounded-3xl border border-default p-6">
               <UtensilsCrossed className="w-10 h-10 text-surface-300 mx-auto mb-2" />
               <p className="text-sm font-bold text-surface-700">No items available</p>
               <p className="text-xs text-surface-400 mt-1">Try adjusting your search or category filter.</p>
@@ -450,7 +451,7 @@ export default function PublicMenuPage() {
                 .reduce((s, c) => s + c.quantity, 0);
 
               return (
-                <div key={item.id} className="bg-white rounded-3xl border border-surface-200/80 p-4 flex gap-4 items-center shadow-xs hover:border-brand-300 transition-all">
+                <div key={item.id} className="bg-surface rounded-3xl border border-default/80 p-4 flex gap-4 items-center shadow-xs hover:border-brand-300 transition-all">
                   {item.image_url ? (
                     <img src={item.image_url} alt={item.name} className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 border border-surface-100" />
                   ) : (
@@ -460,8 +461,8 @@ export default function PublicMenuPage() {
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display font-bold text-sm text-surface-900 truncate">{item.name}</h3>
-                    {item.description && <p className="text-xs text-surface-500 line-clamp-2 mt-0.5">{item.description}</p>}
+                    <h3 className="font-display font-bold text-sm text-primary truncate">{item.name}</h3>
+                    {item.description && <p className="text-xs text-muted line-clamp-2 mt-0.5">{item.description}</p>}
                     <div className="flex items-center gap-2 mt-2">
                       <span className="font-bold text-sm text-brand-600">{formatCurrency(item.price)}</span>
                       {item.preparation_time_minutes && (
@@ -496,7 +497,7 @@ export default function PublicMenuPage() {
             className="w-full bg-gradient-to-r from-brand-600 via-brand-500 to-brand-300 text-white rounded-3xl p-4 shadow-glow flex items-center justify-between hover:brightness-105 transition-all active:scale-[0.98]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-bold text-sm shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-surface/20 backdrop-blur-xs flex items-center justify-center font-bold text-sm shadow-xs">
                 {totalCartCount}
               </div>
               <div className="text-left">
@@ -504,7 +505,7 @@ export default function PublicMenuPage() {
                 <p className="font-display font-black text-base">{formatCurrency(cartTotal)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 font-extrabold text-sm bg-white/20 px-3.5 py-1.5 rounded-2xl shadow-xs">
+            <div className="flex items-center gap-1 font-extrabold text-sm bg-surface/20 px-3.5 py-1.5 rounded-2xl shadow-xs">
               {t('menu.place_order', 'Checkout')} <ChevronRight className="w-4 h-4" />
             </div>
           </button>
@@ -514,9 +515,9 @@ export default function PublicMenuPage() {
       {/* Item Modifiers Modal */}
       {activeItem && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto animate-fade-in">
+          <div className="bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[85vh] overflow-y-auto animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-bold text-lg text-surface-900">{activeItem.name}</h3>
+              <h3 className="font-display font-bold text-lg text-primary">{activeItem.name}</h3>
               <button onClick={() => setActiveItem(null)} className="p-2 rounded-full hover:bg-surface-100"><X className="w-5 h-5" /></button>
             </div>
 
@@ -537,9 +538,9 @@ export default function PublicMenuPage() {
               <div className="flex items-center justify-between p-3 bg-surface-50 rounded-2xl">
                 <span className="text-xs font-bold text-surface-700">Quantity</span>
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setItemQty(Math.max(1, itemQty - 1))} className="w-8 h-8 rounded-xl bg-white border border-surface-200 flex items-center justify-center font-bold">-</button>
+                  <button onClick={() => setItemQty(Math.max(1, itemQty - 1))} className="w-8 h-8 rounded-xl bg-surface border border-default flex items-center justify-center font-bold">-</button>
                   <span className="font-bold text-sm">{itemQty}</span>
-                  <button onClick={() => setItemQty(itemQty + 1)} className="w-8 h-8 rounded-xl bg-white border border-surface-200 flex items-center justify-center font-bold">+</button>
+                  <button onClick={() => setItemQty(itemQty + 1)} className="w-8 h-8 rounded-xl bg-surface border border-default flex items-center justify-center font-bold">+</button>
                 </div>
               </div>
             </div>
@@ -560,11 +561,11 @@ export default function PublicMenuPage() {
       {/* Full Checkout Drawer / Modal */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto flex flex-col animate-fade-in">
+          <div className="bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto flex flex-col animate-fade-in">
             <div className="flex items-center justify-between pb-4 border-b border-surface-100">
               <div>
-                <h2 className="font-display font-bold text-lg text-surface-900">Your Order</h2>
-                <p className="text-xs text-surface-500 capitalize">{orderType.replace('_', ' ')} · {restaurant.name}</p>
+                <h2 className="font-display font-bold text-lg text-primary">Your Order</h2>
+                <p className="text-xs text-muted capitalize">{orderType.replace('_', ' ')} · {restaurant.name}</p>
               </div>
               <button onClick={() => setIsCartOpen(false)} className="p-2 rounded-full hover:bg-surface-100"><X className="w-5 h-5" /></button>
             </div>
@@ -574,15 +575,15 @@ export default function PublicMenuPage() {
               {cart.map((ci, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-surface-50 rounded-2xl text-xs">
                   <div className="flex-1 min-w-0 pr-2">
-                    <p className="font-bold text-surface-900 truncate">{ci.menu_item_name}</p>
+                    <p className="font-bold text-primary truncate">{ci.menu_item_name}</p>
                     {ci.notes && <p className="text-[10px] text-surface-400 italic">"{ci.notes}"</p>}
                     <p className="font-semibold text-brand-600 mt-0.5">{formatCurrency(ci.unit_price * ci.quantity)}</p>
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => updateCartQty(idx, -1)} className="w-7 h-7 rounded-lg bg-white border border-surface-200 flex items-center justify-center font-bold">-</button>
+                    <button onClick={() => updateCartQty(idx, -1)} className="w-7 h-7 rounded-lg bg-surface border border-default flex items-center justify-center font-bold">-</button>
                     <span className="font-bold text-xs min-w-[16px] text-center">{ci.quantity}</span>
-                    <button onClick={() => updateCartQty(idx, 1)} className="w-7 h-7 rounded-lg bg-white border border-surface-200 flex items-center justify-center font-bold">+</button>
+                    <button onClick={() => updateCartQty(idx, 1)} className="w-7 h-7 rounded-lg bg-surface border border-default flex items-center justify-center font-bold">+</button>
                   </div>
                 </div>
               ))}
@@ -633,13 +634,13 @@ export default function PublicMenuPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPaymentMode('pay_at_checkout')}
-                    className={cn('py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5', paymentMode === 'pay_at_checkout' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200')}
+                    className={cn('py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5', paymentMode === 'pay_at_checkout' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-default')}
                   >
                     💵 {orderType === 'dine_in' ? 'Pay at Table' : 'Pay on Delivery/Pickup'}
                   </button>
                   <button
                     onClick={() => setPaymentMode('online_paid')}
-                    className={cn('py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5', paymentMode === 'online_paid' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200')}
+                    className={cn('py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5', paymentMode === 'online_paid' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-default')}
                   >
                     💳 Pay Online (Telebirr / Card)
                   </button>
@@ -665,7 +666,7 @@ export default function PublicMenuPage() {
                   <span>{formatCurrency(serviceChargeAmount)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-bold text-surface-900 text-sm pt-1 border-t border-surface-200">
+              <div className="flex justify-between font-bold text-primary text-sm pt-1 border-t border-default">
                 <span>Total</span>
                 <span>{formatCurrency(cartTotal)}</span>
               </div>
@@ -692,17 +693,17 @@ export default function PublicMenuPage() {
       {/* ── Waiter Service Buzzer Modal ───────────────────────── */}
       {waiterModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col space-y-4">
+          <div className="bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-surface-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
                   <Bell className="w-5 h-5 animate-bounce" />
                 </div>
                 <div>
-                  <h3 className="font-display font-bold text-base text-surface-900">
+                  <h3 className="font-display font-bold text-base text-primary">
                     Call Staff
                   </h3>
-                  <p className="text-xs text-surface-500 font-mono">
+                  <p className="text-xs text-muted font-mono">
                     Table: <strong>{tableLabel || 'Not specified'}</strong>
                   </p>
                 </div>
@@ -733,7 +734,7 @@ export default function PublicMenuPage() {
                         'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
                         waiterReqType === 'general'
                           ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
-                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                          : 'bg-surface-50 border-default text-surface-600 hover:bg-surface-100'
                       )}
                     >
                       <UserCheck className="w-5 h-5 text-amber-500" />
@@ -746,7 +747,7 @@ export default function PublicMenuPage() {
                         'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
                         waiterReqType === 'bill'
                           ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
-                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                          : 'bg-surface-50 border-default text-surface-600 hover:bg-surface-100'
                       )}
                     >
                       <Receipt className="w-5 h-5 text-emerald-600" />
@@ -759,7 +760,7 @@ export default function PublicMenuPage() {
                         'p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all text-center cursor-pointer',
                         waiterReqType === 'water'
                           ? 'bg-amber-50 border-amber-500 text-amber-800 shadow-xs'
-                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:bg-surface-100'
+                          : 'bg-surface-50 border-default text-surface-600 hover:bg-surface-100'
                       )}
                     >
                       <Droplets className="w-5 h-5 text-blue-500" />

@@ -13,7 +13,7 @@ class KitchenAudioService {
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      this.ctx.resume().catch(() => {}); // Safe to ignore: browser policy may block audio
     }
     return this.ctx;
   }

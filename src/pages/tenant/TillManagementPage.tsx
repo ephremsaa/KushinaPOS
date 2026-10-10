@@ -46,8 +46,8 @@ function DenominationCounterModal({
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-black text-lg text-surface-900">{title}</h3>
-              <p className="text-xs text-surface-500 font-medium">Count Ethiopian Birr (ETB) notes</p>
+              <h3 className="font-display font-black text-lg text-primary">{title}</h3>
+              <p className="text-xs text-muted font-medium">Count Ethiopian Birr (ETB) notes</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-surface-100 text-surface-400">
@@ -58,22 +58,22 @@ function DenominationCounterModal({
         {/* Denominations Grid */}
         <div className="space-y-2">
           {ETB_DENOMINATIONS.map(denom => (
-            <div key={denom} className="flex items-center justify-between p-2.5 bg-surface-50 rounded-2xl border border-surface-200/80">
-              <div className="w-24 font-bold text-sm text-surface-900 font-mono">
+            <div key={denom} className="flex items-center justify-between p-2.5 bg-surface-50 rounded-2xl border border-default/80">
+              <div className="w-24 font-bold text-sm text-primary font-mono">
                 {denom} ETB
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => updateCount(denom, -1)}
-                  className="w-8 h-8 rounded-xl bg-white border border-surface-200 text-surface-700 font-bold hover:bg-surface-100 cursor-pointer"
+                  className="w-8 h-8 rounded-xl bg-surface border border-default text-surface-700 font-bold hover:bg-surface-100 cursor-pointer"
                 >
                   -
                 </button>
                 <input
                   type="number"
                   min="0"
-                  className="w-14 text-center font-bold text-sm bg-white border border-surface-200 rounded-xl py-1 outline-none font-mono"
+                  className="w-14 text-center font-bold text-sm bg-surface border border-default rounded-xl py-1 outline-none font-mono"
                   value={counts[denom] || 0}
                   onChange={e => setCounts(prev => ({ ...prev, [denom]: Math.max(0, parseInt(e.target.value) || 0) }))}
                 />
@@ -266,8 +266,8 @@ export default function TillManagementPage() {
             <Lock className="w-10 h-10 text-surface-400" />
           </div>
           <div>
-            <h2 className="text-xl font-display font-bold text-surface-900">Till is Currently Closed</h2>
-            <p className="text-sm text-surface-500 mt-1 max-w-sm mx-auto">
+            <h2 className="text-xl font-display font-bold text-primary">Till is Currently Closed</h2>
+            <p className="text-sm text-muted mt-1 max-w-sm mx-auto">
               Enter your starting cash float or use the ETB note counter to open the drawer.
             </p>
           </div>
@@ -314,11 +314,11 @@ export default function TillManagementPage() {
                   <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
                   <h2 className="text-xs font-extrabold text-emerald-800 uppercase tracking-widest">Till Open & Active</h2>
                 </div>
-                <p className="text-xs text-surface-500">Opened at {new Date(session.opened_at).toLocaleTimeString()}</p>
+                <p className="text-xs text-muted">Opened at {new Date(session.opened_at).toLocaleTimeString()}</p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-surface-400 mb-0.5">Starting Float</p>
-                <p className="font-mono font-bold text-surface-900">{formatCurrency(session.starting_cash)}</p>
+                <p className="font-mono font-bold text-primary">{formatCurrency(session.starting_cash)}</p>
               </div>
             </div>
 
@@ -333,7 +333,7 @@ export default function TillManagementPage() {
                   <p className="text-xs text-surface-400 mt-0.5">Starting float + Cash sales</p>
                 </div>
               </div>
-              <p className="text-3xl font-display font-extrabold text-surface-900 font-mono tracking-tight text-brand-600">
+              <p className="text-3xl font-display font-extrabold text-primary font-mono tracking-tight text-brand-600">
                 {formatCurrency(session.expected_cash)}
               </p>
             </div>
@@ -343,34 +343,34 @@ export default function TillManagementPage() {
               <p className="text-xs font-bold uppercase tracking-wider text-surface-400">Shift Sales by Channel</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-surface-50 p-3.5 rounded-2xl border border-surface-100">
-                  <div className="flex items-center gap-1.5 text-xs text-surface-500 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
                     <Banknote className="w-3.5 h-3.5 text-emerald-600" /> Cash (ETB)
                   </div>
-                  <p className="font-bold font-mono text-surface-900 text-sm">{formatCurrency(summary.total_cash_sales)}</p>
+                  <p className="font-bold font-mono text-primary text-sm">{formatCurrency(summary.total_cash_sales)}</p>
                 </div>
                 <div className="bg-surface-50 p-3.5 rounded-2xl border border-surface-100">
-                  <div className="flex items-center gap-1.5 text-xs text-surface-500 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
                     <Smartphone className="w-3.5 h-3.5 text-violet-600" /> Telebirr
                   </div>
-                  <p className="font-bold font-mono text-surface-900 text-sm">{formatCurrency(summary.total_telebirr_sales)}</p>
+                  <p className="font-bold font-mono text-primary text-sm">{formatCurrency(summary.total_telebirr_sales)}</p>
                 </div>
                 <div className="bg-surface-50 p-3.5 rounded-2xl border border-surface-100">
-                  <div className="flex items-center gap-1.5 text-xs text-surface-500 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
                     <Building2 className="w-3.5 h-3.5 text-purple-600" /> CBE Birr
                   </div>
-                  <p className="font-bold font-mono text-surface-900 text-sm">{formatCurrency(summary.total_cbe_sales || 0)}</p>
+                  <p className="font-bold font-mono text-primary text-sm">{formatCurrency(summary.total_cbe_sales || 0)}</p>
                 </div>
                 <div className="bg-surface-50 p-3.5 rounded-2xl border border-surface-100">
-                  <div className="flex items-center gap-1.5 text-xs text-surface-500 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
                     <CreditCard className="w-3.5 h-3.5 text-blue-600" /> Card / POS
                   </div>
-                  <p className="font-bold font-mono text-surface-900 text-sm">{formatCurrency(summary.total_card_sales)}</p>
+                  <p className="font-bold font-mono text-primary text-sm">{formatCurrency(summary.total_card_sales)}</p>
                 </div>
                 <div className="bg-surface-50 p-3.5 rounded-2xl border border-surface-100">
-                  <div className="flex items-center gap-1.5 text-xs text-surface-500 mb-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted mb-1">
                     <Building2 className="w-3.5 h-3.5 text-blue-600" /> Bank Transfer
                   </div>
-                  <p className="font-bold font-mono text-surface-900 text-sm">{formatCurrency(summary.total_bank_sales || 0)}</p>
+                  <p className="font-bold font-mono text-primary text-sm">{formatCurrency(summary.total_bank_sales || 0)}</p>
                 </div>
               </div>
             </div>
@@ -390,8 +390,8 @@ export default function TillManagementPage() {
           <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-surface-900 text-base">End of Shift Reconciliation</h3>
-                <p className="text-xs text-surface-500">Count physical cash in the drawer to close the till and generate Z-Report.</p>
+                <h3 className="font-bold text-primary text-base">End of Shift Reconciliation</h3>
+                <p className="text-xs text-muted">Count physical cash in the drawer to close the till and generate Z-Report.</p>
               </div>
               <Button
                 variant="secondary"

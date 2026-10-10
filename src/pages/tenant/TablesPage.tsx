@@ -12,6 +12,9 @@ import { cn, formatCurrency } from '../../lib/utils';
 import type { Table, TableStatus } from '../../types';
 import { Button, Badge, Modal, Input } from '../../components/ui';
 import { TableStandModal } from '../../components/pos';
+import { useConfirm } from '../../contexts/ConfirmContext';
+import { useToast } from '../../components/ui/Toast';
+import { globalConfirm } from '../../contexts/ConfirmContext';
 
 const STATUS_CONFIG: Record<TableStatus, { bg: string; border: string; text: string; dot: string; label: string; badgeStatus: 'ready' | 'cancelled' | 'pending' | 'served' }> = {
   available: {
@@ -63,7 +66,7 @@ function TableCard({ table, onClick }: { table: Table; onClick: () => void }) {
       )}
     >
       <div className="flex items-center justify-between w-full">
-        <span className="flex items-center gap-1.5 text-[11px] font-bold text-surface-500 bg-white/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-white/60">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold text-muted bg-surface/70 backdrop-blur-xs px-2 py-0.5 rounded-full border border-white/60">
           <Users className="w-3 h-3 text-surface-400" />
           {table.capacity}
         </span>
@@ -71,7 +74,7 @@ function TableCard({ table, onClick }: { table: Table; onClick: () => void }) {
       </div>
 
       <div className="text-center my-auto">
-        <span className="font-display font-black text-2xl text-surface-900 leading-none group-hover:scale-110 transition-transform block">
+        <span className="font-display font-black text-2xl text-primary leading-none group-hover:scale-110 transition-transform block">
           {table.label}
         </span>
         <span className={cn('text-xs font-bold capitalize mt-1 block', cfg.text)}>
@@ -113,6 +116,9 @@ function TableModal({
   const [loading, setLoading] = useState(false);
   const [transferTargetId, setTransferTargetId] = useState<string>('');
   const [isTransferring, setIsTransferring] = useState(false);
+  
+  const confirm = useConfirm();
+  const { toast } = useToast();
   const [showTransferBox, setShowTransferBox] = useState(false);
   const upd = (k: string, v: any) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -144,7 +150,7 @@ function TableModal({
 
   const remove = async () => {
     if (!table) return;
-    if (!confirm(`Are you sure you want to delete Table ${table.label}?`)) return;
+    if (!(await confirm(`Are you sure you want to delete Table ${table.label}?`))) return;
     await tablesApi.delete(table.id);
     qc.invalidateQueries({ queryKey: ['tables'] });
     onClose();
@@ -168,6 +174,7 @@ function TableModal({
       onClose();
     } catch (err) {
       console.error('Failed to transfer table:', err);
+      toast({ type: 'error', title: 'Failed to transfer table' });
     } finally {
       setIsTransferring(false);
     }
@@ -244,7 +251,7 @@ function TableModal({
                     size="sm"
                     icon={<Receipt className="w-3.5 h-3.5" />}
                     onClick={() => {
-                      alert('Bill requested (Cashier notified)');
+                      toast({ type: 'success', title: 'Bill requested (Cashier notified)' });
                       onClose();
                     }}
                   >
@@ -358,15 +365,15 @@ function TableModal({
 
         {/* QR Stand Section for Table */}
         {table && (
-          <div className="pt-3 border-t border-surface-200/80 space-y-3">
+          <div className="pt-3 border-t border-default/80 space-y-3">
             <div className="p-4 rounded-2xl bg-brand-50/70 border border-brand-200/80 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-brand-500 text-white flex items-center justify-center shadow-xs">
                   <QrCode className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="font-bold text-xs text-surface-900">Table Stand & QR Card</p>
-                  <p className="text-[11px] text-surface-500">Preview & print table flyer</p>
+                  <p className="font-bold text-xs text-primary">Table Stand & QR Card</p>
+                  <p className="text-[11px] text-muted">Preview & print table flyer</p>
                 </div>
               </div>
               <Button
@@ -438,7 +445,7 @@ export default function TablesPage() {
   return (
     <div className="animate-fade-in max-w-7xl mx-auto space-y-6 pb-12">
       {/* Page Header */}
-      <div className="page-header bg-white/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
+      <div className="page-header bg-surface/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
         <div>
           <h1 className="page-title">Dining Room Floor Plan</h1>
           <p className="page-subtitle">Real-time table status, seating capacity, and QR self-order placement</p>
@@ -463,7 +470,7 @@ export default function TablesPage() {
 
       {/* Filter Tabs & Legend Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-2xl border border-surface-200/80 shadow-xs">
+        <div className="flex items-center gap-2 bg-surface/80 p-1.5 rounded-2xl border border-default/80 shadow-xs">
           {filterTabs.map(tab => (
             <button
               key={tab.id}
@@ -472,7 +479,7 @@ export default function TablesPage() {
                 'px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer',
                 filterStatus === tab.id
                   ? 'bg-surface-900 text-white shadow-sm'
-                  : 'text-surface-600 hover:text-surface-900 hover:bg-surface-100'
+                  : 'text-surface-600 hover:text-primary hover:bg-surface-100'
               )}
             >
               <span>{tab.label}</span>
@@ -486,7 +493,7 @@ export default function TablesPage() {
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
           {[...Array(12)].map((_, i) => (
-            <div key={i} className="h-32 bg-white/60 rounded-3xl animate-pulse border border-surface-200/60" />
+            <div key={i} className="h-32 bg-surface/60 rounded-3xl animate-pulse border border-default/60" />
           ))}
         </div>
       ) : filteredTables.length === 0 ? (
@@ -494,7 +501,7 @@ export default function TablesPage() {
           <div className="w-20 h-20 bg-surface-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
             <Table2 className="w-10 h-10 text-surface-400" />
           </div>
-          <h3 className="font-display font-bold text-lg text-surface-900">No tables in this view</h3>
+          <h3 className="font-display font-bold text-lg text-primary">No tables in this view</h3>
           <p className="text-surface-400 text-xs mt-1">Change your filter or add new tables to customize your floor layout.</p>
           {canEditTables && (
             <Button variant="primary" className="mt-5" onClick={() => setModal({ open: true })}>
@@ -503,7 +510,7 @@ export default function TablesPage() {
           )}
         </div>
       ) : (
-        <div className="card bg-white/70 backdrop-blur-xl border border-white/80 p-8 shadow-card-premium">
+        <div className="card bg-surface/70 backdrop-blur-xl border border-white/80 p-8 shadow-card-premium">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
             {filteredTables.map((table) => (
               <TableCard key={table.id} table={table} onClick={() => setModal({ open: true, table })} />

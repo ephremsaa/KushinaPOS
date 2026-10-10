@@ -12,6 +12,7 @@ import {
 import { cn, generateId, applyTheme, isDarkColor, getContrastRatio } from '../../lib/utils';
 import { Button, Input, Modal, Badge, Card, Toggle, LargeToggle } from '../../components/ui';
 import { extractColorPalette, type ExtractedColorPalette } from '../../lib/colorExtractor';
+import { globalToast } from '../../components/ui/Toast';
 import type {
   OperatingHours, DayHours, ExtraTaxRate,
   Printer as PrinterType, KDSStationConfig,
@@ -56,7 +57,7 @@ function SaveBar({
   loading, saved, error, onSave,
 }: { loading: boolean; saved: boolean; error: string; onSave: () => void }) {
   return (
-    <div className="flex items-center justify-between pt-6 border-t border-surface-200/60 mt-6">
+    <div className="flex items-center justify-between pt-6 border-t border-default/60 mt-6">
       {error ? (
         <p className="text-sm text-red-600 flex items-center gap-1.5 font-medium">
           <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
@@ -154,7 +155,7 @@ function SlugChangeModal({
         <div>
           <label className="label">New URL Slug</label>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-surface-400 font-mono bg-surface-100 px-3 py-2.5 rounded-2xl border border-surface-200">
+            <span className="text-xs text-surface-400 font-mono bg-surface-100 px-3 py-2.5 rounded-2xl border border-default">
               {window.location.origin}/r/
             </span>
             <input
@@ -165,7 +166,7 @@ function SlugChangeModal({
             />
           </div>
           {clean && (
-            <p className="text-[11px] text-surface-500 font-mono mt-1.5">
+            <p className="text-[11px] text-muted font-mono mt-1.5">
               Preview: {window.location.origin}/r/<strong className="text-brand-600">{clean}</strong>
             </p>
           )}
@@ -296,7 +297,10 @@ export default function SettingsPage() {
       setIsExtractingColor(true);
       extractColorPalette(source)
         .then(pal => setExtractedPalette(pal))
-        .catch(() => {})
+        .catch((err) => {
+          console.error('Failed to extract color palette:', err);
+          globalToast.error('Failed to extract color palette from logo');
+        })
         .finally(() => setIsExtractingColor(false));
     }
   }, [logoFile, r?.logo_url]);
@@ -516,7 +520,7 @@ export default function SettingsPage() {
       </Modal>
 
       {/* Page Header */}
-      <div className="page-header bg-white/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
+      <div className="page-header bg-surface/60 p-6 rounded-3xl backdrop-blur-sm border border-white/80 shadow-card">
         <div>
           <h1 className="page-title">Restaurant Settings</h1>
           <p className="page-subtitle">Configure your business details, taxes, service charges, hardware, and brand theme</p>
@@ -535,7 +539,7 @@ export default function SettingsPage() {
                   'w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all cursor-pointer',
                   activeTab === tab.id
                     ? 'bg-brand-50 text-brand-700 font-bold border border-brand-200/80 shadow-xs'
-                    : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'
+                    : 'text-surface-600 hover:bg-surface-50 hover:text-primary'
                 )}
                 id={`settings-tab-${tab.id}`}
               >
@@ -564,7 +568,7 @@ export default function SettingsPage() {
                 {/* Logo & Smart Color Extraction */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 rounded-3xl bg-surface-100 border border-surface-200/80 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm relative group">
+                    <div className="w-20 h-20 rounded-3xl bg-surface-100 border border-default/80 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm relative group">
                       {logoFile ? (
                         <img src={URL.createObjectURL(logoFile)} alt="Preview" className="w-full h-full object-cover" />
                       ) : r?.logo_url ? (
@@ -619,8 +623,8 @@ export default function SettingsPage() {
                               className={cn(
                                 'flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95',
                                 isCurrent
-                                  ? 'ring-2 ring-brand-500 border-white bg-white shadow-brand-glow-sm'
-                                  : 'bg-white/90 border-surface-200/80 hover:border-surface-300'
+                                  ? 'ring-2 ring-brand-500 border-white bg-surface shadow-brand-glow-sm'
+                                  : 'bg-surface/90 border-default/80 hover:border-surface-300'
                               )}
                             >
                               <span
@@ -649,7 +653,7 @@ export default function SettingsPage() {
                         >
                           Auto-Brand Platform
                         </Button>
-                        <span className="text-[11px] text-surface-500 font-medium">
+                        <span className="text-[11px] text-muted font-medium">
                           Applies dominant accent & sets optimal background contrast
                         </span>
                       </div>
@@ -710,7 +714,7 @@ export default function SettingsPage() {
                   </div>
 
                   {/* Dedicated Protected URL Slug Management */}
-                  <div className="sm:col-span-2 p-4 bg-surface-50 rounded-2xl border border-surface-200/80 flex items-center justify-between">
+                  <div className="sm:col-span-2 p-4 bg-surface-50 rounded-2xl border border-default/80 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-bold text-surface-700 uppercase tracking-wider">Restaurant URL Slug</p>
                       <p className="text-sm font-mono font-bold text-brand-600 mt-0.5">
@@ -760,7 +764,7 @@ export default function SettingsPage() {
                     return (
                       <div key={day} className={cn(
                         'flex flex-wrap sm:flex-nowrap items-center gap-3 p-4 rounded-2xl border transition-all',
-                        dh.closed ? 'bg-surface-50 border-surface-200 opacity-60' : 'bg-white border-surface-200/80'
+                        dh.closed ? 'bg-surface-50 border-default opacity-60' : 'bg-surface border-default/80'
                       )}>
                         <span className="w-24 text-sm font-semibold text-surface-700 flex-shrink-0">
                           {DAY_LABELS[day]}
@@ -771,7 +775,7 @@ export default function SettingsPage() {
                             onClick={() => setDay(day, { closed: !dh.closed })}
                             className={cn('text-xs px-2.5 py-1 rounded-full font-semibold border transition-all cursor-pointer',
                               dh.closed
-                                ? 'bg-surface-100 text-surface-500 border-surface-200'
+                                ? 'bg-surface-100 text-muted border-default'
                                 : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             )}
                           >
@@ -781,13 +785,13 @@ export default function SettingsPage() {
                         {!dh.closed && (
                           <>
                             <div className="flex items-center gap-2">
-                              <label className="text-xs text-surface-500 w-8">From</label>
+                              <label className="text-xs text-muted w-8">From</label>
                               <input type="time" value={dh.open}
                                 onChange={e => setDay(day, { open: e.target.value })}
                                 className="input !py-1.5 !text-sm w-28" />
                             </div>
                             <div className="flex items-center gap-2">
-                              <label className="text-xs text-surface-500 w-4">To</label>
+                              <label className="text-xs text-muted w-4">To</label>
                               <input type="time" value={dh.close}
                                 onChange={e => setDay(day, { close: e.target.value })}
                                 className="input !py-1.5 !text-sm w-28" />
@@ -836,20 +840,20 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-sm font-semibold text-surface-800">Additional tax rates</p>
-                      <p className="text-xs text-surface-500">e.g. Alcohol Levy 5%, Tourism Tax 2%</p>
+                      <p className="text-xs text-muted">e.g. Alcohol Levy 5%, Tourism Tax 2%</p>
                     </div>
                     <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addExtraTax}>
                       Add Rate
                     </Button>
                   </div>
                   {extraTaxRates.length === 0 && (
-                    <p className="text-sm text-surface-400 text-center py-6 border border-dashed border-surface-200 rounded-2xl">
+                    <p className="text-sm text-surface-400 text-center py-6 border border-dashed border-default rounded-2xl">
                       No additional tax rates configured
                     </p>
                   )}
                   <div className="space-y-2">
                     {extraTaxRates.map(tr => (
-                      <div key={tr.id} className="flex items-center gap-3 p-3 bg-surface-50 rounded-2xl border border-surface-200">
+                      <div key={tr.id} className="flex items-center gap-3 p-3 bg-surface-50 rounded-2xl border border-default">
                         <input className="input flex-1 !py-2 !text-sm" placeholder="Tax name"
                           value={tr.name} onChange={e => updateExtraTax(tr.id, { name: e.target.value })} />
                         <div className="relative w-28 flex-shrink-0">
@@ -973,7 +977,7 @@ export default function SettingsPage() {
                           'py-3 px-4 rounded-2xl border text-sm font-semibold capitalize transition-all cursor-pointer',
                           receipt.receipt_default_mode === mode
                             ? 'bg-brand-50 text-brand-700 border-brand-300 shadow-sm'
-                            : 'bg-white text-surface-600 border-surface-200 hover:border-surface-300'
+                            : 'bg-surface text-surface-600 border-default hover:border-surface-300'
                         )}
                       >
                         {mode === 'print' ? '🖨️' : mode === 'email' ? '📧' : '💬'} {mode}
@@ -1021,7 +1025,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="font-semibold text-surface-800">Thermal Printers</p>
-                      <p className="text-xs text-surface-500">Receipt printer, kitchen ticket printer, bar printer</p>
+                      <p className="text-xs text-muted">Receipt printer, kitchen ticket printer, bar printer</p>
                     </div>
                     <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addPrinter}>
                       Add Printer
@@ -1029,7 +1033,7 @@ export default function SettingsPage() {
                   </div>
 
                   {printers.length === 0 && (
-                    <div className="text-center py-10 border border-dashed border-surface-200 rounded-2xl text-surface-400">
+                    <div className="text-center py-10 border border-dashed border-default rounded-2xl text-surface-400">
                       <Printer className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No printers configured</p>
                     </div>
@@ -1037,7 +1041,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-3">
                     {printers.map(p => (
-                      <div key={p.id} className="p-4 bg-surface-50 rounded-2xl border border-surface-200 space-y-3">
+                      <div key={p.id} className="p-4 bg-surface-50 rounded-2xl border border-default space-y-3">
                         <div className="flex items-center gap-3">
                           <GripVertical className="w-4 h-4 text-surface-300 flex-shrink-0" />
                           <input className="input flex-1 !py-2 !text-sm font-semibold" placeholder="Printer name"
@@ -1094,7 +1098,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="font-semibold text-surface-800">KDS Stations</p>
-                      <p className="text-xs text-surface-500">Assign kitchen display tablets to prep areas.</p>
+                      <p className="text-xs text-muted">Assign kitchen display tablets to prep areas.</p>
                     </div>
                     <Button variant="secondary" size="sm" icon={<Plus className="w-3.5 h-3.5" />} onClick={addKds}>
                       Add Station
@@ -1102,7 +1106,7 @@ export default function SettingsPage() {
                   </div>
 
                   {kdsStations.length === 0 && (
-                    <div className="text-center py-10 border border-dashed border-surface-200 rounded-2xl text-surface-400">
+                    <div className="text-center py-10 border border-dashed border-default rounded-2xl text-surface-400">
                       <Monitor className="w-8 h-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">No KDS stations configured</p>
                     </div>
@@ -1110,7 +1114,7 @@ export default function SettingsPage() {
 
                   <div className="space-y-3">
                     {kdsStations.map(k => (
-                      <div key={k.id} className="p-4 bg-surface-50 rounded-2xl border border-surface-200 space-y-3">
+                      <div key={k.id} className="p-4 bg-surface-50 rounded-2xl border border-default space-y-3">
                         <div className="flex items-center gap-3">
                           <input className="input flex-1 !py-2 !text-sm font-semibold" placeholder="Station name (e.g. Grill)"
                             value={k.name} onChange={e => updateKds(k.id, { name: e.target.value })} />
@@ -1161,7 +1165,7 @@ export default function SettingsPage() {
                           Extracted from Restaurant Logo
                         </p>
                       </div>
-                      <span className="text-[11px] text-surface-500 font-medium">Click any swatch to set as brand accent</span>
+                      <span className="text-[11px] text-muted font-medium">Click any swatch to set as brand accent</span>
                     </div>
 
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -1175,8 +1179,8 @@ export default function SettingsPage() {
                             className={cn(
                               'flex items-center gap-2 px-3 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95',
                               isCurrent
-                                ? 'ring-2 ring-brand-500 border-white bg-white shadow-brand-glow-sm'
-                                : 'bg-white/90 border-surface-200/80 hover:border-surface-300'
+                                ? 'ring-2 ring-brand-500 border-white bg-surface shadow-brand-glow-sm'
+                                : 'bg-surface/90 border-default/80 hover:border-surface-300'
                             )}
                           >
                             <span
@@ -1231,8 +1235,8 @@ export default function SettingsPage() {
                           className={cn(
                             'p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer flex flex-col justify-between gap-2.5 relative overflow-hidden',
                             isSelected
-                              ? 'ring-2 ring-brand-500 border-brand-300 shadow-brand-glow-sm bg-white'
-                              : 'bg-surface-50/70 border-surface-200/80 hover:bg-white hover:border-surface-300'
+                              ? 'ring-2 ring-brand-500 border-brand-300 shadow-brand-glow-sm bg-surface'
+                              : 'bg-surface-50/70 border-default/80 hover:bg-surface hover:border-surface-300'
                           )}
                         >
                           <div className="flex items-center justify-between">
@@ -1243,7 +1247,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <div>
-                            <p className="font-display font-bold text-xs text-surface-900 leading-tight">{preset.name}</p>
+                            <p className="font-display font-bold text-xs text-primary leading-tight">{preset.name}</p>
                             <p className="text-[10px] text-surface-400 font-mono mt-0.5">{preset.brand}</p>
                           </div>
                         </button>
@@ -1294,7 +1298,7 @@ export default function SettingsPage() {
                     <p className="text-xs font-bold uppercase tracking-wider opacity-75" style={{ color: 'var(--text-main, #0f172a)' }}>
                       Interactive Live UI Preview
                     </p>
-                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border bg-white/20 shadow-xs" style={{ color: 'var(--text-main, #0f172a)' }}>
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border bg-surface/20 shadow-xs" style={{ color: 'var(--text-main, #0f172a)' }}>
                       {appearance.background_color} · Contrast: {contrastRatio.toFixed(1)}:1
                     </span>
                   </div>
@@ -1353,7 +1357,10 @@ function NotificationPreferencesTab() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    notificationApi.getPreferences().then(setPrefs).catch(() => {});
+    notificationApi.getPreferences().then(setPrefs).catch((err) => {
+      console.error('Failed to load notification preferences:', err);
+      globalToast.error('Failed to load notification preferences');
+    });
   }, []);
 
   const toggle = (alertType: string, channel: 'in_app' | 'email' | 'sms') => {
@@ -1389,10 +1396,10 @@ function NotificationPreferencesTab() {
     <div className="space-y-6">
       <SectionHeader icon={Bell} title="Notification Channels & Alert Preferences" desc="Opt-in/opt-out of In-App Bell, Email, and SMS notifications per alert type." />
 
-      <div className="rounded-3xl border border-surface-200/80 bg-white overflow-hidden shadow-sm">
+      <div className="rounded-3xl border border-default/80 bg-surface overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-surface-200 bg-surface-50 text-surface-600 uppercase tracking-wider text-[10px]">
+            <tr className="border-b border-default bg-surface-50 text-surface-600 uppercase tracking-wider text-[10px]">
               <th className="py-3.5 px-4">Alert Event Type</th>
               <th className="py-3.5 px-4 text-center">In-App Bell 🔔</th>
               <th className="py-3.5 px-4 text-center">Email 📧</th>
@@ -1405,8 +1412,8 @@ function NotificationPreferencesTab() {
               return (
                 <tr key={p.alert_type} className="hover:bg-surface-50/60 transition-colors">
                   <td className="py-4 px-4">
-                    <p className="font-bold text-surface-900 text-sm">{info.title}</p>
-                    <p className="text-xs text-surface-500 mt-0.5">{info.desc}</p>
+                    <p className="font-bold text-primary text-sm">{info.title}</p>
+                    <p className="text-xs text-muted mt-0.5">{info.desc}</p>
                   </td>
                   <td className="py-4 px-4 text-center">
                     <input
@@ -1452,13 +1459,13 @@ function SectionHeader({ icon: Icon, title, desc }: {
   icon: React.ElementType; title: string; desc: string;
 }) {
   return (
-    <div className="flex items-center gap-4 pb-4 border-b border-surface-200/60">
+    <div className="flex items-center gap-4 pb-4 border-b border-default/60">
       <div className="w-10 h-10 bg-brand-50 rounded-2xl flex items-center justify-center flex-shrink-0">
         <Icon className="w-5 h-5 text-brand-500" />
       </div>
       <div>
-        <h2 className="font-display font-bold text-lg text-surface-900">{title}</h2>
-        <p className="text-sm text-surface-500">{desc}</p>
+        <h2 className="font-display font-bold text-lg text-primary">{title}</h2>
+        <p className="text-sm text-muted">{desc}</p>
       </div>
     </div>
   );
@@ -1504,7 +1511,7 @@ function ColorPicker({ label, desc, value, onChange, presets }: {
               title={c}
               className={cn(
                 'w-8 h-8 rounded-2xl border-2 transition-all duration-150 flex items-center justify-center cursor-pointer shadow-sm hover:scale-110',
-                isSelected ? 'ring-2 ring-brand-500 scale-110 border-white' : 'border-surface-200/80 hover:border-surface-400'
+                isSelected ? 'ring-2 ring-brand-500 scale-110 border-white' : 'border-default/80 hover:border-surface-400'
               )}
               style={{ backgroundColor: c }}
             >

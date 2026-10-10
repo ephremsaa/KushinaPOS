@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { cn, formatCurrency, formatDateTime } from '../../lib/utils';
 import { PurchaseOrderModal } from '../../components/pos';
 import type { InventoryItem, InventoryTransaction, Supplier } from '../../types';
+import { globalConfirm } from '../../contexts/ConfirmContext';
 
 // ─── Item Form Panel ─────────────────────────────────────────────────────────
 
@@ -66,7 +67,7 @@ function ItemPanel({
 
   const remove = async () => {
     if (!item) return;
-    if (!confirm(`Delete "${item.name}"? This removes it from recipes too.`)) return;
+    if (!(await globalConfirm(`Delete "${item.name}"? This removes it from recipes too.`))) return;
     await inventoryApi.delete(item.id);
     qc.invalidateQueries({ queryKey: ['inventory'] });
     onClose();
@@ -75,13 +76,13 @@ function ItemPanel({
   return (
     <div className="fixed inset-0 z-40 flex">
       <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full animate-slide-up overflow-hidden"
+      <div className="w-full max-w-md bg-surface shadow-2xl flex flex-col h-full animate-slide-up overflow-hidden"
         style={{ borderRadius: '2rem 0 0 2rem' }}>
         
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-surface-100 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold text-xl text-surface-900">
+            <h3 className="font-display font-bold text-xl text-primary">
               {item ? item.name : 'New Inventory Item'}
             </h3>
             <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full"><X className="w-5 h-5 text-surface-400" /></button>
@@ -95,7 +96,7 @@ function ItemPanel({
               ].map(t => (
                 <button key={t.k} onClick={() => setTab(t.k as any)}
                   className={cn('flex-1 py-2 rounded-xl text-xs font-bold transition-all flex justify-center items-center gap-1.5',
-                    tab === t.k ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500 hover:text-surface-700')}>
+                    tab === t.k ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-surface-700')}>
                   <t.i className="w-3.5 h-3.5" /> {t.l}
                 </button>
               ))}
@@ -151,8 +152,8 @@ function ItemPanel({
             <>
               <div className="p-4 bg-surface-50 rounded-2xl border border-surface-100 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-surface-500 font-semibold mb-1">Current Stock</p>
-                  <p className="font-bold text-surface-900 text-2xl">{item.quantity} <span className="text-sm font-normal text-surface-500">{item.unit}</span></p>
+                  <p className="text-xs text-muted font-semibold mb-1">Current Stock</p>
+                  <p className="font-bold text-primary text-2xl">{item.quantity} <span className="text-sm font-normal text-muted">{item.unit}</span></p>
                 </div>
                 <Package className="w-10 h-10 text-surface-200" />
               </div>
@@ -163,7 +164,7 @@ function ItemPanel({
                   {(['restock', 'adjustment', 'waste'] as const).map(t => (
                     <button key={t} onClick={() => setTxType(t)}
                       className={cn('py-2 rounded-xl text-xs font-bold transition-all capitalize border-2',
-                        txType === t ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-surface-200 text-surface-600')}>
+                        txType === t ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-default text-surface-600')}>
                       {t}
                     </button>
                   ))}
@@ -202,7 +203,7 @@ function ItemPanel({
                           tx.type === 'waste' ? 'bg-red-100 text-red-700' :
                           tx.type === 'order_usage' ? 'bg-amber-100 text-amber-700' : 'bg-surface-200 text-surface-700'
                         )}>{tx.type.replace('_', ' ')}</span>
-                        <span className="text-xs text-surface-500">{formatDateTime(tx.created_at)}</span>
+                        <span className="text-xs text-muted">{formatDateTime(tx.created_at)}</span>
                       </div>
                       {tx.note && <p className="text-xs text-surface-600 mt-1 italic">"{tx.note}"</p>}
                     </div>
@@ -262,9 +263,9 @@ function SupplierPanel({ supplier, onClose, onSaved }: { supplier?: Supplier; on
   return (
     <div className="fixed inset-0 z-40 flex">
       <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-sm bg-white shadow-2xl flex flex-col h-full animate-slide-up" style={{ borderRadius: '2rem 0 0 2rem' }}>
+      <div className="w-full max-w-sm bg-surface shadow-2xl flex flex-col h-full animate-slide-up" style={{ borderRadius: '2rem 0 0 2rem' }}>
         <div className="px-6 py-5 border-b border-surface-100 flex items-center justify-between">
-          <h3 className="font-display font-bold text-xl text-surface-900">{supplier ? 'Edit Supplier' : 'New Supplier'}</h3>
+          <h3 className="font-display font-bold text-xl text-primary">{supplier ? 'Edit Supplier' : 'New Supplier'}</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
@@ -315,7 +316,7 @@ export default function InventoryPage() {
       {panelSupplier.open && <SupplierPanel supplier={panelSupplier.supplier} onClose={() => setPanelSupplier({ open: false })} onSaved={() => setPanelSupplier({ open: false })} />}
 
       <div className="animate-fade-in space-y-6">
-        <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm flex-wrap gap-4">
+        <div className="page-header bg-surface/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm flex-wrap gap-4">
           <div>
             <h1 className="page-title flex items-center gap-2"><Package className="w-6 h-6 text-brand-500" /> Inventory & Stock</h1>
             <p className="page-subtitle">
@@ -323,9 +324,9 @@ export default function InventoryPage() {
               {lowStockItems.length > 0 && <span className="ml-2 text-red-500 font-bold">· {lowStockItems.length} low stock</span>}
             </p>
           </div>
-          <div className="flex gap-2 bg-white/50 p-1 rounded-2xl border border-surface-200">
-            <button onClick={() => setTab('items')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'items' ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500')}>Items</button>
-            <button onClick={() => setTab('suppliers')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'suppliers' ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500')}>Suppliers</button>
+          <div className="flex gap-2 bg-surface/50 p-1 rounded-2xl border border-default">
+            <button onClick={() => setTab('items')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'items' ? 'bg-surface shadow-sm text-primary' : 'text-muted')}>Items</button>
+            <button onClick={() => setTab('suppliers')} className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all', tab === 'suppliers' ? 'bg-surface shadow-sm text-primary' : 'text-muted')}>Suppliers</button>
           </div>
           <div className="flex items-center gap-2">
             {lowStockItems.length > 0 && (
@@ -360,10 +361,10 @@ export default function InventoryPage() {
             <div className="flex flex-wrap gap-3">
               {lowStockItems.map(item => (
                 <div key={item.id} onClick={() => setPanelItem({ open: true, item })}
-                  className="bg-white border border-red-100 rounded-2xl px-4 py-2.5 flex items-center gap-4 cursor-pointer hover:border-red-300 transition-colors shadow-sm">
+                  className="bg-surface border border-red-100 rounded-2xl px-4 py-2.5 flex items-center gap-4 cursor-pointer hover:border-red-300 transition-colors shadow-sm">
                   <div>
-                    <p className="font-bold text-sm text-surface-900">{item.name}</p>
-                    <p className="text-xs text-surface-500">Threshold: {item.low_stock_threshold}</p>
+                    <p className="font-bold text-sm text-primary">{item.name}</p>
+                    <p className="text-xs text-muted">Threshold: {item.low_stock_threshold}</p>
                   </div>
                   <div className="text-right">
                     <p className="font-extrabold text-red-600 text-lg leading-tight">{item.quantity} <span className="text-xs font-normal">{item.unit}</span></p>
@@ -389,11 +390,11 @@ export default function InventoryPage() {
                const isZero = Number(item.quantity) <= 0;
                return (
                  <div key={item.id} onClick={() => setPanelItem({ open: true, item })}
-                   className={cn('bg-white rounded-3xl border-2 p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group',
-                     isZero ? 'border-red-200 bg-red-50/30' : isLow ? 'border-amber-200' : 'border-surface-200 hover:border-brand-200')}>
+                   className={cn('bg-surface rounded-3xl border-2 p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 group',
+                     isZero ? 'border-red-200 bg-red-50/30' : isLow ? 'border-amber-200' : 'border-default hover:border-brand-200')}>
                    <div className="flex justify-between items-start mb-4">
                      <div>
-                       <p className="font-bold text-surface-900 leading-tight">{item.name}</p>
+                       <p className="font-bold text-primary leading-tight">{item.name}</p>
                        <p className="text-xs text-surface-400 flex items-center gap-1 mt-0.5"><Truck className="w-3 h-3" /> {item.supplier_name || 'No supplier'}</p>
                      </div>
                      {isZero ? (
@@ -407,8 +408,8 @@ export default function InventoryPage() {
                    <div className="flex items-end justify-between mt-auto">
                      <div>
                        <p className="text-[10px] font-semibold text-surface-400 uppercase tracking-widest">In Stock</p>
-                       <p className={cn('text-2xl font-extrabold leading-none', isZero ? 'text-red-500' : isLow ? 'text-amber-600' : 'text-surface-900')}>
-                         {item.quantity} <span className="text-sm font-normal text-surface-500">{item.unit}</span>
+                       <p className={cn('text-2xl font-extrabold leading-none', isZero ? 'text-red-500' : isLow ? 'text-amber-600' : 'text-primary')}>
+                         {item.quantity} <span className="text-sm font-normal text-muted">{item.unit}</span>
                        </p>
                      </div>
                      <p className="text-xs font-semibold text-brand-600">{item.cost_per_unit ? `${formatCurrency(item.cost_per_unit)}/${item.unit}` : '—'}</p>
@@ -427,15 +428,15 @@ export default function InventoryPage() {
                const suppliedItemsCount = items.filter(i => i.supplier_id === s.id).length;
                return (
                  <div key={s.id} onClick={() => setPanelSupplier({ open: true, supplier: s })}
-                   className="bg-white rounded-3xl border-2 border-surface-200 p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-brand-200 group">
+                   className="bg-surface rounded-3xl border-2 border-default p-5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-brand-200 group">
                    <div className="flex items-center gap-3 mb-3">
                      <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600"><Truck className="w-5 h-5" /></div>
-                     <div><p className="font-bold text-surface-900">{s.name}</p></div>
+                     <div><p className="font-bold text-primary">{s.name}</p></div>
                    </div>
                    <div className="space-y-1.5">
-                     {s.contact_name && <p className="text-xs text-surface-500 flex items-center gap-1.5"><span className="w-4 inline-block text-center">👤</span> {s.contact_name}</p>}
-                     {s.phone && <p className="text-xs text-surface-500 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-surface-400" /> {s.phone}</p>}
-                     {s.email && <p className="text-xs text-surface-500 flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-surface-400" /> {s.email}</p>}
+                     {s.contact_name && <p className="text-xs text-muted flex items-center gap-1.5"><span className="w-4 inline-block text-center">👤</span> {s.contact_name}</p>}
+                     {s.phone && <p className="text-xs text-muted flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-surface-400" /> {s.phone}</p>}
+                     {s.email && <p className="text-xs text-muted flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-surface-400" /> {s.email}</p>}
                    </div>
                    <div className="mt-4 pt-3 border-t border-surface-100">
                      <p className="text-xs font-semibold text-brand-600 bg-brand-50 inline-block px-2 py-1 rounded-lg">Supplies {suppliedItemsCount} item{suppliedItemsCount !== 1 ? 's' : ''}</p>

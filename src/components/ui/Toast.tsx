@@ -112,6 +112,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [toast]
   );
 
+  React.useEffect(() => {
+    globalToast.toast = toast;
+    globalToast.success = success;
+    globalToast.error = error;
+    globalToast.warning = warning;
+    globalToast.info = info;
+  }, [toast, success, error, warning, info]);
+
   return (
     <ToastContext.Provider value={{ toast, success, error, warning, info, dismiss }}>
       {children}
@@ -137,3 +145,11 @@ export function useToast(): ToastContextValue {
   if (!ctx) throw new Error('useToast must be used within <ToastProvider>');
   return ctx;
 }
+
+export const globalToast = {
+  toast: (item: Omit<ToastItem, 'id'>) => console.log('toast provider not mounted', item),
+  success: (title: string, message?: string) => console.log('toast provider not mounted', title),
+  error: (title: string, message?: string) => console.error('toast provider not mounted', title),
+  warning: (title: string, message?: string) => console.warn('toast provider not mounted', title),
+  info: (title: string, message?: string) => console.info('toast provider not mounted', title),
+};

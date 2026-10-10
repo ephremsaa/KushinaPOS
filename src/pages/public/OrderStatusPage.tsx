@@ -31,8 +31,8 @@ export default function OrderStatusPage() {
     return (
       <div className="min-h-screen bg-surface-50 flex flex-col items-center justify-center p-6 text-center">
         <AlertCircle className="w-14 h-14 text-red-500 mb-3" />
-        <h1 className="text-xl font-bold text-surface-900">Order Not Found</h1>
-        <p className="text-sm text-surface-500 max-w-sm mt-1 mb-4">We couldn't find an order matching ID `{orderId}`.</p>
+        <h1 className="text-xl font-bold text-primary">Order Not Found</h1>
+        <p className="text-sm text-muted max-w-sm mt-1 mb-4">We couldn't find an order matching ID `{orderId}`.</p>
         <Link to="/" className="btn-primary">Return Home</Link>
       </div>
     );
@@ -59,23 +59,23 @@ export default function OrderStatusPage() {
   return (
     <div className="min-h-screen bg-surface-50 pb-12">
       {/* Header */}
-      <header className="bg-white border-b border-surface-200 sticky top-0 z-20 shadow-xs">
+      <header className="bg-surface border-b border-default sticky top-0 z-20 shadow-xs">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {order.restaurant_logo ? (
-              <img src={order.restaurant_logo} alt={order.restaurant_name} className="w-10 h-10 rounded-2xl object-cover border border-surface-200 flex-shrink-0" />
+              <img src={order.restaurant_logo} alt={order.restaurant_name} className="w-10 h-10 rounded-2xl object-cover border border-default flex-shrink-0" />
             ) : (
               <div className="w-10 h-10 bg-brand-50 rounded-2xl flex items-center justify-center text-brand-600 font-bold text-base flex-shrink-0">
                 {order.restaurant_name?.charAt(0)}
               </div>
             )}
             <div>
-              <h1 className="font-display font-bold text-sm text-surface-900">{order.restaurant_name}</h1>
-              <p className="text-[10px] text-surface-500">Order #{order.local_id || order.id.slice(0, 8)}</p>
+              <h1 className="font-display font-bold text-sm text-primary">{order.restaurant_name}</h1>
+              <p className="text-[10px] text-muted">Order #{order.local_id || order.id.slice(0, 8)}</p>
             </div>
           </div>
 
-          <button onClick={() => refetch()} className="btn-ghost btn-sm p-2 text-surface-500 hover:text-surface-900">
+          <button onClick={() => refetch()} className="btn-ghost btn-sm p-2 text-muted hover:text-primary">
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
@@ -85,12 +85,12 @@ export default function OrderStatusPage() {
       <main className="max-w-xl mx-auto px-4 py-6 space-y-5">
         
         {/* Status Card */}
-        <div className="bg-white rounded-3xl border border-surface-200 p-6 shadow-xs text-center">
+        <div className="bg-surface rounded-3xl border border-default p-6 shadow-xs text-center">
           {isCancelled ? (
             <div className="py-4">
               <AlertCircle className="w-14 h-14 text-red-500 mx-auto mb-2" />
               <h2 className="font-display font-bold text-xl text-red-700">Order Cancelled</h2>
-              <p className="text-xs text-surface-500 mt-1">Please contact the restaurant for details.</p>
+              <p className="text-xs text-muted mt-1">Please contact the restaurant for details.</p>
             </div>
           ) : (
             <div>
@@ -101,10 +101,10 @@ export default function OrderStatusPage() {
                 {currentStepIdx >= 3 && <CheckCircle2 className="w-8 h-8 text-emerald-500" />}
               </div>
 
-              <h2 className="font-display font-bold text-2xl text-surface-900 capitalize">
+              <h2 className="font-display font-bold text-2xl text-primary capitalize">
                 {steps[currentStepIdx]?.label || order.status}
               </h2>
-              <p className="text-xs text-surface-500 mt-1">{steps[currentStepIdx]?.desc}</p>
+              <p className="text-xs text-muted mt-1">{steps[currentStepIdx]?.desc}</p>
 
               {/* Progress Tracker */}
               <div className="mt-8 relative flex items-center justify-between">
@@ -121,7 +121,7 @@ export default function OrderStatusPage() {
                     <div key={step.key} className="relative z-10 flex flex-col items-center">
                       <div className={cn(
                         'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300',
-                        isDone ? 'bg-brand-500 text-white shadow-xs scale-105' : 'bg-white border-2 border-surface-200 text-surface-400'
+                        isDone ? 'bg-brand-500 text-white shadow-xs scale-105' : 'bg-surface border-2 border-default text-surface-400'
                       )}>
                         {isDone ? <Check className="w-4 h-4" /> : idx + 1}
                       </div>
@@ -137,9 +137,9 @@ export default function OrderStatusPage() {
         </div>
 
         {/* Order Details Card */}
-        <div className="bg-white rounded-3xl border border-surface-200 p-5 shadow-xs space-y-4">
+        <div className="bg-surface rounded-3xl border border-default p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-surface-100">
-            <h3 className="font-display font-bold text-sm text-surface-900">Order Summary</h3>
+            <h3 className="font-display font-bold text-sm text-primary">Order Summary</h3>
             <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-surface-100 text-surface-700 capitalize">
               {order.order_type.replace('_', ' ')} {order.table_label && `(Table ${order.table_label})`}
             </span>
@@ -155,12 +155,12 @@ export default function OrderStatusPage() {
                     {item.notes && <p className="text-[10px] text-surface-400 italic">"{item.notes}"</p>}
                   </div>
                 </div>
-                <span className="font-bold text-surface-900">{formatCurrency(item.unit_price * item.quantity)}</span>
+                <span className="font-bold text-primary">{formatCurrency(item.unit_price * item.quantity)}</span>
               </div>
             ))}
           </div>
 
-          <div className="pt-3 border-t border-surface-100 flex justify-between font-bold text-surface-900 text-sm">
+          <div className="pt-3 border-t border-surface-100 flex justify-between font-bold text-primary text-sm">
             <span>Total</span>
             <span>{formatCurrency(order.total)}</span>
           </div>
@@ -168,10 +168,10 @@ export default function OrderStatusPage() {
 
         {/* Restaurant Contact */}
         {order.restaurant_phone && (
-          <div className="bg-white rounded-3xl border border-surface-200 p-4 shadow-xs flex items-center justify-between text-xs">
+          <div className="bg-surface rounded-3xl border border-default p-4 shadow-xs flex items-center justify-between text-xs">
             <div>
-              <p className="font-bold text-surface-900">Need help with your order?</p>
-              <p className="text-surface-500">Call {order.restaurant_name}</p>
+              <p className="font-bold text-primary">Need help with your order?</p>
+              <p className="text-muted">Call {order.restaurant_name}</p>
             </div>
             <a href={`tel:${order.restaurant_phone}`} className="btn-secondary btn-sm gap-1.5">
               <Phone className="w-3.5 h-3.5" /> {order.restaurant_phone}

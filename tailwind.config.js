@@ -5,6 +5,13 @@ export default {
   theme: {
     extend: {
       colors: {
+
+        surface: 'var(--bg-surface)',
+        'surface-muted': 'var(--bg-surface-muted)',
+        primary: 'var(--text-primary)',
+        muted: 'var(--text-muted)',
+        default: 'var(--border-color)',
+
         brand: {
           50:  '#eef7ef',
           100: '#d7eed9',

@@ -1,6 +1,4 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const { authenticate, requireTenant, requireOwner, requireManager } = require('../middleware/auth');
@@ -9,25 +7,11 @@ const router = express.Router();
 router.use(authenticate, requireTenant);
 const tid = (req) => req.user.restaurantId;
 
-// Multer setup for menu images
-const menuStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/menu-images')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuidv4()}${ext}`);
-  },
-});
-const menuUpload = multer({ storage: menuStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const { createUploadMiddleware, deleteOldUpload } = require('../utils/uploadHelper');
 
-// Logo upload
-const logoStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/logos')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${tid(req)}${ext}`);
-  },
-});
-const logoUpload = multer({ storage: logoStorage, limits: { fileSize: 2 * 1024 * 1024 } });
+const menuUpload = createUploadMiddleware({ fieldName: 'image', folder: 'menu-images', maxBytes: 5 * 1024 * 1024 });
+const logoUpload = createUploadMiddleware({ fieldName: 'logo', folder: 'logos', maxBytes: 2 * 1024 * 1024 });
+const docUpload = createUploadMiddleware({ fieldName: 'document', folder: 'licenses', maxBytes: 5 * 1024 * 1024, isPrivate: true, allowPdf: true });
 
 // ── GET /api/restaurants/me ───────────────────────────────────
 router.get('/me', async (req, res) => {
@@ -219,34 +203,34 @@ router.post('/me/test-print', requireManager, async (req, res) => {
 });
 
 // ── POST /api/restaurants/me/logo ────────────────────────────
-router.post('/me/logo', requireOwner, logoUpload.single('logo'), async (req, res) => {
+router.post('/me/logo', requireOwner, logoUpload, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Logo file required' });
-  const logo_url = `/uploads/logos/${req.file.filename}`;
+  const logo_url = req.file.url;
+  const { rows } = await db.query('SELECT logo_url FROM restaurants WHERE id=$1', [tid(req)]);
+  if (rows[0] && rows[0].logo_url) await deleteOldUpload(rows[0].logo_url);
+  
   await db.query('UPDATE restaurants SET logo_url=$1, updated_at=NOW() WHERE id=$2', [logo_url, tid(req)]);
   res.json({ logo_url });
 });
 
 // ── POST /api/restaurants/me/document ────────────────────────
-const docStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/payment-proofs')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `doc_${tid(req)}${ext}`);
-  },
-});
-const docUpload = multer({ storage: docStorage, limits: { fileSize: 5 * 1024 * 1024 } });
-
-router.post('/me/document', requireOwner, docUpload.single('document'), async (req, res) => {
+router.post('/me/document', requireOwner, docUpload, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Document file required' });
-  const doc_url = `/uploads/payment-proofs/${req.file.filename}`;
+  const doc_url = req.file.url;
+  const { rows } = await db.query('SELECT business_license_url FROM restaurants WHERE id=$1', [tid(req)]);
+  if (rows[0] && rows[0].business_license_url) await deleteOldUpload(rows[0].business_license_url);
+
   await db.query('UPDATE restaurants SET business_license_url=$1, updated_at=NOW() WHERE id=$2', [doc_url, tid(req)]);
   res.json({ business_license_url: doc_url });
 });
 
 // ── POST /api/restaurants/menu-image ─────────────────────────
-router.post('/menu-image', requireManager, menuUpload.single('image'), async (req, res) => {
+router.post('/menu-image', requireManager, menuUpload, async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Image file required' });
-  const image_url = `/uploads/menu-images/${req.file.filename}`;
+  // Menu images aren't tracked to a single column in restaurants, they are typically returned 
+  // to the client to be attached to a menu item create/update request.
+  // The client or a cron job would delete orphaned images.
+  const image_url = req.file.url;
   res.json({ image_url });
 });
 

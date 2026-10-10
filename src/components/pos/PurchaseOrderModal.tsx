@@ -79,7 +79,7 @@ export function PurchaseOrderModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl border border-surface-200 flex flex-col max-h-[92vh] overflow-hidden my-auto">
+      <div className="bg-surface rounded-[2rem] w-full max-w-2xl shadow-2xl border border-default flex flex-col max-h-[92vh] overflow-hidden my-auto">
         
         {/* Modal Header */}
         <div className="p-5 border-b border-surface-100 flex items-center justify-between print:hidden">
@@ -88,10 +88,10 @@ export function PurchaseOrderModal({
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-display font-black text-lg text-surface-900">
+              <h3 className="font-display font-black text-lg text-primary">
                 Supplier Purchase Reorder Sheet
               </h3>
-              <p className="text-xs text-surface-500">
+              <p className="text-xs text-muted">
                 {lowStockItems.length} low stock item{lowStockItems.length === 1 ? '' : 's'} requiring restock
               </p>
             </div>
@@ -107,12 +107,12 @@ export function PurchaseOrderModal({
         {/* Printable Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 print:p-4 print:overflow-visible">
           {/* Printable Header */}
-          <div className="border-b border-surface-200 pb-4 flex justify-between items-start">
+          <div className="border-b border-default pb-4 flex justify-between items-start">
             <div>
-              <h2 className="font-display font-black text-2xl text-surface-900">
+              <h2 className="font-display font-black text-2xl text-primary">
                 {restaurantName}
               </h2>
-              <p className="text-xs text-surface-500 font-mono mt-0.5">
+              <p className="text-xs text-muted font-mono mt-0.5">
                 PURCHASE REORDER MANIFEST · Generated {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
@@ -128,26 +128,26 @@ export function PurchaseOrderModal({
             <div className="text-center py-12 space-y-2">
               <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
               <h4 className="font-bold text-base text-surface-800">Inventory Healthy</h4>
-              <p className="text-xs text-surface-500">All items are currently above their minimum safety thresholds.</p>
+              <p className="text-xs text-muted">All items are currently above their minimum safety thresholds.</p>
             </div>
           ) : (
             <div className="space-y-6">
               {groupedOrders.map((grp, idx) => (
                 <div
                   key={idx}
-                  className="rounded-2xl border border-surface-200/80 p-4 space-y-3 bg-surface-50/50"
+                  className="rounded-2xl border border-default/80 p-4 space-y-3 bg-surface-50/50"
                 >
                   {/* Supplier Info Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-surface-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-default">
                     <div className="flex items-center gap-2">
                       <Truck className="w-4 h-4 text-brand-500" />
-                      <span className="font-bold text-sm text-surface-900">
+                      <span className="font-bold text-sm text-primary">
                         {grp.supplier ? grp.supplier.name : 'Unassigned Supplier / Local Market'}
                       </span>
                     </div>
 
                     {grp.supplier && (
-                      <div className="flex items-center gap-3 text-xs text-surface-500">
+                      <div className="flex items-center gap-3 text-xs text-muted">
                         {grp.supplier.phone && (
                           <a
                             href={`tel:${grp.supplier.phone}`}
@@ -168,7 +168,7 @@ export function PurchaseOrderModal({
                   {/* Items Table */}
                   <table className="w-full text-xs text-left">
                     <thead>
-                      <tr className="text-surface-400 font-bold border-b border-surface-200">
+                      <tr className="text-surface-400 font-bold border-b border-default">
                         <th className="pb-1.5 font-bold">Item</th>
                         <th className="pb-1.5 text-center font-bold">In Stock</th>
                         <th className="pb-1.5 text-center font-bold">Threshold</th>
@@ -185,7 +185,7 @@ export function PurchaseOrderModal({
                           <td className="py-2 text-center text-red-600 font-bold font-mono">
                             {item.quantity} {item.unit}
                           </td>
-                          <td className="py-2 text-center text-surface-500 font-mono">
+                          <td className="py-2 text-center text-muted font-mono">
                             {item.low_stock_threshold} {item.unit}
                           </td>
                           <td className="py-2 text-center font-bold font-mono text-brand-600 bg-brand-50/50 rounded-lg">
@@ -200,9 +200,9 @@ export function PurchaseOrderModal({
                   </table>
 
                   {/* Group Subtotal */}
-                  <div className="pt-2 flex justify-between items-center text-xs font-bold text-surface-700 border-t border-dashed border-surface-200">
+                  <div className="pt-2 flex justify-between items-center text-xs font-bold text-surface-700 border-t border-dashed border-default">
                     <span>Subtotal ({grp.items.length} items):</span>
-                    <span className="font-mono text-sm text-surface-900">
+                    <span className="font-mono text-sm text-primary">
                       {formatCurrency(grp.totalCost)}
                     </span>
                   </div>
@@ -213,7 +213,7 @@ export function PurchaseOrderModal({
         </div>
 
         {/* Modal Footer Actions */}
-        <div className="p-4 bg-surface-50 border-t border-surface-200 flex items-center justify-between gap-3 px-6 print:hidden">
+        <div className="p-4 bg-surface-50 border-t border-default flex items-center justify-between gap-3 px-6 print:hidden">
           <button onClick={onClose} className="btn-secondary btn-sm flex-1">
             Close
           </button>

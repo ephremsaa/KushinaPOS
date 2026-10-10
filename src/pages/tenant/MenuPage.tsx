@@ -12,6 +12,8 @@ import { formatCurrency, cn } from '../../lib/utils';
 import { Modal } from '../../components/ui';
 import { MenuEngineeringMatrix } from '../../components/analytics/MenuEngineeringMatrix';
 import type { MenuItem, MenuCategory } from '../../types';
+import { globalConfirm } from '../../contexts/ConfirmContext';
+import { globalToast } from '../../components/ui/Toast';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +78,7 @@ function ModifierEditor({ modifiers, onChange }: {
   return (
     <div className="space-y-4">
       {modifiers.map((mod, gi) => (
-        <div key={gi} className="border border-surface-200 rounded-2xl overflow-hidden">
+        <div key={gi} className="border border-default rounded-2xl overflow-hidden">
           <div className="bg-surface-50 px-4 py-3 flex items-center gap-3">
             <GripVertical className="w-4 h-4 text-surface-300 flex-shrink-0" />
             <input
@@ -90,7 +92,7 @@ function ModifierEditor({ modifiers, onChange }: {
                 onChange={e => updateGroup(gi, { is_required: e.target.checked })} />
               Required
             </label>
-            <button onClick={() => removeGroup(gi)} className="p-1.5 hover:bg-red-100 rounded-lg transition-colors">
+            <button onClick={async () => removeGroup(gi)} className="p-1.5 hover:bg-red-100 rounded-lg transition-colors">
               <Trash2 className="w-3.5 h-3.5 text-red-400" />
             </button>
           </div>
@@ -176,22 +178,22 @@ function RecipePanel({ item, invItems }: { item: MenuItem; invItems: any[] }) {
   const save = async () => {
     setSaving(true);
     try { await recipesApi.update(item.id, ingredients); qc.invalidateQueries({ queryKey: ['recipes', item.id] }); }
-    catch { alert('Failed to save recipe'); }
+    catch { globalToast.info('Failed to save recipe'); }
     finally { setSaving(false); }
   };
 
   return (
     <div className="space-y-3 pt-2">
-      <p className="text-xs text-surface-500">Link raw ingredients to calculate dish cost and auto-deplete stock when orders are placed.</p>
+      <p className="text-xs text-muted">Link raw ingredients to calculate dish cost and auto-deplete stock when orders are placed.</p>
 
       {/* Real-time food cost and margin badge */}
-      <div className="p-3.5 bg-surface-50 rounded-2xl border border-surface-200 flex items-center justify-between text-xs">
+      <div className="p-3.5 bg-surface-50 rounded-2xl border border-default flex items-center justify-between text-xs">
         <div>
-          <p className="text-surface-500 font-bold">Estimated Plate Cost</p>
-          <p className="font-mono font-black text-sm text-surface-900 mt-0.5">{formatCurrency(totalFoodCost)}</p>
+          <p className="text-muted font-bold">Estimated Plate Cost</p>
+          <p className="font-mono font-black text-sm text-primary mt-0.5">{formatCurrency(totalFoodCost)}</p>
         </div>
         <div className="text-right">
-          <p className="text-surface-500 font-bold">Gross Margin</p>
+          <p className="text-muted font-bold">Gross Margin</p>
           <p className={cn(
             "font-mono font-black text-sm mt-0.5",
             marginPercent >= 65 ? "text-emerald-600" : marginPercent >= 40 ? "text-amber-600" : "text-red-600"
@@ -206,7 +208,7 @@ function RecipePanel({ item, invItems }: { item: MenuItem; invItems: any[] }) {
         const lineCost = (Number(inv?.cost_per_unit) || 0) * (Number(ing.quantity_required) || 0);
 
         return (
-          <div key={idx} className="flex gap-2 items-center bg-white p-1 rounded-xl border border-surface-100">
+          <div key={idx} className="flex gap-2 items-center bg-surface p-1 rounded-xl border border-surface-100">
             <select
               className="select flex-1 text-xs py-1.5"
               value={ing.inventory_item_id}
@@ -333,7 +335,7 @@ function ItemPanel({
       qc.invalidateQueries({ queryKey: ['menu-items'] });
       onSaved();
     } catch (e: any) {
-      alert('Failed to save: ' + (e.message || 'Unknown error'));
+      globalToast.info('Failed to save: ' + (e.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -341,7 +343,7 @@ function ItemPanel({
 
   const del = async () => {
     if (!item) return;
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    if (!(await globalConfirm(`Delete "${item.name}"? This cannot be undone.`))) return;
     setDeleting(true);
     try {
       await menuApi.deleteItem(item.id);
@@ -361,12 +363,12 @@ function ItemPanel({
       {/* Backdrop */}
       <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       {/* Panel */}
-      <div className="w-full max-w-xl bg-white shadow-2xl flex flex-col h-full animate-slide-up overflow-hidden"
+      <div className="w-full max-w-xl bg-surface shadow-2xl flex flex-col h-full animate-slide-up overflow-hidden"
         style={{ borderRadius: '2rem 0 0 2rem' }}>
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-surface-100 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display font-bold text-xl text-surface-900">
+            <h3 className="font-display font-bold text-xl text-primary">
               {item ? 'Edit Item' : 'New Menu Item'}
             </h3>
             <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full transition-colors">
@@ -381,7 +383,7 @@ function ItemPanel({
                 onClick={() => setTab(key)}
                 className={cn(
                   'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-bold transition-all',
-                  tab === key ? 'bg-white shadow-sm text-surface-900' : 'text-surface-500 hover:text-surface-700'
+                  tab === key ? 'bg-surface shadow-sm text-primary' : 'text-muted hover:text-surface-700'
                 )}
               >
                 <Icon className="w-3.5 h-3.5" /> {label}
@@ -398,7 +400,7 @@ function ItemPanel({
               <label htmlFor="item-img" className="block cursor-pointer">
                 <div className={cn(
                   'w-full h-40 rounded-2xl border-2 border-dashed overflow-hidden transition-all flex items-center justify-center relative group',
-                  imagePreview ? 'border-transparent' : 'border-surface-200 hover:border-brand-400 bg-surface-50'
+                  imagePreview ? 'border-transparent' : 'border-default hover:border-brand-400 bg-surface-50'
                 )}>
                   {imagePreview ? (
                     <>
@@ -470,7 +472,7 @@ function ItemPanel({
                         'px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all',
                         form.tags.includes(key)
                           ? 'bg-brand-500 border-brand-500 text-white'
-                          : 'bg-surface-50 border-surface-200 text-surface-600 hover:border-brand-300'
+                          : 'bg-surface-50 border-default text-surface-600 hover:border-brand-300'
                       )}
                     >
                       {label}
@@ -489,7 +491,7 @@ function ItemPanel({
                     'w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all',
                     form.is_available
                       ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                      : 'bg-surface-50 border-surface-200 text-surface-600'
+                      : 'bg-surface-50 border-default text-surface-600'
                   )}
                 >
                   <span className="font-semibold text-sm">
@@ -570,9 +572,9 @@ function CategoryModal({ cat, onClose }: { cat?: MenuCategory; onClose: () => vo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[2rem] w-full max-w-xs shadow-2xl p-6 space-y-4">
+      <div className="bg-surface rounded-[2rem] w-full max-w-xs shadow-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-surface-900">{cat ? 'Edit Category' : 'New Category'}</h3>
+          <h3 className="font-bold text-primary">{cat ? 'Edit Category' : 'New Category'}</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full"><X className="w-4 h-4" /></button>
         </div>
         <div>
@@ -588,7 +590,7 @@ function CategoryModal({ cat, onClose }: { cat?: MenuCategory; onClose: () => vo
             <label className="label">Visible</label>
             <button onClick={() => setVisible(!visible)}
               className={cn('w-full flex items-center justify-between px-3 py-2.5 rounded-xl border-2 text-sm font-bold transition-all',
-                visible ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-surface-50 border-surface-200 text-surface-500')}>
+                visible ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'bg-surface-50 border-default text-muted')}>
               {visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               {visible ? 'Yes' : 'Hidden'}
             </button>
@@ -630,15 +632,15 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
       setResult(r);
       qc.invalidateQueries({ queryKey: ['menu-items'] });
       qc.invalidateQueries({ queryKey: ['menu-categories'] });
-    } catch { alert('Import failed'); }
+    } catch { globalToast.info('Import failed'); }
     finally { setImporting(false); }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl p-6 space-y-4">
+      <div className="bg-surface rounded-[2rem] w-full max-w-md shadow-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-surface-900 flex items-center gap-2"><FileUp className="w-5 h-5 text-brand-500" />Import CSV</h3>
+          <h3 className="font-bold text-primary flex items-center gap-2"><FileUp className="w-5 h-5 text-brand-500" />Import CSV</h3>
           <button onClick={onClose} className="p-2 hover:bg-surface-100 rounded-full"><X className="w-4 h-4" /></button>
         </div>
 
@@ -649,13 +651,13 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
 
         {!result ? (
           <>
-            <label className="flex flex-col items-center gap-3 border-2 border-dashed border-surface-200 rounded-2xl p-8 cursor-pointer hover:border-brand-400 transition-colors">
+            <label className="flex flex-col items-center gap-3 border-2 border-dashed border-default rounded-2xl p-8 cursor-pointer hover:border-brand-400 transition-colors">
               <Upload className="w-8 h-8 text-surface-300" />
-              <span className="text-sm text-surface-500">{rows.length > 0 ? `${rows.length} rows ready` : 'Choose CSV file'}</span>
+              <span className="text-sm text-muted">{rows.length > 0 ? `${rows.length} rows ready` : 'Choose CSV file'}</span>
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
             </label>
             {rows.length > 0 && (
-              <div className="max-h-40 overflow-y-auto border border-surface-200 rounded-xl text-xs">
+              <div className="max-h-40 overflow-y-auto border border-default rounded-xl text-xs">
                 <table className="w-full">
                   <thead><tr className="bg-surface-50">{Object.keys(rows[0]).map(h => <th key={h} className="text-left px-2 py-1.5 font-semibold">{h}</th>)}</tr></thead>
                   <tbody>{rows.slice(0, 5).map((r, i) => <tr key={i} className="border-t border-surface-100">{Object.values(r).map((v, j) => <td key={j} className="px-2 py-1 truncate max-w-[100px]">{v}</td>)}</tr>)}</tbody>
@@ -675,7 +677,7 @@ function ImportDialog({ onClose }: { onClose: () => void }) {
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
               <Check className="w-8 h-8 text-emerald-600" />
             </div>
-            <p className="font-bold text-surface-900">Imported {result.imported} items!</p>
+            <p className="font-bold text-primary">Imported {result.imported} items!</p>
             {result.errors.length > 0 && (
               <div className="text-left bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-800">
                 {result.errors.map((e, i) => <p key={i}>{e}</p>)}
@@ -772,7 +774,7 @@ export default function MenuPage() {
 
       <div className="animate-fade-in space-y-6">
         {/* Header */}
-        <div className="page-header bg-white/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm">
+        <div className="page-header bg-surface/40 p-5 rounded-[2rem] backdrop-blur-sm border border-white/60 shadow-sm">
           <div>
             <h1 className="page-title flex items-center gap-2">
               <BookOpen className="w-6 h-6 text-brand-500" /> Menu
@@ -817,7 +819,7 @@ export default function MenuPage() {
           <button
             onClick={() => setSelectedCat('all')}
             className={cn('flex-shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all',
-              selectedCat === 'all' ? 'bg-brand-500 text-white' : 'bg-white border border-surface-200 text-surface-600 hover:border-brand-300')}
+              selectedCat === 'all' ? 'bg-brand-500 text-white' : 'bg-surface border border-default text-surface-600 hover:border-brand-300')}
           >
             All ({items.length})
           </button>
@@ -828,7 +830,7 @@ export default function MenuPage() {
                 <button
                   onClick={() => setSelectedCat(cat.id)}
                   className={cn('flex items-center gap-1.5 px-4 py-2 rounded-l-full text-sm font-bold transition-all',
-                    selectedCat === cat.id ? 'bg-brand-500 text-white' : 'bg-white border border-surface-200 text-surface-600 hover:border-brand-300')}
+                    selectedCat === cat.id ? 'bg-brand-500 text-white' : 'bg-surface border border-default text-surface-600 hover:border-brand-300')}
                 >
                   {!cat.is_visible && <EyeOff className="w-3 h-3 opacity-60" />}
                   {cat.name} ({count})
@@ -836,7 +838,7 @@ export default function MenuPage() {
                 <button
                   onClick={() => setCatModal({ open: true, cat })}
                   className={cn('px-2 py-2 rounded-r-full text-sm border transition-all',
-                    selectedCat === cat.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-white border-surface-200 text-surface-400 hover:text-surface-700')}
+                    selectedCat === cat.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-surface border-default text-surface-400 hover:text-surface-700')}
                 >
                   <Edit2 className="w-3 h-3" />
                 </button>
@@ -853,9 +855,9 @@ export default function MenuPage() {
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20 bg-white/60 rounded-3xl border border-surface-100">
+          <div className="text-center py-20 bg-surface/60 rounded-3xl border border-surface-100">
             <BookOpen className="w-14 h-14 text-surface-200 mx-auto mb-4" />
-            <p className="text-surface-500 font-semibold">No items found</p>
+            <p className="text-muted font-semibold">No items found</p>
             <button className="btn-primary mt-4" onClick={() => setPanelItem(null)}>Add First Item</button>
           </div>
         ) : (
@@ -867,8 +869,8 @@ export default function MenuPage() {
                   key={item.id}
                   onClick={() => setPanelItem(item)}
                   className={cn(
-                    'group bg-white rounded-3xl border-2 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-brand-300',
-                    !item.is_available ? 'opacity-60 border-surface-200' : 'border-surface-200'
+                    'group bg-surface rounded-3xl border-2 overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 hover:border-brand-300',
+                    !item.is_available ? 'opacity-60 border-default' : 'border-default'
                   )}
                 >
                   {/* Image */}
@@ -898,7 +900,7 @@ export default function MenuPage() {
 
                   {/* Info */}
                   <div className="p-3">
-                    <p className="font-bold text-surface-900 text-sm leading-tight truncate">{item.name}</p>
+                    <p className="font-bold text-primary text-sm leading-tight truncate">{item.name}</p>
                     <p className="text-xs text-surface-400 mt-0.5 truncate">{(item as any).category_name ?? 'Uncategorized'}</p>
 
                     {/* Tags */}

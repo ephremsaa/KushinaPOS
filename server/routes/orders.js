@@ -2,7 +2,50 @@ const express = require('express');
 const db = require('../config/db');
 const { authenticate, requireTenant } = require('../middleware/auth');
 const { verifyManagerPin } = require('../utils/pinHelper');
+const { computeOrderTotals } = require('../utils/orderPricing');
 const router = express.Router();
+
+router.use(authenticate, requireTenant);
+const tid = (req) => req.user.restaurantId;
+
+// Helper: Verify discount limits
+async function verifyDiscountLimit(req, client, discount, managerPin) {
+  if (!discount || !discount.type || !discount.value) return;
+  const val = Number(discount.value) || 0;
+  if (val <= 0) return;
+
+  const role = req.user.role === 'platform_admin' ? 'admin' : (req.user.staffRole || 'owner');
+  if (role === 'admin' || role === 'owner' || role === 'manager') return; // allowed
+
+  // Cashier limits: max 10% or max 100 fixed
+  const isOverLimit = (discount.type === 'percentage' && val > 10) || (discount.type === 'fixed' && val > 100);
+  if (!isOverLimit) return;
+
+  // Need manager approval
+  if (!managerPin) {
+    throw new Error('Manager PIN required for this discount amount');
+  }
+
+  const managerId = await verifyManagerPin(tid(req), managerPin);
+  if (!managerId) {
+    throw new Error('Invalid Manager PIN');
+  }
+
+  // Write to audit log
+  await client.query(
+    `INSERT INTO audit_logs (restaurant_id, actor_user_id, action, target_type, metadata)
+     VALUES ($1, $2, 'manager_discount_approval', 'order', $3)`,
+    [
+      tid(req), 
+      managerId, 
+      JSON.stringify({ 
+        cashier_id: req.user.userId || req.user.id, 
+        discount_type: discount.type, 
+        discount_value: val 
+      })
+    ]
+  );
+}
 
 router.use(authenticate, requireTenant);
 const tid = (req) => req.user.restaurantId;
@@ -126,20 +169,22 @@ router.get('/history', async (req, res) => {
     `;
     const params = [tid(req)];
     
-    // Only filter by staff_id for cashiers and waiters so they only see their own bills
-    if (req.user.role === 'staff' && ['cashier', 'waiter'].includes(req.user.staffRole)) {
-      query += ` AND o.staff_id = $2`;
-      params.push(req.user.userId || req.user.id);
+    if (req.user.role === 'staff') {
+      if (req.user.staffRole === 'cashier') {
+        query += ` AND o.paid_by_staff_id = $2`;
+        params.push(req.user.userId || req.user.id);
+      } else if (req.user.staffRole === 'waiter') {
+        query += ` AND o.staff_id = $2`;
+        params.push(req.user.userId || req.user.id);
+      }
     }
 
-    // Now index 3 (or 2) depends on whether staff_id was pushed, so let's track param index
     let pi = params.length + 1;
     if (date_from) {
       query += ` AND o.created_at >= $${pi++}`;
       params.push(date_from);
     } else {
-      // Default to today if no active till session
-      query += ` AND o.created_at >= CURRENT_DATE`;
+      query += ` AND o.created_at >= (NOW() AT TIME ZONE '${tz}')::date`;
     }
 
     query += ` GROUP BY o.id, t.label, s.name ORDER BY o.created_at DESC LIMIT 50`;
@@ -242,8 +287,9 @@ router.get('/open', async (req, res) => {
 // ── POST /api/orders/:id/items ────────────────────────────────
 // Append new items to an existing open order (e.g. 2nd round of drinks)
 router.post('/:id/items', async (req, res) => {
-  const { items, subtotal, tax_amount, discount_amount, total } = req.body;
+  const { items, discount, manager_pin } = req.body;
   if (!items || items.length === 0) return res.status(400).json({ error: 'No items' });
+  
   const client = await db.connect();
   try {
     await client.query('BEGIN');
@@ -252,20 +298,30 @@ router.post('/:id/items', async (req, res) => {
       "SELECT id FROM orders WHERE id=$1 AND restaurant_id=$2 AND payment_status='pending'",
       [req.params.id, tid(req)]
     );
-    if (!orderRows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    if (!orderRows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found or already paid' }); }
 
-    for (const item of items) {
+    await verifyDiscountLimit(req, client, discount, manager_pin);
+
+    // Compute prices securely on server
+    const { subtotal, taxAmount, total, validatedItems } = await computeOrderTotals(client, tid(req), items, discount);
+
+    for (const item of validatedItems) {
       await client.query(
         `INSERT INTO order_items (order_id, menu_item_id, menu_item_name, quantity, unit_price, modifier_choices, notes, status, station)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8)`,
-        [req.params.id, item.menu_item_id || null, item.menu_item_name, item.quantity, item.unit_price, JSON.stringify(item.modifier_choices || []), item.notes || null, item.station || 'General']
+        [req.params.id, item.menu_item_id, item.menu_item_name, item.quantity, item.unit_price, JSON.stringify(item.modifier_choices), item.notes, item.station]
       );
     }
 
-    // Update order totals
+    // Add new subtotals to existing order
     await client.query(
-      `UPDATE orders SET subtotal=$1, tax_amount=$2, discount_amount=$3, total=$4, updated_at=NOW() WHERE id=$5`,
-      [subtotal, tax_amount, discount_amount, total, req.params.id]
+      `UPDATE orders 
+       SET subtotal = subtotal + $1, 
+           tax_amount = tax_amount + $2, 
+           total = total + $3, 
+           updated_at = NOW() 
+       WHERE id = $4`,
+      [subtotal, taxAmount, total, req.params.id]
     );
 
     await client.query('COMMIT');
@@ -273,7 +329,7 @@ router.post('/:id/items', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Add items error:', err);
-    res.status(500).json({ error: 'Failed' });
+    res.status(400).json({ error: err.message || 'Failed to add items' });
   } finally {
     client.release();
   }
@@ -281,30 +337,39 @@ router.post('/:id/items', async (req, res) => {
 
 // ── POST /api/orders ──────────────────────────────────────────
 router.post('/', async (req, res) => {
-  const { table_id, order_type, subtotal, tax_amount, discount_amount, total, customer_name, notes, local_id, items } = req.body;
+  const { table_id, order_type, customer_name, notes, local_id, items, discount, manager_pin } = req.body;
   const client = await db.connect();
   try {
     await client.query('BEGIN');
 
+    await verifyDiscountLimit(req, client, discount, manager_pin);
+
+    const { subtotal, discountAmount, taxAmount, total, validatedItems } = await computeOrderTotals(client, tid(req), items, discount);
+
+    // Insert order with ON CONFLICT trick to detect existing
     const { rows } = await client.query(
       `INSERT INTO orders
         (restaurant_id, table_id, staff_id, order_type, status, subtotal, tax_amount, discount_amount, total, customer_name, notes, local_id, synced_at)
        VALUES ($1,$2,$3,$4,'new',$5,$6,$7,$8,$9,$10,$11,NOW())
        ON CONFLICT (restaurant_id, local_id) DO UPDATE SET updated_at=NOW()
-       RETURNING *`,
-      [tid(req), table_id || null, req.user.userId || req.user.id, order_type || 'dine_in', subtotal, tax_amount, discount_amount, total, customer_name || null, notes || null, local_id || null]
+       RETURNING (xmax = 0) AS inserted, *`,
+      [tid(req), table_id || null, req.user.userId || req.user.id, order_type || 'dine_in', subtotal, taxAmount, discountAmount, total, customer_name || null, notes || null, local_id || null]
     );
     const order = rows[0];
 
+    // If order already existed (offline sync), don't insert items again!
+    if (!order.inserted) {
+      await client.query('COMMIT');
+      return res.status(201).json(order);
+    }
+
     // Insert items
-    if (items && items.length > 0) {
-      for (const item of items) {
-        await client.query(
-          `INSERT INTO order_items (order_id, menu_item_id, menu_item_name, quantity, unit_price, modifier_choices, notes, status, station)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8)`,
-          [order.id, item.menu_item_id || null, item.menu_item_name, item.quantity, item.unit_price, JSON.stringify(item.modifier_choices || []), item.notes || null, item.station || 'General']
-        );
-      }
+    for (const item of validatedItems) {
+      await client.query(
+        `INSERT INTO order_items (order_id, menu_item_id, menu_item_name, quantity, unit_price, modifier_choices, notes, status, station)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8)`,
+        [order.id, item.menu_item_id, item.menu_item_name, item.quantity, item.unit_price, JSON.stringify(item.modifier_choices), item.notes, item.station]
+      );
     }
 
     // Mark table occupied
@@ -331,7 +396,7 @@ router.post('/', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Failed to create order' });
+    res.status(400).json({ error: err.message || 'Failed to create order' });
   } finally {
     client.release();
   }
@@ -339,11 +404,53 @@ router.post('/', async (req, res) => {
 
 // ── PATCH /api/orders/:id/status ─────────────────────────────
 router.patch('/:id/status', async (req, res) => {
-  const { status, reason } = req.body;
+  const { status, reason, manager_pin } = req.body;
   const valid = ['new','preparing','ready','served','cancelled'];
   if (!valid.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+  if (req.user.staffRole === 'kitchen') {
+    return res.status(403).json({ error: 'Kitchen role may only use /api/kitchen routes' });
+  }
+
+  const client = await db.connect();
   try {
-    // If cancelling, store the reason in notes field
+    await client.query('BEGIN');
+    const { rows: orderRows } = await client.query('SELECT * FROM orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE', [req.params.id, tid(req)]);
+    if (!orderRows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Not found' }); }
+    
+    const order = orderRows[0];
+
+    // refuse to cancel or serve a paid order (use the refund flow instead)
+    if (order.payment_status === 'paid' && (status === 'cancelled' || status === 'served')) {
+      await client.query('ROLLBACK'); 
+      return res.status(400).json({ error: 'Cannot cancel or mark a paid order as served. Use refund flow instead.' });
+    }
+
+    let managerId = null;
+    if (status === 'cancelled') {
+      if (!reason) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Reason required to cancel' }); }
+
+      const role = req.user.role === 'platform_admin' ? 'admin' : (req.user.staffRole || 'owner');
+      const isOwnerOrManager = ['admin', 'owner', 'manager'].includes(role);
+      const isOwningWaiter = role === 'waiter' && order.staff_id === (req.user.userId || req.user.id);
+      
+      if (!isOwnerOrManager && !isOwningWaiter) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Only owners, managers, or the original waiter can cancel this order' });
+      }
+
+      if (!manager_pin) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'manager_pin required to cancel' });
+      }
+
+      managerId = await verifyManagerPin(tid(req), manager_pin);
+      if (!managerId) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Invalid Manager PIN' });
+      }
+    }
+
     const updateQuery = status === 'cancelled' && reason
       ? "UPDATE orders SET status=$1, notes=COALESCE(notes||' | Cancelled: '||$4, 'Cancelled: '||$4), updated_at=NOW() WHERE id=$2 AND restaurant_id=$3 RETURNING *"
       : "UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2 AND restaurant_id=$3 RETURNING *";
@@ -351,40 +458,99 @@ router.patch('/:id/status', async (req, res) => {
       ? [status, req.params.id, tid(req), reason]
       : [status, req.params.id, tid(req)];
 
-    const { rows } = await db.query(updateQuery, updateParams);
-    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    const { rows: updated } = await client.query(updateQuery, updateParams);
 
     // Free table if served or cancelled
-    if ((status === 'served' || status === 'cancelled') && rows[0].table_id) {
-      await db.query("UPDATE tables SET status='available', updated_at=NOW() WHERE id=$1", [rows[0].table_id]);
+    if ((status === 'served' || status === 'cancelled') && updated[0].table_id) {
+       const { rows: openOrders } = await client.query(
+         "SELECT id FROM orders WHERE table_id=$1 AND restaurant_id=$2 AND status NOT IN ('served', 'cancelled') AND id != $3",
+         [updated[0].table_id, tid(req), req.params.id]
+       );
+       if (openOrders.length === 0) {
+         await client.query("UPDATE tables SET status='available', updated_at=NOW() WHERE id=$1", [updated[0].table_id]);
+       }
     }
 
-    // Audit log for cancellations
     if (status === 'cancelled') {
-      await db.query(
-        `INSERT INTO audit_logs (actor_user_id, action, target_type, target_id, metadata)
-         VALUES ($1, 'order_cancel', 'order', $2, $3)`,
-        [req.user.userId || req.user.id, req.params.id, JSON.stringify({ reason: reason || 'No reason given', restaurant_id: tid(req) })]
-      ).catch(() => {}); // non-fatal
+      await client.query(
+        `INSERT INTO audit_logs (restaurant_id, actor_user_id, action, target_type, target_id, metadata)
+         VALUES ($1, $2, 'order_cancel', 'order', $3, $4)`,
+        [tid(req), req.user.userId || req.user.id, req.params.id, JSON.stringify({ reason, approved_by: managerId })]
+      );
     }
 
-    res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+    await client.query('COMMIT');
+    res.json(updated[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Failed' });
+  } finally {
+    client.release();
+  }
 });
 
 
 // ── PATCH /api/orders/:id/pay ────────────────────────────────
 router.patch('/:id/pay', async (req, res) => {
-  const { payment_method, tip_amount = 0, amount_tendered = null, table_next_status = 'available', payment_reference } = req.body;
-  if (!['cash', 'card', 'telebirr', 'cbe_birr', 'bank_transfer', 'other'].includes(payment_method)) {
-    return res.status(400).json({ error: 'Invalid payment method' });
-  }
+  let { payment_method, tip_amount = 0, amount_tendered = null, table_next_status = 'available', payment_reference, split_payments = [] } = req.body;
+  
+  tip_amount = Number(tip_amount) || 0;
+  if (tip_amount < 0) return res.status(400).json({ error: 'Tip amount must be >= 0' });
 
   const client = await db.connect();
   try {
     await client.query('BEGIN');
 
-    // First find active till session for this cashier
+    const { rows: orderRows } = await client.query('SELECT * FROM orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE', [req.params.id, tid(req)]);
+    if (!orderRows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = orderRows[0];
+    if (order.payment_status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order already paid or refunded' });
+    }
+
+    if (tip_amount > Number(order.subtotal)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Tip amount cannot exceed 100% of subtotal' });
+    }
+
+    let isMobileMoney = false;
+    let actualMethod = payment_method;
+    
+    if (Array.isArray(split_payments) && split_payments.length > 0) {
+      let totalSplit = 0;
+      for (const p of split_payments) {
+        if (!p.method || !p.amount || Number(p.amount) <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Invalid split payment entry' });
+        }
+        totalSplit += Number(p.amount);
+      }
+      if (Math.abs(totalSplit - Number(order.total)) > 0.01) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Split payments must sum exactly to order total' });
+      }
+      actualMethod = 'split';
+      isMobileMoney = split_payments.some(p => ['telebirr', 'cbe_birr', 'bank_transfer'].includes(p.method));
+    } else {
+      if (!['cash', 'card', 'telebirr', 'cbe_birr', 'bank_transfer', 'other'].includes(payment_method)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid payment method' });
+      }
+      isMobileMoney = ['telebirr', 'cbe_birr', 'bank_transfer'].includes(payment_method);
+    }
+
+    if (actualMethod === 'cash' && amount_tendered !== null) {
+      if (Number(amount_tendered) < Number(order.total)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Amount tendered is less than total' });
+      }
+    }
+    const change_due = (actualMethod === 'cash' && amount_tendered !== null) ? Number(amount_tendered) - Number(order.total) : 0;
+
     let tillSessionId = null;
     const { rows: sessionRows } = await client.query(
       `SELECT id FROM cash_drawer_sessions WHERE restaurant_id=$1 AND staff_id=$2 AND status='open' LIMIT 1`,
@@ -394,11 +560,27 @@ router.patch('/:id/pay', async (req, res) => {
       tillSessionId = sessionRows[0].id;
     }
 
-    // Determine if payment is confirmed. Mobile money/bank transfer defaults to false unless explicitly confirmed later.
-    // Wait, the prompt says "Mark mobile-money payments as 'pending confirmation' until staff confirm receipt".
-    // For now, at checkout, they are unconfirmed.
-    const isMobileMoney = ['telebirr', 'cbe_birr', 'bank_transfer'].includes(payment_method);
     const isConfirmed = !isMobileMoney;
+    
+    // Check stock before paying/serving! Block if below zero.
+    const { rows: items } = await client.query(
+      "SELECT menu_item_id, quantity, menu_item_name FROM order_items WHERE order_id = $1 AND menu_item_id IS NOT NULL AND status != 'cancelled'",
+      [req.params.id]
+    );
+    
+    for (const item of items) {
+      const { rows: ingredients } = await client.query(
+        "SELECT i.id, i.name, i.quantity as current_qty, m.quantity_required FROM menu_item_ingredients m JOIN inventory_items i ON i.id = m.inventory_item_id WHERE m.menu_item_id = $1",
+        [item.menu_item_id]
+      );
+      for (const ing of ingredients) {
+        const totalNeeded = Number(ing.quantity_required) * Number(item.quantity);
+        if (Number(ing.current_qty) - totalNeeded < 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Insufficient stock for ${ing.name} (needed for ${item.menu_item_name}). Required: ${totalNeeded}, Available: ${ing.current_qty}` });
+        }
+      }
+    }
 
     const { rows } = await client.query(
       `UPDATE orders 
@@ -408,40 +590,18 @@ router.patch('/:id/pay', async (req, res) => {
            till_session_id=$3,
            payment_reference=$4,
            is_payment_confirmed=$5,
+           split_payments=$6,
+           paid_by_staff_id=$7,
            status = CASE WHEN status NOT IN ('cancelled') THEN 'served' ELSE status END,
            updated_at=NOW() 
-       WHERE id=$6 AND restaurant_id=$7 AND payment_status='pending'
+       WHERE id=$8 AND restaurant_id=$9 AND payment_status='pending'
        RETURNING *`,
-      [payment_method, tip_amount, tillSessionId, payment_reference || null, isConfirmed, req.params.id, tid(req)]
+      [actualMethod, tip_amount, tillSessionId, payment_reference || null, isConfirmed, JSON.stringify(split_payments), req.user.userId || req.user.id, req.params.id, tid(req)]
     );
-    if (!rows[0]) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Order not found or already paid' });
-    }
-    const order = rows[0];
+    
+    const paidOrder = rows[0];
 
-    // If cash payment and till is open, increment expected cash
-    if (payment_method === 'cash' && tillSessionId) {
-       await client.query(
-         `UPDATE cash_drawer_sessions SET expected_cash = expected_cash + $1 WHERE id=$2`,
-         [order.total, tillSessionId]
-       );
-    }
-
-    // Release table → configurable: available or cleaning
-    if (order.table_id) {
-      const nextStatus = ['available', 'cleaning'].includes(table_next_status) ? table_next_status : 'available';
-      await client.query(
-        "UPDATE tables SET status=$1, updated_at=NOW() WHERE id=$2 AND restaurant_id=$3",
-        [nextStatus, order.table_id, tid(req)]
-      );
-    }
-
-    // --- AUTO DEDUCTION LOGIC ---
-    const { rows: items } = await client.query(
-      "SELECT menu_item_id, quantity FROM order_items WHERE order_id = $1 AND menu_item_id IS NOT NULL",
-      [req.params.id]
-    );
+    // Deduct stock
     for (const item of items) {
       const { rows: ingredients } = await client.query(
         "SELECT inventory_item_id, quantity_required FROM menu_item_ingredients WHERE menu_item_id = $1",
@@ -456,17 +616,47 @@ router.patch('/:id/pay', async (req, res) => {
         await client.query(
           `INSERT INTO inventory_transactions (restaurant_id, item_id, type, quantity_delta, note)
            VALUES ($1, $2, 'order_usage', $3, $4)`,
-          [tid(req), ing.inventory_item_id, -totalNeeded, `Order ${order.local_id || req.params.id}`]
+          [tid(req), ing.inventory_item_id, -totalNeeded, `Order ${paidOrder.local_id || req.params.id}`]
         );
       }
     }
 
-    // Trigger auto-86
+    if (actualMethod === 'cash' && tillSessionId) {
+       await client.query(
+         `UPDATE cash_drawer_sessions SET expected_cash = expected_cash + $1 WHERE id=$2`,
+         [Number(paidOrder.total), tillSessionId]
+       );
+    }
+    
+    if (actualMethod === 'split' && tillSessionId) {
+       const cashSplit = split_payments.filter(p => p.method === 'cash').reduce((sum, p) => sum + Number(p.amount), 0);
+       if (cashSplit > 0) {
+         await client.query(
+           `UPDATE cash_drawer_sessions SET expected_cash = expected_cash + $1 WHERE id=$2`,
+           [cashSplit, tillSessionId]
+         );
+       }
+    }
+
+    if (paidOrder.table_id) {
+       const { rows: openOrders } = await client.query(
+         "SELECT id FROM orders WHERE table_id=$1 AND restaurant_id=$2 AND status NOT IN ('served', 'cancelled') AND id != $3",
+         [paidOrder.table_id, tid(req), req.params.id]
+       );
+       if (openOrders.length === 0) {
+         const nextStatus = ['available', 'cleaning'].includes(table_next_status) ? table_next_status : 'available';
+         await client.query(
+           "UPDATE tables SET status=$1, updated_at=NOW() WHERE id=$2 AND restaurant_id=$3",
+           [nextStatus, paidOrder.table_id, tid(req)]
+         );
+       }
+    }
+
     const { triggerAuto86 } = require('../utils/inventory');
     await triggerAuto86(client, tid(req));
 
     await client.query('COMMIT');
-    res.json(order);
+    res.json({ ...paidOrder, change_due });
   } catch (err) { 
     await client.query('ROLLBACK');
     console.error('Payment error:', err);
@@ -478,20 +668,79 @@ router.patch('/:id/pay', async (req, res) => {
 
 // ── PATCH /api/orders/:id/confirm-payment ────────────────────
 router.patch('/:id/confirm-payment', async (req, res) => {
+  const role = req.user.role === 'platform_admin' ? 'admin' : (req.user.staffRole || 'owner');
+  if (!['admin', 'owner', 'manager'].includes(role)) {
+    return res.status(403).json({ error: 'Only managers or owners can confirm payments' });
+  }
+
+  const client = await db.connect();
   try {
-    const { rows } = await db.query(
-      `UPDATE orders 
-       SET is_payment_confirmed = true, updated_at = NOW() 
-       WHERE id = $1 AND restaurant_id = $2 
-       RETURNING *`,
+    await client.query('BEGIN');
+    const { rows: orderRows } = await client.query(
+      "SELECT payment_method, is_payment_confirmed FROM orders WHERE id=$1 AND restaurant_id=$2 FOR UPDATE",
       [req.params.id, tid(req)]
     );
-    if (!rows[0]) return res.status(404).json({ error: 'Order not found' });
+    if (!orderRows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    const order = orderRows[0];
+    if (!['telebirr', 'cbe_birr', 'bank_transfer'].includes(order.payment_method)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Only mobile-money or bank transfers require confirmation' });
+    }
+    if (order.is_payment_confirmed) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Payment already confirmed' });
+    }
+
+    const { rows } = await client.query(
+      `UPDATE orders SET is_payment_confirmed = true, updated_at = NOW() WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+
+    await client.query(
+      `INSERT INTO audit_logs (restaurant_id, actor_user_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, 'confirm_payment', 'order', $3, $4)`,
+      [tid(req), req.user.userId || req.user.id, req.params.id, JSON.stringify({ payment_method: order.payment_method, reference: req.body.payment_reference || null })]
+    );
+
+    await client.query('COMMIT');
     res.json(rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: 'Failed to confirm payment' });
+  } finally {
+    client.release();
   }
 });
+
+// ── Helper for restoring stock (void/refund) ──────────────────
+async function restoreOrderStock(client, req, order) {
+  const { rows: items } = await client.query(
+    "SELECT menu_item_id, quantity FROM order_items WHERE order_id = $1 AND menu_item_id IS NOT NULL",
+    [order.id]
+  );
+  for (const item of items) {
+    const { rows: ingredients } = await client.query(
+      "SELECT inventory_item_id, quantity_required FROM menu_item_ingredients WHERE menu_item_id = $1",
+      [item.menu_item_id]
+    );
+    for (const ing of ingredients) {
+      const totalNeeded = Number(ing.quantity_required) * Number(item.quantity);
+      await client.query(
+        "UPDATE inventory_items SET quantity = quantity + $1, updated_at = NOW() WHERE id = $2",
+        [totalNeeded, ing.inventory_item_id]
+      );
+      await client.query(
+        `INSERT INTO inventory_transactions (restaurant_id, item_id, type, quantity_delta, note)
+         VALUES ($1, $2, 'restock', $3, $4)`,
+        [tid(req), ing.inventory_item_id, totalNeeded, `Void/Refund Order ${order.local_id || order.id}`]
+      );
+    }
+  }
+}
 
 // ── PATCH /api/orders/:id/void ───────────────────────────────
 // Requires manager/owner PIN — logs to audit
@@ -504,8 +753,8 @@ router.patch('/:id/void', async (req, res) => {
     await client.query('BEGIN');
 
     // Verify a manager/owner PIN in this restaurant using bcrypt
-    const { authorized, staff: managerStaff } = await verifyManagerPin(tid(req), manager_pin, client);
-    if (!authorized) {
+    const managerId = await verifyManagerPin(tid(req), manager_pin, client);
+    if (!managerId) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Invalid manager PIN' });
     }
@@ -524,17 +773,20 @@ router.patch('/:id/void', async (req, res) => {
 
     // Free the table
     if (rows[0].table_id) {
-      await client.query(
-        "UPDATE tables SET status='available', updated_at=NOW() WHERE id=$1",
-        [rows[0].table_id]
-      );
+       const { rows: openOrders } = await client.query(
+         "SELECT id FROM orders WHERE table_id=$1 AND restaurant_id=$2 AND status NOT IN ('served', 'cancelled') AND id != $3",
+         [rows[0].table_id, tid(req), req.params.id]
+       );
+       if (openOrders.length === 0) {
+         await client.query("UPDATE tables SET status='available', updated_at=NOW() WHERE id=$1", [rows[0].table_id]);
+       }
     }
 
     // Audit log
     await client.query(
-      `INSERT INTO audit_logs (actor_user_id, action, target_type, target_id, metadata)
-       VALUES ($1, 'order_void', 'order', $2, $3)`,
-      [req.user.userId || req.user.id, req.params.id, JSON.stringify({ authorized_by_staff: managerStaff?.id, restaurant_id: tid(req) })]
+      `INSERT INTO audit_logs (restaurant_id, actor_user_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, 'order_void', 'order', $3, $4)`,
+      [tid(req), req.user.userId || req.user.id, req.params.id, JSON.stringify({ approved_by: managerId })]
     );
 
     await client.query('COMMIT');
@@ -543,6 +795,69 @@ router.patch('/:id/void', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Void error:', err);
     res.status(500).json({ error: 'Failed to void order' });
+  } finally {
+    client.release();
+  }
+});
+
+// ── PATCH /api/orders/:id/refund ─────────────────────────────
+router.patch('/:id/refund', async (req, res) => {
+  const { manager_pin, reason } = req.body;
+  if (!manager_pin) return res.status(400).json({ error: 'manager_pin required' });
+
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+
+    const managerId = await verifyManagerPin(tid(req), manager_pin, client);
+    if (!managerId) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Invalid manager PIN' });
+    }
+
+    // Refund the order
+    const { rows } = await client.query(
+      `UPDATE orders SET status='cancelled', payment_status='refunded', notes=COALESCE(notes||' | Refund: '||$3, 'Refund: '||$3), updated_at=NOW()
+       WHERE id=$1 AND restaurant_id=$2 AND payment_status='paid'
+       RETURNING *`,
+      [req.params.id, tid(req), reason || 'No reason']
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found or not paid' });
+    }
+    
+    const order = rows[0];
+    await restoreOrderStock(client, req, order);
+
+    // Free the table
+    if (order.table_id) {
+       const { rows: openOrders } = await client.query(
+         "SELECT id FROM orders WHERE table_id=$1 AND restaurant_id=$2 AND status NOT IN ('served', 'cancelled') AND id != $3",
+         [order.table_id, tid(req), req.params.id]
+       );
+       if (openOrders.length === 0) {
+         await client.query("UPDATE tables SET status='available', updated_at=NOW() WHERE id=$1", [order.table_id]);
+       }
+    }
+
+    // Audit log
+    await client.query(
+      `INSERT INTO audit_logs (restaurant_id, actor_user_id, action, target_type, target_id, metadata)
+       VALUES ($1, $2, 'order_refund', 'order', $3, $4)`,
+      [tid(req), req.user.userId || req.user.id, req.params.id, JSON.stringify({ approved_by: managerId, reason })]
+    );
+
+    // Trigger auto-86 since stock is back
+    const { triggerAuto86 } = require('../utils/inventory');
+    await triggerAuto86(client, tid(req));
+
+    await client.query('COMMIT');
+    res.json({ message: 'Order refunded', order: rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Refund error:', err);
+    res.status(500).json({ error: 'Failed to refund order' });
   } finally {
     client.release();
   }
@@ -585,7 +900,7 @@ router.get('/today/summary', async (req, res) => {
          SUM(CASE WHEN status != 'cancelled' THEN total ELSE 0 END) as total_sales,
          AVG(CASE WHEN status != 'cancelled' THEN total END) as avg_order
        FROM orders
-       WHERE restaurant_id=$1 AND created_at >= CURRENT_DATE`,
+       WHERE restaurant_id=$1 AND created_at >= (NOW() AT TIME ZONE '${tz}')::date`,
       [tid(req)]
     );
     res.json(rows[0]);

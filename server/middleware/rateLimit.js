@@ -81,10 +81,24 @@ const registerLimiter = rateLimit({
   }
 });
 
+const publicOrderLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.ip + '_' + (req.body.restaurant_id || 'unknown');
+  },
+  message: {
+    error: 'Too many orders placed from this device. Please try again in 10 minutes or contact staff.'
+  }
+});
+
 module.exports = {
   authLimiter,
   staffLoginLimiter,
   bootstrapAdminLimiter,
   verifyPinLimiter,
-  registerLimiter
+  registerLimiter,
+  publicOrderLimiter
 };

@@ -91,8 +91,7 @@ const translations: Record<Language, Record<string, string>> = {
     'error.network': 'Network error. Check your connection.',
 
     // ── Dashboard ─────────────────────────────────────────────────────────────
-    'dashboard.title': 'Dashboard',
-    'dashboard.welcome': 'Welcome back',
+        'dashboard.welcome': 'Welcome back',
     'dashboard.today_revenue': "Today's Revenue",
     'dashboard.today_orders': "Today's Orders",
     'dashboard.kitchen_in_flight': 'Kitchen in Flight',
@@ -175,8 +174,7 @@ const translations: Record<Language, Record<string, string>> = {
     'pay.change': 'Change to Return',
     'pay.exact': 'Exact',
     'pay.complete_payment': 'Complete Payment',
-    'pay.print_receipt': 'Print Receipt',
-
+    
     // ── Orders Page ───────────────────────────────────────────────────────────
     'orders.title': 'Live Orders',
     'orders.search': 'Search orders…',
@@ -613,8 +611,7 @@ const translations: Record<Language, Record<string, string>> = {
     'error.network': 'የኔትወርክ ስህተት። ግንኙነትዎን ያረጋግጡ።',
 
     // ── Dashboard ─────────────────────────────────────────────────────────────
-    'dashboard.title': 'ዳሽቦርድ',
-    'dashboard.welcome': 'እንኳን ደህና መጡ',
+        'dashboard.welcome': 'እንኳን ደህና መጡ',
     'dashboard.today_revenue': 'የዛሬ ገቢ',
     'dashboard.today_orders': 'የዛሬ ትዕዛዞች',
     'dashboard.kitchen_in_flight': 'ኩሽና ውስጥ',

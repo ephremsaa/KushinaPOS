@@ -7,6 +7,8 @@ import {
   ChefHat, ChevronRight, Store, Banknote
 } from 'lucide-react';
 import { reportsApi } from '../../lib/api';
+import { navItems } from '../../layouts/TenantLayout';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency, formatRelative, cn } from '../../lib/utils';
 import { Link, Navigate } from 'react-router-dom';
@@ -25,6 +27,7 @@ function useTenantOverview() {
 
 export default function TenantDashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { data, isLoading } = useTenantOverview();
 
   const staffRole: string = user?.staffRole ?? (user?.role === 'restaurant_owner' ? 'owner' : 'waiter');
@@ -121,7 +124,7 @@ export default function TenantDashboard() {
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-brand-300 text-xs font-bold uppercase tracking-wider mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface/10 backdrop-blur-md border border-white/15 text-brand-300 text-xs font-bold uppercase tracking-wider mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Real-Time Operation Center</span>
             </div>
@@ -141,7 +144,7 @@ export default function TenantDashboard() {
               </Link>
             )}
             {['owner', 'manager'].includes(staffRole as string) && (
-              <Link to="/dashboard/reports" className="btn-secondary bg-white/10 hover:bg-white/20 text-white border-white/20 px-4 py-3 rounded-2xl text-sm font-semibold backdrop-blur-md">
+              <Link to="/dashboard/reports" className="btn-secondary bg-surface/10 hover:bg-surface/20 text-white border-white/20 px-4 py-3 rounded-2xl text-sm font-semibold backdrop-blur-md">
                 Reports
               </Link>
             )}
@@ -178,7 +181,7 @@ export default function TenantDashboard() {
                   )}
                 </div>
                 <div className="mt-4">
-                  <p className="text-3xl font-display font-black text-surface-900 tracking-tight font-mono">
+                  <p className="text-3xl font-display font-black text-primary tracking-tight font-mono">
                     {value}
                   </p>
                   <div className="flex items-center justify-between mt-1">
@@ -207,7 +210,7 @@ export default function TenantDashboard() {
           <div>
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-surface-100">
               <div>
-                <h2 className="font-display font-extrabold text-xl text-surface-900 tracking-tight">Live Orders Stream</h2>
+                <h2 className="font-display font-extrabold text-xl text-primary tracking-tight">Live Orders Stream</h2>
                 <p className="text-xs text-surface-400 font-medium mt-0.5">Real-time status updates across all stations</p>
               </div>
               <Link to="/dashboard/orders" className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-500/10 border border-brand-500/20 px-3 py-1.5 rounded-full flex items-center gap-1 transition-all">
@@ -221,7 +224,7 @@ export default function TenantDashboard() {
                 <div className="w-16 h-16 bg-surface-100/80 rounded-3xl flex items-center justify-center mb-3">
                   <UtensilsCrossed className="w-8 h-8 text-surface-400" />
                 </div>
-                <p className="text-surface-900 font-bold text-sm">No live orders right now</p>
+                <p className="text-primary font-bold text-sm">No live orders right now</p>
                 <p className="text-surface-400 text-xs mt-1">Orders placed in POS or online menu will stream here automatically.</p>
               </div>
             ) : (
@@ -229,15 +232,15 @@ export default function TenantDashboard() {
                 {data?.recentOrders?.slice(0, 5).map((order: any) => (
                   <div 
                     key={order.id} 
-                    className="flex items-center gap-4 p-3.5 bg-surface-50/70 hover:bg-surface-100/80 rounded-2xl border border-surface-200/50 transition-all duration-150"
+                    className="flex items-center gap-4 p-3.5 bg-surface-50/70 hover:bg-surface-100/80 rounded-2xl border border-default/50 transition-all duration-150"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-[var(--card-bg)] border border-surface-200/80 flex items-center justify-center font-display font-black text-xs text-surface-700 shadow-sm flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--card-bg)] border border-default/80 flex items-center justify-center font-display font-black text-xs text-surface-700 shadow-sm flex-shrink-0">
                       {order.table_label ? `T${order.table_label}` : '🛍️'}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-surface-900 truncate">
+                        <p className="text-sm font-bold text-primary truncate">
                           {order.table_label ? `Table ${order.table_label}` : (order.customer_name || 'Takeaway Order')}
                         </p>
                         <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest bg-surface-200/60 px-2 py-0.5 rounded-md">
@@ -254,7 +257,7 @@ export default function TenantDashboard() {
                       <Badge status={order.status as any}>
                         {order.status}
                       </Badge>
-                      <p className="font-display font-black text-surface-900 text-sm w-20 text-right">
+                      <p className="font-display font-black text-primary text-sm w-20 text-right">
                         {formatCurrency(order.total)}
                       </p>
                     </div>
@@ -264,7 +267,7 @@ export default function TenantDashboard() {
             )}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-surface-100 flex items-center justify-between text-xs text-surface-500 font-medium">
+          <div className="mt-6 pt-4 border-t border-surface-100 flex items-center justify-between text-xs text-muted font-medium">
             <span>Auto-refreshing every 20s</span>
             <span className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -312,7 +315,7 @@ export default function TenantDashboard() {
 
           {/* Quick Launch Cards */}
           <div className="card">
-            <h3 className="font-display font-bold text-base text-surface-900 mb-4">Operational Shortcuts</h3>
+            <h3 className="font-display font-bold text-base text-primary mb-4">Operational Shortcuts</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
                 { to: '/dashboard/pos',       icon: Store,            label: 'POS Terminal', color: 'from-orange-500 to-amber-500', roles: ['owner', 'manager', 'cashier', 'waiter'] },
@@ -323,7 +326,7 @@ export default function TenantDashboard() {
                 <Link
                   key={to}
                   to={to}
-                  className="flex flex-col items-center justify-center gap-2.5 p-4 rounded-2xl bg-surface-50 hover:bg-[var(--card-bg)] border border-surface-200/70 hover:border-brand-300/80 shadow-sm hover:shadow-card transition-all duration-200 group text-center"
+                  className="flex flex-col items-center justify-center gap-2.5 p-4 rounded-2xl bg-surface-50 hover:bg-[var(--card-bg)] border border-default/70 hover:border-brand-300/80 shadow-sm hover:shadow-card transition-all duration-200 group text-center"
                 >
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} text-white flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}>
                     <Icon className="w-5 h-5" />

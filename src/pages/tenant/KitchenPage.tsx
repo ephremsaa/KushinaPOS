@@ -11,6 +11,7 @@ import {
   Layers, History
 } from 'lucide-react';
 import { Badge } from '../../components/ui';
+import { globalToast } from '../../components/ui/Toast';
 
 const STATIONS = [
   { id: 'All Stations', key: 'kds.all_stations', fallback: 'All Stations' },
@@ -428,13 +429,13 @@ export default function KitchenPage() {
       await kitchenApi.updateOrderStatus(orderId, 'preparing');
       qc.invalidateQueries({ queryKey: ['kitchen-orders', station] });
     } catch (e) {
-      alert('Failed to recall order.');
+      globalToast.info('Failed to recall order.');
     }
   };
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => {}); // Safe to ignore: may not be in fullscreen // Safe to ignore: fullscreen may be denied
       setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});

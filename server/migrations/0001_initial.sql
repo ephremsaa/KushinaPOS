@@ -327,3 +327,196 @@ CREATE TABLE IF NOT EXISTS cash_drawer_sessions (
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
   notes TEXT
 );
+
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;;
+
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS background_color TEXT DEFAULT '#f1f5f9';
+
+ALTER TABLE restaurants ALTER COLUMN theme_color SET DEFAULT '#2F7D32';
+
+ALTER TABLE restaurants ALTER COLUMN background_color SET DEFAULT '#F7F7F2';
+
+UPDATE restaurants 
+       SET theme_color = '#2F7D32', background_color = '#F7F7F2' 
+       WHERE theme_color IS NULL OR theme_color = '#f97316' OR theme_color = '';
+
+UPDATE restaurants 
+       SET name = 'kerod',
+           email = $1,
+           password_hash = $2,
+           status = 'active',
+           slug = COALESCE(slug, 'kerod'),
+           currency = 'ETB',
+           plan_id = $3,
+           updated_at = NOW()
+       WHERE email = $1 OR slug = 'kerod'
+       RETURNING id, name, email, slug, status, plan_id;
+
+INSERT INTO subscriptions (restaurant_id, plan_id, status, billing_cycle, current_period_start, current_period_end)
+           VALUES ($1, $2, 'active', 'monthly', NOW(), NOW() + INTERVAL '365 days');
+
+UPDATE subscriptions SET status = 'active', plan_id = $1 WHERE restaurant_id = $2;
+
+SELECT column_name FROM information_schema.columns WHERE table_name = 'platform_admins';
+
+INSERT INTO platform_admins (id, user_id, email, password_hash, name, created_at)
+           VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, $3, NOW());
+
+SELECT column_name FROM information_schema.columns WHERE table_name = 'subscriptions';
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'trial';
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS billing_cycle TEXT DEFAULT 'monthly';
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '30 days');
+
+CREATE TABLE IF NOT EXISTS notifications (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        type          TEXT NOT NULL CHECK (type IN ('low_stock','payment_failed','new_reservation','order_stuck','staff_anomaly','new_online_order','billing')),
+        title         TEXT NOT NULL,
+        message       TEXT NOT NULL,
+        target_role   TEXT NOT NULL DEFAULT 'all' CHECK (target_role IN ('owner','manager','cashier','kitchen','waiter','all')),
+        user_id       UUID REFERENCES staff(id) ON DELETE CASCADE,
+        channel       TEXT NOT NULL DEFAULT 'in_app' CHECK (channel IN ('in_app','email','sms')),
+        metadata      JSONB NOT NULL DEFAULT '{}',
+        read_by       JSONB NOT NULL DEFAULT '[]',
+        created_at    TIMESTAMPTZ DEFAULT NOW()
+      );;
+
+CREATE TABLE IF NOT EXISTS notification_preferences (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        alert_type    TEXT NOT NULL CHECK (alert_type IN ('low_stock','payment_failed','new_reservation','order_stuck','staff_anomaly','new_online_order','billing')),
+        in_app        BOOLEAN NOT NULL DEFAULT TRUE,
+        email         BOOLEAN NOT NULL DEFAULT FALSE,
+        sms           BOOLEAN NOT NULL DEFAULT FALSE,
+        updated_at    TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(restaurant_id, alert_type)
+      );;
+
+CREATE TABLE IF NOT EXISTS reservations (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id   UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        table_id        UUID REFERENCES tables(id) ON DELETE SET NULL,
+        customer_name   TEXT NOT NULL,
+        customer_phone  TEXT NOT NULL,
+        party_size      INT NOT NULL DEFAULT 2,
+        reservation_time TIMESTAMPTZ NOT NULL,
+        status          TEXT NOT NULL DEFAULT 'pending'
+                        CHECK (status IN ('pending','confirmed','seated','cancelled','no_show')),
+        notes           TEXT,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ DEFAULT NOW()
+      );;
+
+UPDATE restaurants
+      SET password_hash = $1
+      RETURNING id, email, name;
+
+UPDATE staff
+      SET pin_hash = $1
+      RETURNING id, name;
+
+CREATE TABLE IF NOT EXISTS customers (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        email TEXT,
+        points INT DEFAULT 0,
+        stamps INT DEFAULT 0,
+        tier TEXT DEFAULT 'Bronze',
+        total_spent NUMERIC(10,2) DEFAULT 0,
+        total_visits INT DEFAULT 0,
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(restaurant_id, phone);;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS name TEXT;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS full_name TEXT;;
+
+ALTER TABLE staff ALTER COLUMN full_name DROP NOT NULL;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS pin_hash TEXT;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS password_hash TEXT;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS phone TEXT;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS deactivated_at TIMESTAMPTZ;;
+
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS deactivation_note TEXT;;
+
+UPDATE staff SET name = full_name WHERE name IS NULL AND full_name IS NOT NULL;;
+
+UPDATE staff SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL;;
+
+SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'staff' AND column_name = 'pin_code';
+
+SELECT id, pin_code FROM staff WHERE pin_code IS NOT NULL AND pin_hash IS NULL;
+
+UPDATE staff SET pin_hash = $1 WHERE id = $2;
+
+ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS paid_by_staff_id UUID REFERENCES staff(id),
+      ADD COLUMN IF NOT EXISTS split_payments JSONB DEFAULT '[]'::jsonb;;
+
+ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS tip_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS till_session_id UUID;
+      
+      CREATE TABLE IF NOT EXISTS cash_drawer_sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+        shift_id UUID REFERENCES staff_shifts(id) ON DELETE SET NULL,
+        opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        closed_at TIMESTAMPTZ,
+        starting_cash NUMERIC(10,2) NOT NULL DEFAULT 0,
+        actual_cash NUMERIC(10,2),
+        expected_cash NUMERIC(10,2) NOT NULL DEFAULT 0,
+        discrepancy_amount NUMERIC(10,2),
+        manager_signoff_id UUID REFERENCES staff(id) ON DELETE SET NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        notes TEXT
+      );;
+
+ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS payment_reference TEXT,
+      ADD COLUMN IF NOT EXISTS is_payment_confirmed BOOLEAN DEFAULT false;
+
+UPDATE orders 
+      SET is_payment_confirmed = true 
+      WHERE payment_status = 'paid' 
+        AND (payment_method IN ('cash', 'card') OR payment_method IS NULL);
+
+ALTER TABLE subscriptions
+      ADD COLUMN IF NOT EXISTS manual_payment_reference TEXT,
+      ADD COLUMN IF NOT EXISTS manual_receipt_url TEXT,
+      ADD COLUMN IF NOT EXISTS manual_payment_status TEXT DEFAULT 'pending';
+
+ALTER TABLE payment_proofs 
+      ADD COLUMN IF NOT EXISTS reference_number TEXT;
+
+CREATE TABLE IF NOT EXISTS menu_item_ingredients (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+        inventory_item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        quantity_required NUMERIC(10,3) NOT NULL CHECK (quantity_required > 0),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(menu_item_id, inventory_item_id)
+      );;
+
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS previous_slugs JSONB DEFAULT '[]'::jsonb;;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_by_staff_id UUID REFERENCES staff(id);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS split_payments JSONB;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wait_time INT;

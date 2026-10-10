@@ -29,6 +29,41 @@
     @apply font-display tracking-tight text-surface-900;
   }
 
+  
+  :root {
+    --bg-surface: #FFFFFF;
+    --bg-surface-muted: #F7F7F2;
+    --text-primary: #172033;
+    --border-color: #E2E8F0;
+  }
+  
+  .dark {
+    --bg-surface: #1e293b;
+    --bg-surface-muted: #0f172a;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --text-main: #f8fafc;
+    --background-color: #0f172a;
+    --sidebar-bg: #1e293b;
+    --header-bg: rgba(30, 41, 59, 0.85);
+    --input-bg: #0f172a;
+    
+    --surface-50: #0f172a;
+    --surface-100: #1e293b;
+    --surface-200: #334155;
+    --surface-300: #475569;
+    --surface-400: #64748B;
+    --surface-500: #94A3B8;
+    --surface-600: #CBD5E1;
+    --surface-700: #E2E8F0;
+    --surface-800: #F1F5F9;
+    --surface-900: #F8FAFC;
+    --surface-950: #FFFFFF;
+  }
+
   :root {
     --scrollbar-width: 6px;
     --scrollbar-color: #cbd5e1;

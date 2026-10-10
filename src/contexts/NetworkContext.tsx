@@ -5,18 +5,28 @@ import { syncEngine, triggerSync } from '../lib/sync';
 interface NetworkContextValue {
   isOnline: boolean;
   pendingSyncCount: number;
+  failedSyncCount: number;
   setPendingSyncCount: (n: number) => void;
+  refreshSyncStatus: () => void;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
   isOnline: true,
   pendingSyncCount: 0,
+  failedSyncCount: 0,
   setPendingSyncCount: () => {},
+  refreshSyncStatus: () => {},
 });
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(syncEngine.getPendingCount());
+  const [failedSyncCount, setFailedSyncCount] = useState(syncEngine.getFailedCount());
+
+  const refreshSyncStatus = () => {
+    setPendingSyncCount(syncEngine.getPendingCount());
+    setFailedSyncCount(syncEngine.getFailedCount());
+  };
 
   useEffect(() => {
     // 1. Initial status from Capacitor Network
@@ -26,19 +36,25 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       setIsOnline(navigator.onLine);
     });
 
+    const runSync = () => {
+      const count = syncEngine.getPendingCount();
+      if (count > 0) {
+        triggerSync((result) => {
+          console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
+          refreshSyncStatus();
+        });
+      } else {
+        refreshSyncStatus();
+      }
+    };
+
     // 2. Native listener
     let listenerHandle: any = null;
     try {
       listenerHandle = Network.addListener('networkStatusChange', status => {
         setIsOnline(status.connected);
         if (status.connected) {
-          const count = syncEngine.getPendingCount();
-          if (count > 0) {
-            triggerSync((result) => {
-              console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
-              setPendingSyncCount(syncEngine.getPendingCount());
-            });
-          }
+          runSync();
         }
       });
     } catch {
@@ -48,18 +64,17 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     // 3. Browser event fallback
     const handleOnline = () => {
       setIsOnline(true);
-      const count = syncEngine.getPendingCount();
-      if (count > 0) {
-        triggerSync((result) => {
-          console.log(`Sync complete: ${result.synced} synced, ${result.failed} failed`);
-          setPendingSyncCount(syncEngine.getPendingCount());
-        });
-      }
+      runSync();
     };
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Also run sync on mount if online
+    if (navigator.onLine) {
+      runSync();
+    }
 
     return () => {
       if (listenerHandle && typeof listenerHandle.remove === 'function') {
@@ -71,7 +86,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <NetworkContext.Provider value={{ isOnline, pendingSyncCount, setPendingSyncCount }}>
+    <NetworkContext.Provider value={{ isOnline, pendingSyncCount, failedSyncCount, setPendingSyncCount, refreshSyncStatus }}>
       {children}
     </NetworkContext.Provider>
   );
