@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/db');
+const { getSafeTz } = require('../utils/tzHelper');
 const { authenticate, requireTenant } = require('../middleware/auth');
 const { verifyManagerPin } = require('../utils/pinHelper');
 const { computeOrderTotals } = require('../utils/orderPricing');
@@ -46,9 +47,6 @@ async function verifyDiscountLimit(req, client, discount, managerPin) {
     ]
   );
 }
-
-router.use(authenticate, requireTenant);
-const tid = (req) => req.user.restaurantId;
 
 // ── GET /api/orders ────────────────────────────────────────────────
 router.get('/', async (req, res) => {
@@ -180,6 +178,7 @@ router.get('/history', async (req, res) => {
     }
 
     let pi = params.length + 1;
+    const tz = await getSafeTz(tid(req));
     if (date_from) {
       query += ` AND o.created_at >= $${pi++}`;
       params.push(date_from);

@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../config/db');
+const { getSafeTz } = require('../utils/tzHelper');
 const { authenticate, requireTenant } = require('../middleware/auth');
 const router = express.Router();
 const { Parser } = require('json2csv');
@@ -28,10 +29,7 @@ router.post('/refresh', async (req, res) => {
 router.get('/dashboard', async (req, res) => {
   try {
     const rId = tid(req);
-    const { rows: tzRows } = await db.query('SELECT timezone FROM restaurants WHERE id=router.get('/dashboard', async (req, res) => {
-  try {
-    const rId = tid(req);', [rId]);
-    const tz = tzRows[0]?.timezone || 'Africa/Addis_Ababa';
+    const tz = await getSafeTz(rId);
 
     const { rows: kpis } = await db.query(`
       SELECT 

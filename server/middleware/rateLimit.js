@@ -27,7 +27,7 @@ const staffLoginLimiter = rateLimit({
   validate: { keyGeneratorIpFallback: false },
   keyGenerator: (req) => {
     const slug = req.body?.slug ? String(req.body.slug).toLowerCase().trim() : 'general';
-    return `${req.ip}_${slug}`;
+    return `${(req.headers['x-forwarded-for'] || req.socket.remoteAddress)}_${slug}`;
   },
   message: {
     error: 'Too many invalid PIN attempts for this terminal. Please wait 10 minutes before trying again.'
@@ -60,7 +60,7 @@ const verifyPinLimiter = rateLimit({
   validate: { keyGeneratorIpFallback: false },
   keyGenerator: (req) => {
     const restaurantId = req.user?.restaurantId || 'general';
-    return `${req.ip}_${restaurantId}`;
+    return `${(req.headers['x-forwarded-for'] || req.socket.remoteAddress)}_${restaurantId}`;
   },
   message: {
     error: 'Too many failed manager PIN verification attempts. Please wait 10 minutes before retrying.'
@@ -86,8 +86,9 @@ const publicOrderLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { ip: false },
   keyGenerator: (req) => {
-    return req.ip + '_' + (req.body.restaurant_id || 'unknown');
+    return (req.headers['x-forwarded-for'] || req.socket.remoteAddress) + '_' + (req.body.restaurant_id || 'unknown');
   },
   message: {
     error: 'Too many orders placed from this device. Please try again in 10 minutes or contact staff.'
