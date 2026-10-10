@@ -1,7 +1,7 @@
 services:
   - type: web
     name: kushina-pos-api
-    env: node
+    runtime: node
     rootDir: server
     buildCommand: npm install
     startCommand: npm start

@@ -1,63 +1,68 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-const pool = require('./config/db');
+const db = require('./config/db');
 
 async function migrate() {
-  const client = await pool.connect();
   try {
-    // Create migrations tracking table
-    await client.query(`
+    console.log('🚀 Starting Database Migrations...');
+    const migrationsDir = path.join(__dirname, 'migrations');
+    
+    if (!fs.existsSync(migrationsDir)) {
+      console.log('No migrations directory found. Skipping.');
+      return;
+    }
+
+    // Create schema_migrations table if it doesn't exist
+    await db.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version TEXT PRIMARY KEY,
-        applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-      )
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
     `);
 
-    const migrationsDir = path.join(__dirname, 'migrations');
-    if (!fs.existsSync(migrationsDir)) fs.mkdirSync(migrationsDir);
+    // Get applied migrations
+    const { rows } = await db.query('SELECT version FROM schema_migrations');
+    const appliedVersions = new Set(rows.map(r => r.version));
+
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
     
-    // Sort all .sql files
-    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
-    
-    // Check if the DB is already populated (legacy) to conditionally skip 0001
-    const { rows } = await client.query("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'restaurants')");
-    const isLegacyDb = rows[0].exists;
+    let appliedCount = 0;
     
     for (const file of files) {
-      const { rows: migrated } = await client.query('SELECT version FROM schema_migrations WHERE version = $1', [file]);
-      if (migrated.length > 0) continue; // already applied
-      
-      // If it's legacy DB and file is 0001, mark as applied instead of running it to avoid conflicts.
-      // 0001 contains the ENTIRE legacy schema and patches combined.
-      if (isLegacyDb && file.startsWith('0001')) {
-        console.log(`Skipping legacy migration on existing DB: ${file}`);
-        await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [file]);
+      if (appliedVersions.has(file)) {
         continue;
       }
       
-      console.log(`Running migration: ${file}`);
+      console.log(`\n⏳ Executing ${file}...`);
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
       
-      await client.query('BEGIN');
+      // Execute the migration and record it in a transaction
+      await db.query('BEGIN');
       try {
-        await client.query(sql);
-        await client.query('INSERT INTO schema_migrations (version) VALUES ($1)', [file]);
-        await client.query('COMMIT');
+        await db.query(sql);
+        await db.query('INSERT INTO schema_migrations (version) VALUES ($1)', [file]);
+        await db.query('COMMIT');
+        console.log(`✅ Applied ${file} successfully.`);
+        appliedCount++;
       } catch (err) {
-        await client.query('ROLLBACK');
-        console.error(`Migration ${file} failed:`, err.message);
-        process.exit(1);
+        await db.query('ROLLBACK');
+        throw err;
       }
     }
     
-    console.log('✅ Migrations complete');
-  } catch (err) {
-    console.error('❌ Migration runner failed:', err);
+    if (appliedCount === 0) {
+      console.log('\n✅ Database is up to date. No new migrations to apply.');
+    } else {
+      console.log(`\n🎉 Applied ${appliedCount} migration(s) successfully.`);
+    }
+  } catch (error) {
+    console.error('\n❌ Migration failed:', error);
     process.exit(1);
   } finally {
-    client.release();
-    pool.end();
+    await db.end();
   }
 }
 

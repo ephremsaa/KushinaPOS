@@ -9,6 +9,15 @@ export default defineConfig(({ command, mode }) => {
   const isCapacitor = process.env.npm_lifecycle_event === 'build:cap';
   const isNativeBuild = isTauri || isCapacitor;
 
+  if (command === 'build') {
+    const leakedServiceKey = Object.keys(env).find(k => k.startsWith('VITE_') && k.includes('SERVICE'));
+    if (leakedServiceKey) {
+      console.error(`\n❌ FATAL: Potential secret leak! Found variable: ${leakedServiceKey}`);
+      console.error('Never embed service role keys or backend secrets in the frontend build.\n');
+      process.exit(1);
+    }
+  }
+
   if (command === 'build' && isNativeBuild) {
     if (!env.VITE_API_URL) {
       console.error('\n❌ FATAL: VITE_API_URL is missing!');

@@ -52,7 +52,6 @@ Copy `.env.example` to `.env` in both root and `server/`:
 # Root frontend .env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_SUPABASE_SERVICE_KEY=your-service-role-key
 
 # server/.env
 PORT=3001

@@ -316,7 +316,6 @@ CREATE TABLE IF NOT EXISTS cash_drawer_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
   staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-  shift_id UUID REFERENCES staff_shifts(id) ON DELETE SET NULL,
   opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   closed_at TIMESTAMPTZ,
   starting_cash NUMERIC(10,2) NOT NULL DEFAULT 0,
@@ -336,31 +335,7 @@ ALTER TABLE restaurants ALTER COLUMN theme_color SET DEFAULT '#2F7D32';
 
 ALTER TABLE restaurants ALTER COLUMN background_color SET DEFAULT '#F7F7F2';
 
-UPDATE restaurants 
-       SET theme_color = '#2F7D32', background_color = '#F7F7F2' 
-       WHERE theme_color IS NULL OR theme_color = '#f97316' OR theme_color = '';
 
-UPDATE restaurants 
-       SET name = 'kerod',
-           email = $1,
-           password_hash = $2,
-           status = 'active',
-           slug = COALESCE(slug, 'kerod'),
-           currency = 'ETB',
-           plan_id = $3,
-           updated_at = NOW()
-       WHERE email = $1 OR slug = 'kerod'
-       RETURNING id, name, email, slug, status, plan_id;
-
-INSERT INTO subscriptions (restaurant_id, plan_id, status, billing_cycle, current_period_start, current_period_end)
-           VALUES ($1, $2, 'active', 'monthly', NOW(), NOW() + INTERVAL '365 days');
-
-UPDATE subscriptions SET status = 'active', plan_id = $1 WHERE restaurant_id = $2;
-
-SELECT column_name FROM information_schema.columns WHERE table_name = 'platform_admins';
-
-INSERT INTO platform_admins (id, user_id, email, password_hash, name, created_at)
-           VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, $3, NOW());
 
 SELECT column_name FROM information_schema.columns WHERE table_name = 'subscriptions';
 
@@ -412,13 +387,7 @@ CREATE TABLE IF NOT EXISTS reservations (
         updated_at      TIMESTAMPTZ DEFAULT NOW()
       );;
 
-UPDATE restaurants
-      SET password_hash = $1
-      RETURNING id, email, name;
 
-UPDATE staff
-      SET pin_hash = $1
-      RETURNING id, name;
 
 CREATE TABLE IF NOT EXISTS customers (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -460,9 +429,7 @@ UPDATE staff SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL;;
 SELECT 1 FROM information_schema.columns 
       WHERE table_name = 'staff' AND column_name = 'pin_code';
 
-SELECT id, pin_code FROM staff WHERE pin_code IS NOT NULL AND pin_hash IS NULL;
 
-UPDATE staff SET pin_hash = $1 WHERE id = $2;
 
 ALTER TABLE orders 
       ADD COLUMN IF NOT EXISTS paid_by_staff_id UUID REFERENCES staff(id),
@@ -476,7 +443,7 @@ ALTER TABLE orders
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
         staff_id UUID NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
-        shift_id UUID REFERENCES staff_shifts(id) ON DELETE SET NULL,
+
         opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         closed_at TIMESTAMPTZ,
         starting_cash NUMERIC(10,2) NOT NULL DEFAULT 0,
