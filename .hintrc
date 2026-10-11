@@ -3,19 +3,14 @@
     "development"
   ],
   "hints": {
-    "compat-api/html": [
-      "default",
-      {
-        "ignore": [
-          "meta[name=theme-color]"
-        ]
-      }
-    ]
+    "compat-api/html": "off",
+    "compat-api/css": "off"
   },
   "browserslist": [
     "> 0.2%",
     "last 2 versions",
     "not dead",
-    "not IE 11"
+    "Safari >= 15.4",
+    "iOS >= 15.4"
   ]
 }
