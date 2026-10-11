@@ -1,7 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#F97316" />
-  <g transform="translate(12, 12) scale(1.6)">
-    <path d="M12 3c-1.2 0-2.4.6-3 1.7A3.6 3.6 0 0 0 4.6 9c-1 .8-1.7 2-1.6 3.4.1 1.6 1.4 2.8 2.9 3l1.1.1V19c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2v-3.5l1.1-.1c1.5-.2 2.8-1.4 2.9-3 .1-1.4-.6-2.6-1.6-3.4A3.6 3.6 0 0 0 15 4.7 3.5 3.5 0 0 0 12 3Z" fill="white"/>
-    <path d="M7.5 14h9M7.5 18h9" stroke="#F97316" stroke-width="2" stroke-linecap="round"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <image href="/kushinaPOStrace.png" width="512" height="512" preserveAspectRatio="xMidYMid meet" />
 </svg>

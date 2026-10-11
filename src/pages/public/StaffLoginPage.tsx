@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../lib/api';
-import { Loader2, WifiOff, AlertTriangle, ChefHat, ShieldCheck, KeyRound } from 'lucide-react';
+import { Loader2, WifiOff, AlertTriangle, ChefHat, ShieldCheck, KeyRound, Clock } from 'lucide-react';
 import { PinPad } from '../../components/ui';
 import { cn, isDarkColor } from '../../lib/utils';
 import { assetUrl } from '../../lib/assetUrl';
@@ -38,13 +38,18 @@ function UnavailableScreen({
   reason,
 }: {
   restaurantName?: string;
-  reason: 'not_found' | 'suspended' | 'rejected';
+  reason: 'not_found' | 'suspended' | 'rejected' | 'pending';
 }) {
   const messages = {
     not_found: {
       icon: <WifiOff className="w-10 h-10 text-slate-500" />,
       title: restaurantName ? `${restaurantName} is Unavailable` : 'Terminal Unavailable',
       body:  "This staff login URL doesn't match any active restaurant. Check the address or contact your manager.",
+    },
+    pending: {
+      icon: <Clock className="w-10 h-10 text-amber-500" />,
+      title: `${restaurantName ?? 'Restaurant'} Application Under Review`,
+      body:  "This restaurant account is currently awaiting admin verification. Staff terminals will unlock once approved.",
     },
     suspended: {
       icon: <AlertTriangle className="w-10 h-10 text-amber-500" />,
@@ -83,7 +88,7 @@ export default function StaffLoginPage() {
   const [restaurant, setRestaurant] = useState<any>(null);
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [unavailableReason, setUnavailableReason] = useState<
-    'not_found' | 'suspended' | 'rejected' | null
+    'not_found' | 'suspended' | 'rejected' | 'pending' | null
   >(null);
 
   const [pin, setPin] = useState('');
@@ -106,8 +111,13 @@ export default function StaffLoginPage() {
       try {
         const res = await api.get<any>(`/public/restaurant/${slug}`);
         if (res.status === 'suspended') {
+          setRestaurant(res);
           setUnavailableReason('suspended');
-        } else if (res.status === 'rejected' || res.status === 'pending') {
+        } else if (res.status === 'pending') {
+          setRestaurant(res);
+          setUnavailableReason('pending');
+        } else if (res.status === 'rejected') {
+          setRestaurant(res);
           setUnavailableReason('rejected');
         } else {
           setRestaurant(res);

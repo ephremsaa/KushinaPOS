@@ -292,4 +292,305 @@ router.get('/export', async (req, res) => {
   }
 });
 
+// ── GET /api/reports/online-ordering ─────────────────────────
+router.get('/online-ordering', async (req, res) => {
+  const { period = '30d' } = req.query;
+  const days = period === '90d' ? 90 : period === '7d' ? 7 : 30;
+
+  try {
+    const rId = tid(req);
+    const tz = await getSafeTz(rId);
+
+    // 1. Online vs In-restaurant comparison
+    const { rows: salesComparison } = await db.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN order_source = 'online' AND status != 'cancelled' THEN total ELSE 0 END), 0) as online_sales,
+         COUNT(CASE WHEN order_source = 'online' AND status != 'cancelled' THEN 1 END) as online_orders_count,
+         COALESCE(SUM(CASE WHEN (order_source != 'online' OR order_source IS NULL) AND status != 'cancelled' THEN total ELSE 0 END), 0) as in_restaurant_sales,
+         COUNT(CASE WHEN (order_source != 'online' OR order_source IS NULL) AND status != 'cancelled' THEN 1 END) as in_restaurant_orders_count,
+         COALESCE(SUM(CASE WHEN order_source = 'online' AND order_type = 'delivery' AND status != 'cancelled' THEN delivery_fee ELSE 0 END), 0) as delivery_fees_collected,
+         COUNT(CASE WHEN order_source = 'online' AND order_type = 'delivery' AND status != 'cancelled' THEN 1 END) as delivery_orders_count,
+         COUNT(CASE WHEN order_source = 'online' AND order_type = 'pickup' AND status != 'cancelled' THEN 1 END) as pickup_orders_count
+       FROM orders
+       WHERE restaurant_id = $1
+         AND created_at >= (NOW() AT TIME ZONE '${tz}')::date - ($2 || ' days')::interval`,
+      [rId, days]
+    );
+
+    // 2. Average delivery time: minutes between accepted_at and delivered_at
+    const { rows: avgTimeRows } = await db.query(
+      `SELECT
+         ROUND(COALESCE(AVG(EXTRACT(EPOCH FROM (delivered_at - accepted_at)) / 60), 0)) as avg_delivery_minutes,
+         ROUND(COALESCE(AVG(EXTRACT(EPOCH FROM (estimated_ready_at - accepted_at)) / 60), 0)) as avg_prep_minutes,
+         COUNT(*) as delivered_count
+       FROM orders
+       WHERE restaurant_id = $1
+         AND order_source = 'online'
+         AND accept_status = 'accepted'
+         AND delivered_at IS NOT NULL
+         AND accepted_at IS NOT NULL
+         AND created_at >= (NOW() AT TIME ZONE '${tz}')::date - ($2 || ' days')::interval`,
+      [rId, days]
+    );
+
+    // 3. Rejected orders count & reasons
+    const { rows: rejectionSummary } = await db.query(
+      `SELECT
+         COUNT(*) as total_rejected,
+         COALESCE(rejection_reason, 'No reason specified') as reason,
+         COUNT(*) as count
+       FROM orders
+       WHERE restaurant_id = $1
+         AND order_source = 'online'
+         AND accept_status = 'rejected'
+         AND created_at >= (NOW() AT TIME ZONE '${tz}')::date - ($2 || ' days')::interval
+       GROUP BY rejection_reason
+       ORDER BY count DESC`,
+      [rId, days]
+    );
+
+    const totalRejected = rejectionSummary.reduce((acc, cur) => acc + parseInt(cur.count || 0), 0);
+
+    // 4. Daily trend for charts/tables
+    const { rows: dailyTrend } = await db.query(
+      `SELECT
+         DATE(created_at AT TIME ZONE '${tz}') as date,
+         COALESCE(SUM(CASE WHEN order_source = 'online' AND status != 'cancelled' THEN total ELSE 0 END), 0) as online_sales,
+         COUNT(CASE WHEN order_source = 'online' AND status != 'cancelled' THEN 1 END) as online_orders,
+         COALESCE(SUM(CASE WHEN (order_source != 'online' OR order_source IS NULL) AND status != 'cancelled' THEN total ELSE 0 END), 0) as in_restaurant_sales,
+         COUNT(CASE WHEN (order_source != 'online' OR order_source IS NULL) AND status != 'cancelled' THEN 1 END) as in_restaurant_orders,
+         COALESCE(SUM(CASE WHEN order_source = 'online' AND order_type = 'delivery' AND status != 'cancelled' THEN delivery_fee ELSE 0 END), 0) as delivery_fees
+       FROM orders
+       WHERE restaurant_id = $1
+         AND created_at >= (NOW() AT TIME ZONE '${tz}')::date - ($2 || ' days')::interval
+       GROUP BY DATE(created_at AT TIME ZONE '${tz}')
+       ORDER BY date ASC`,
+      [rId, days]
+    );
+
+    res.json({
+      period,
+      days,
+      kpis: {
+        online_sales: Number(salesComparison[0]?.online_sales || 0),
+        online_orders_count: parseInt(salesComparison[0]?.online_orders_count || 0),
+        in_restaurant_sales: Number(salesComparison[0]?.in_restaurant_sales || 0),
+        in_restaurant_orders_count: parseInt(salesComparison[0]?.in_restaurant_orders_count || 0),
+        delivery_fees_collected: Number(salesComparison[0]?.delivery_fees_collected || 0),
+        delivery_orders_count: parseInt(salesComparison[0]?.delivery_orders_count || 0),
+        pickup_orders_count: parseInt(salesComparison[0]?.pickup_orders_count || 0),
+        avg_delivery_minutes: Number(avgTimeRows[0]?.avg_delivery_minutes || 0),
+        avg_prep_minutes: Number(avgTimeRows[0]?.avg_prep_minutes || 0),
+        delivered_count: parseInt(avgTimeRows[0]?.delivered_count || 0),
+        total_rejected: totalRejected
+      },
+      rejection_reasons: rejectionSummary,
+      daily_trend: dailyTrend
+    });
+  } catch (err) {
+    console.error('Error fetching online ordering reports:', err);
+    res.status(500).json({ error: 'Failed to fetch online ordering report' });
+  }
+});
+
+// ── GET /api/reports/customers-loyalty ───────────────────────
+// Metrics: repeat-customer rate, average spend per customer, loyalty liability (ETB), redemptions per month
+router.get('/customers-loyalty', async (req, res) => {
+  try {
+    const rId = tid(req);
+    const tz = await getSafeTz(rId);
+
+    // 1. Fetch restaurant loyalty configuration (for point conversion)
+    const { rows: restRows } = await db.query(
+      `SELECT loyalty_enabled, loyalty_program_type, loyalty_point_val_etb 
+       FROM restaurants WHERE id = $1`,
+      [rId]
+    );
+    const pointVal = Number(restRows[0]?.loyalty_point_val_etb) || 0.10;
+
+    // 2. Customer metrics
+    const { rows: customerKpis } = await db.query(
+      `SELECT
+         COUNT(*) as total_customers,
+         COUNT(*) FILTER (WHERE order_count >= 1) as customers_with_orders,
+         COUNT(*) FILTER (WHERE order_count >= 2) as repeat_customers,
+         COALESCE(SUM(total_spent), 0) as total_revenue,
+         COALESCE(AVG(total_spent) FILTER (WHERE total_spent > 0), 0) as avg_spend_per_active_customer,
+         COALESCE(SUM(points), 0) as total_points_outstanding,
+         COUNT(*) FILTER (WHERE marketing_consent = true) as consented_marketing_count,
+         COUNT(*) FILTER (WHERE created_at >= (NOW() AT TIME ZONE '${tz}') - INTERVAL '30 days') as new_customers_30d,
+         COUNT(*) FILTER (WHERE last_visit_at < (NOW() AT TIME ZONE '${tz}') - INTERVAL '30 days') as inactive_customers_30d
+       FROM customers
+       WHERE restaurant_id = $1 AND is_anonymized = false`,
+      [rId]
+    );
+
+    const ck = customerKpis[0] || {};
+    const totalWithOrders = parseInt(ck.customers_with_orders || 0, 10);
+    const repeatCustomers = parseInt(ck.repeat_customers || 0, 10);
+    const repeatRate = totalWithOrders > 0
+      ? Math.round((repeatCustomers / totalWithOrders) * 1000) / 10
+      : 0;
+    const totalPoints = parseInt(ck.total_points_outstanding || 0, 10);
+    const liabilityEtb = Math.round(totalPoints * pointVal * 100) / 100;
+
+    // 3. Monthly redemptions (last 6 months)
+    const { rows: monthlyRedemptions } = await db.query(
+      `SELECT
+         TO_CHAR(created_at AT TIME ZONE '${tz}', 'YYYY-MM') as month,
+         COUNT(*) as redemption_count,
+         ABS(COALESCE(SUM(points), 0)) as points_redeemed,
+         ROUND(ABS(COALESCE(SUM(points), 0))::numeric * $2::numeric, 2) as value_redeemed_etb
+       FROM loyalty_transactions
+       WHERE restaurant_id = $1 
+         AND type = 'redeem'
+         AND created_at >= (NOW() AT TIME ZONE '${tz}') - INTERVAL '6 months'
+       GROUP BY TO_CHAR(created_at AT TIME ZONE '${tz}', 'YYYY-MM')
+       ORDER BY month ASC`,
+      [rId, pointVal]
+    );
+
+    // 4. Monthly earned points (last 6 months)
+    const { rows: monthlyEarned } = await db.query(
+      `SELECT
+         TO_CHAR(created_at AT TIME ZONE '${tz}', 'YYYY-MM') as month,
+         COUNT(*) as earn_count,
+         COALESCE(SUM(points), 0) as points_earned
+       FROM loyalty_transactions
+       WHERE restaurant_id = $1 
+         AND type = 'earn'
+         AND created_at >= (NOW() AT TIME ZONE '${tz}') - INTERVAL '6 months'
+       GROUP BY TO_CHAR(created_at AT TIME ZONE '${tz}', 'YYYY-MM')
+       ORDER BY month ASC`,
+      [rId]
+    );
+
+    res.json({
+      repeat_customer_rate: repeatRate,
+      repeat_customers: repeatCustomers,
+      total_ordering_customers: totalWithOrders,
+      total_customers: parseInt(ck.total_customers || 0, 10),
+      average_spend_per_customer: Math.round(Number(ck.avg_spend_per_active_customer || 0) * 100) / 100,
+      total_revenue_from_customers: Number(ck.total_revenue || 0),
+      loyalty_points_outstanding: totalPoints,
+      loyalty_liability_etb: liabilityEtb,
+      point_value_etb: pointVal,
+      consented_marketing_count: parseInt(ck.consented_marketing_count || 0, 10),
+      new_customers_30d: parseInt(ck.new_customers_30d || 0, 10),
+      inactive_customers_30d: parseInt(ck.inactive_customers_30d || 0, 10),
+      monthly_redemptions: monthlyRedemptions,
+      monthly_earned: monthlyEarned
+    });
+  } catch (err) {
+    console.error('Error fetching customers/loyalty report:', err);
+    res.status(500).json({ error: 'Failed to fetch customer loyalty reports' });
+  }
+});
+
+// ── GET /api/reports/payments ─────────────────────────────────
+// Totals by method per day, per shift, unconfirmed amount, and reconciliation metrics
+router.get('/payments', async (req, res) => {
+  try {
+    const rId = tid(req);
+    const tz = await getSafeTz(rId);
+
+    // 1. Daily totals by payment method (last 30 days)
+    const { rows: dailyByMethod } = await db.query(
+      `SELECT 
+         DATE(p.created_at AT TIME ZONE '${tz}') as date,
+         p.method,
+         COUNT(*) as transaction_count,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('confirmed', 'paid')), 0) as confirmed_amount,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'pending'), 0) as pending_amount,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'refunded'), 0) as refunded_amount
+       FROM payments p
+       WHERE p.restaurant_id = $1
+         AND p.created_at >= (NOW() AT TIME ZONE '${tz}') - INTERVAL '30 days'
+       GROUP BY DATE(p.created_at AT TIME ZONE '${tz}'), p.method
+       ORDER BY date DESC, p.method ASC`,
+      [rId]
+    );
+
+    // 2. Totals by shift / till session
+    const { rows: shiftTotals } = await db.query(
+      `SELECT 
+         s.id as session_id,
+         s.opened_at,
+         s.closed_at,
+         s.status as session_status,
+         st.name as staff_name,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.status IN ('confirmed', 'paid')), 0) as confirmed_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.method = 'cash' AND p.status IN ('confirmed', 'paid')), 0) as cash_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.method = 'telebirr' AND p.status IN ('confirmed', 'paid')), 0) as telebirr_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.method = 'cbe_birr' AND p.status IN ('confirmed', 'paid')), 0) as cbe_birr_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.method = 'bank_transfer' AND p.status IN ('confirmed', 'paid')), 0) as bank_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.method = 'card' AND p.status IN ('confirmed', 'paid')), 0) as card_total,
+         COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'pending'), 0) as unconfirmed_amount,
+         COUNT(*) FILTER (WHERE p.status = 'pending') as unconfirmed_count
+       FROM cash_drawer_sessions s
+       LEFT JOIN staff st ON st.id = s.staff_id
+       LEFT JOIN payments p ON p.till_session_id = s.id
+       WHERE s.restaurant_id = $1
+       GROUP BY s.id, s.opened_at, s.closed_at, s.status, st.name
+       ORDER BY s.opened_at DESC
+       LIMIT 25`,
+      [rId]
+    );
+
+    // 3. Unconfirmed pending mobile-money metrics
+    const { rows: unconfirmedRows } = await db.query(
+      `SELECT
+         COUNT(*) as total_unconfirmed_count,
+         COALESCE(SUM(amount), 0) as total_unconfirmed_amount,
+         COALESCE(SUM(amount) FILTER (WHERE method = 'telebirr'), 0) as telebirr_unconfirmed_amount,
+         COALESCE(SUM(amount) FILTER (WHERE method = 'cbe_birr'), 0) as cbe_unconfirmed_amount,
+         COALESCE(SUM(amount) FILTER (WHERE method = 'bank_transfer'), 0) as bank_unconfirmed_amount
+       FROM payments
+       WHERE restaurant_id = $1 AND status = 'pending'`,
+      [rId]
+    );
+
+    // 4. Statement reconciliation metrics
+    const { rows: reconRows } = await db.query(
+      `SELECT
+         COALESCE(SUM(amount), 0) as total_statement_eligible,
+         COALESCE(SUM(amount) FILTER (WHERE is_matched_with_statement = true), 0) as matched_amount,
+         COALESCE(SUM(amount) FILTER (WHERE is_matched_with_statement = false), 0) as unmatched_amount,
+         COUNT(*) FILTER (WHERE is_matched_with_statement = true) as matched_count,
+         COUNT(*) FILTER (WHERE is_matched_with_statement = false) as unmatched_count
+       FROM payments
+       WHERE restaurant_id = $1 
+         AND method IN ('telebirr', 'cbe_birr', 'bank_transfer')
+         AND status IN ('confirmed', 'paid')`,
+      [rId]
+    );
+
+    const unconfirmed = unconfirmedRows[0] || {};
+    const recon = reconRows[0] || {};
+
+    res.json({
+      daily_by_method: dailyByMethod,
+      shifts: shiftTotals,
+      unconfirmed: {
+        count: parseInt(unconfirmed.total_unconfirmed_count || 0, 10),
+        total_amount: parseFloat(unconfirmed.total_unconfirmed_amount || 0),
+        telebirr_amount: parseFloat(unconfirmed.telebirr_unconfirmed_amount || 0),
+        cbe_birr_amount: parseFloat(unconfirmed.cbe_unconfirmed_amount || 0),
+        bank_transfer_amount: parseFloat(unconfirmed.bank_unconfirmed_amount || 0),
+      },
+      reconciliation: {
+        total_eligible: parseFloat(recon.total_statement_eligible || 0),
+        matched_amount: parseFloat(recon.matched_amount || 0),
+        unmatched_amount: parseFloat(recon.unmatched_amount || 0),
+        matched_count: parseInt(recon.matched_count || 0, 10),
+        unmatched_count: parseInt(recon.unmatched_count || 0, 10),
+      },
+    });
+  } catch (err) {
+    console.error('Error fetching payments report:', err);
+    res.status(500).json({ error: 'Failed to fetch payments report' });
+  }
+});
+
 module.exports = router;
+

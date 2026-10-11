@@ -1,27 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Clock, CreditCard, Store,
   Package, ScrollText, LogOut, ChefHat, Menu, X, Bell,
-  Search, ShieldCheck, Activity, Sparkles, Command
+  Search, ShieldCheck, Activity, Sparkles, Command, Users, Terminal
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../lib/api';
 
 const navItems = [
   { to: '/admin',              icon: LayoutDashboard, label: 'Dashboard',   end: true },
+  { to: '/admin/leads',        icon: Users,           label: 'Leads' },
   { to: '/admin/approvals',    icon: Clock,           label: 'Approvals' },
   { to: '/admin/payments',     icon: CreditCard,      label: 'Payments' },
   { to: '/admin/restaurants',  icon: Store,           label: 'Restaurants' },
   { to: '/admin/plans',        icon: Package,         label: 'Plans' },
+  { to: '/admin/developers',   icon: Terminal,        label: 'Developers & API' },
   { to: '/admin/audit-logs',   icon: ScrollText,      label: 'Audit Logs' },
 ];
 
 export default function AdminLayout() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const { data: leadsData } = useQuery({
+    queryKey: ['admin-leads-badge'],
+    queryFn: async () => {
+      try {
+        const res = await adminApi.leads({ status: 'new' });
+        return res as { leads: any[]; counts: { new: number } };
+      } catch {
+        return null;
+      }
+    },
+    refetchInterval: 30000,
+  });
+
+  const newLeadsCount = leadsData?.counts?.new || 0;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -37,9 +57,11 @@ export default function AdminLayout() {
     <aside className="flex flex-col h-full bg-slate-950 text-slate-200 w-64 flex-shrink-0 border-r border-slate-800/60 shadow-2xl relative z-20">
       {/* Brand Header */}
       <div className="flex items-center gap-3.5 px-6 py-6 border-b border-slate-800/80">
-        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 via-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.4)] border border-orange-400/30">
-          <ChefHat className="w-6 h-6 text-white" />
-        </div>
+        <img
+          src="/kushinaPOStrace.png"
+          alt="kushinaPOS"
+          className="w-10 h-10 object-contain rounded-2xl shadow-[0_0_20px_rgba(249,115,22,0.3)]"
+        />
         <div>
           <div className="flex items-center gap-1.5">
             <span className="font-display font-black text-white text-xl tracking-tight leading-none">kushina</span>
@@ -73,6 +95,11 @@ export default function AdminLayout() {
           >
             <Icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
             <span>{label}</span>
+            {to === '/admin/leads' && newLeadsCount > 0 && (
+              <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500 text-white animate-pulse">
+                {newLeadsCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -177,17 +204,50 @@ export default function AdminLayout() {
               </p>
             </div>
 
-            {/* Notifications */}
-            <button className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-orange-500/50 hover:bg-slate-800 transition-all relative text-slate-300 hover:text-white cursor-pointer">
+            {/* Notifications / In-App Alert */}
+            <button 
+              type="button"
+              onClick={() => navigate('/admin/leads')}
+              title={newLeadsCount > 0 ? `${newLeadsCount} new lead inquiries awaiting follow-up` : 'No new inquiries'}
+              className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-orange-500/50 hover:bg-slate-800 transition-all relative text-slate-300 hover:text-white cursor-pointer"
+            >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500" />
+              {newLeadsCount > 0 && (
+                <>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500" />
+                </>
+              )}
             </button>
           </div>
         </header>
 
         {/* Page Content Surface */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-900 text-slate-100">
+          {newLeadsCount > 0 && location.pathname !== '/admin/leads' && (
+            <div className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between gap-4 animate-fade-in shadow-md">
+              <div className="flex items-center gap-3">
+                <span className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+                  <Users className="w-4 h-4" />
+                </span>
+                <div>
+                  <div className="text-xs font-bold text-white">
+                    {newLeadsCount} New Lead {newLeadsCount === 1 ? 'Inquiry' : 'Inquiries'} Awaiting Follow-Up
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Prospective restaurants have submitted demo or quote requests from the website.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/leads')}
+                className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer shrink-0"
+              >
+                View Leads
+              </button>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

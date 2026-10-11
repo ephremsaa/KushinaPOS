@@ -37,6 +37,7 @@ router.get('/orders', async (req, res) => {
        LEFT JOIN order_items oi ON oi.order_id = o.id
        WHERE o.restaurant_id = $1
          AND o.status IN ('new', 'preparing')
+         AND (o.accept_status IS NULL OR o.accept_status = 'accepted')
        GROUP BY o.id, t.label
        HAVING COUNT(oi.id) FILTER (WHERE oi.id IS NOT NULL ${stationFilter}) > 0
        ORDER BY o.created_at ASC`,

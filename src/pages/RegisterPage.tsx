@@ -74,9 +74,11 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-3 mb-4 group">
-            <div className="w-12 h-12 bg-gradient-to-tr from-brand-600 to-amber-400 rounded-2xl flex items-center justify-center shadow-glow-sm group-hover:scale-105 transition-transform">
-              <ChefHat className="w-7 h-7 text-white" />
-            </div>
+            <img
+              src="/kushinaPOStrace.png"
+              alt="kushinaPOS"
+              className="w-12 h-12 object-contain group-hover:scale-105 transition-transform drop-shadow-md"
+            />
             <span className="font-display font-extrabold text-2xl text-white tracking-tight">
               kushina<span className="text-brand-500">POS</span>
             </span>

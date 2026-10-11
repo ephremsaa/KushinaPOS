@@ -4,7 +4,8 @@ import {
   LayoutDashboard, Store, Wallet, ChefHat, Table2, Menu, X,
   Users, Package, BarChart3, CreditCard, Settings, LogOut,
   UtensilsCrossed, Monitor, BookOpen, Bell, Wifi, WifiOff,
-  Banknote, Receipt, ChevronRight, ShieldCheck, Globe, Calendar
+  Banknote, Receipt, ChevronRight, ShieldCheck, Globe, Calendar,
+  ShoppingBag, HeartHandshake
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -28,13 +29,16 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { to: '/dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard', end: true, roles: ['owner', 'manager'] },
   { to: '/dashboard/pos', icon: Store, i18nKey: 'nav.pos', roles: ['owner', 'manager', 'cashier', 'waiter'] },
+  { to: '/dashboard/online-orders', icon: ShoppingBag, i18nKey: 'nav.online_orders', roles: ['owner', 'manager', 'cashier'] },
   { to: '/dashboard/checkout', icon: Wallet, i18nKey: 'checkout.title', roles: ['owner', 'manager', 'cashier'] },
   { to: '/dashboard/till', icon: Banknote, i18nKey: 'till.title', roles: ['owner', 'manager', 'cashier'] },
   { to: '/dashboard/bill-history', icon: Receipt, i18nKey: 'bills.title', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/payments', icon: ShieldCheck, i18nKey: 'nav.payments', roles: ['owner', 'manager', 'cashier'] },
   { to: '/dashboard/orders', icon: UtensilsCrossed, i18nKey: 'nav.orders', roles: ['owner', 'manager', 'waiter'] },
   { to: '/dashboard/kitchen', icon: Monitor, i18nKey: 'nav.kitchen', roles: ['owner', 'manager', 'kitchen'] },
   { to: '/dashboard/tables', icon: Table2, i18nKey: 'nav.tables', roles: ['owner', 'manager', 'cashier', 'waiter'] },
   { to: '/dashboard/reservations', icon: Calendar, i18nKey: 'nav.reservations', roles: ['owner', 'manager', 'cashier'] },
+  { to: '/dashboard/customers', icon: HeartHandshake, i18nKey: 'nav.customers', roles: ['owner', 'manager', 'cashier'] },
   { to: '/dashboard/menu', icon: BookOpen, i18nKey: 'nav.menu', roles: ['owner', 'manager'] },
   { to: '/dashboard/staff', icon: Users, i18nKey: 'nav.staff', roles: ['owner', 'manager'] },
   { to: '/dashboard/inventory', icon: Package, i18nKey: 'nav.inventory', roles: ['owner', 'manager'] },
@@ -103,9 +107,11 @@ export default function TenantLayout() {
             style={{ borderColor: 'var(--card-border, #E2E8F0)' }}
           />
         ) : (
-          <div className="w-10 h-10 bg-gradient-to-br from-brand-600 via-brand-500 to-brand-300 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ring-2 ring-brand-500/30">
-            <ChefHat className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/kushinaPOStrace.png"
+            alt="Kushina Logo"
+            className="w-10 h-10 object-contain rounded-2xl flex-shrink-0 drop-shadow-sm"
+          />
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
@@ -239,7 +245,7 @@ export default function TenantLayout() {
             {user?.restaurant?.logo_url ? (
               <img src={assetUrl(user.restaurant.logo_url as string)} alt="Logo" className="w-7 h-7 rounded-lg object-cover border border-surface-100 bg-surface" />
             ) : (
-              <ChefHat className="w-5 h-5 text-brand-500" />
+              <img src="/kushinaPOStrace.png" alt="Logo" className="w-7 h-7 object-contain" />
             )}
             <span className="font-display font-black text-base leading-none truncate max-w-[160px]" style={{ color: 'var(--text-main, #0f172a)' }}>
               {String(restaurantName)}

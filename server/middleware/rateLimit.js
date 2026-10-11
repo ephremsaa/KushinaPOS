@@ -95,11 +95,42 @@ const publicOrderLimiter = rateLimit({
   }
 });
 
+/**
+ * Public Leads Submission Limiter
+ * 5 attempts per 1 hour per IP
+ */
+const leadsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many lead submissions from this network. Please try again later.'
+  }
+});
+
+/**
+ * Public General Query Limiter
+ * 120 requests per 15 minutes per IP
+ */
+const publicGeneralLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests from this device. Please wait a few minutes before trying again.'
+  }
+});
+
 module.exports = {
   authLimiter,
   staffLoginLimiter,
   bootstrapAdminLimiter,
   verifyPinLimiter,
   registerLimiter,
-  publicOrderLimiter
+  publicOrderLimiter,
+  leadsLimiter,
+  publicGeneralLimiter
 };
+

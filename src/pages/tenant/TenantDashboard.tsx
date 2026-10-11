@@ -6,7 +6,7 @@ import {
   Sparkles, ArrowUpRight, ArrowDownRight, Clock,
   ChefHat, ChevronRight, Store, Banknote
 } from 'lucide-react';
-import { reportsApi } from '../../lib/api';
+import { reportsApi, paymentsApi } from '../../lib/api';
 import { navItems } from '../../layouts/TenantLayout';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -29,6 +29,11 @@ export default function TenantDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { data, isLoading } = useTenantOverview();
+  const { data: toConfirm } = useQuery({
+    queryKey: ['payments-to-confirm-count'],
+    queryFn: () => paymentsApi.toConfirm(),
+    refetchInterval: 15_000,
+  });
 
   const staffRole: string = user?.staffRole ?? (user?.role === 'restaurant_owner' ? 'owner' : 'waiter');
   const restaurantName = (user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant';
@@ -115,6 +120,28 @@ export default function TenantDashboard() {
             </div>
           </div>
           <Link to="/dashboard/billing" className="btn-sm btn-danger px-4 flex-shrink-0">Review Billing</Link>
+        </div>
+      )}
+
+      {/* Unconfirmed Payments Alert Nudge */}
+      {toConfirm && toConfirm.count > 0 && (
+        <div className="p-5 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-transparent border border-amber-300/80 rounded-3xl flex items-center justify-between gap-4 shadow-sm animate-pulse-soft">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-500 text-white rounded-2xl shadow-sm">
+              <Clock className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-amber-950 text-sm">
+                Action Required: {toConfirm.count} Payment(s) To Confirm ({formatCurrency(toConfirm.total_unconfirmed)})
+              </h3>
+              <p className="text-xs text-amber-800 mt-0.5 font-medium">
+                Cashier-recorded mobile money or bank transfers need manager verification before shift end.
+              </p>
+            </div>
+          </div>
+          <Link to="/dashboard/payments" className="btn-sm bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 flex-shrink-0 rounded-2xl transition-all shadow-sm">
+            Review Payments →
+          </Link>
         </div>
       )}
 

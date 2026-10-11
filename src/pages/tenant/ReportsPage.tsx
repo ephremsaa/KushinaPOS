@@ -6,14 +6,14 @@ import {
 } from 'recharts';
 import { reportsApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
-import { RefreshCw, Download, TrendingUp, Users, Package, Grid, Clock, Hash, Sparkles } from 'lucide-react';
+import { RefreshCw, Download, TrendingUp, Users, Package, Grid, Clock, Hash, Sparkles, ShoppingBag, Truck, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, StatCardSkeleton, Skeleton } from '../../components/ui';
 import { MenuEngineeringMatrix } from '../../components/analytics/MenuEngineeringMatrix';
 import { globalToast } from '../../components/ui/Toast';
 
 type Period = '7d' | '30d' | '90d';
-type Tab = 'sales' | 'items' | 'menu-matrix' | 'staff' | 'peak-hours' | 'tables' | 'inventory';
+type Tab = 'sales' | 'online' | 'items' | 'menu-matrix' | 'staff' | 'peak-hours' | 'tables' | 'inventory';
 
 const CHART_COLORS = ['#2F7D32', '#7BC67E', '#D4A72C', '#172033', '#52a856', '#e4be52', '#a7d5ab'];
 
@@ -29,6 +29,7 @@ export default function ReportsPage() {
   const { data: tables, isLoading: tablesLoading } = useQuery({ queryKey: ['reports-tables', period], queryFn: () => reportsApi.tables(period).then(res => res as any) });
   const { data: peak, isLoading: peakLoading } = useQuery({ queryKey: ['reports-peak'], queryFn: () => reportsApi.peakHours().then(res => res as any) });
   const { data: inv, isLoading: invLoading } = useQuery({ queryKey: ['reports-inv'], queryFn: () => reportsApi.inventoryValuation().then(res => res as any) });
+  const { data: onlineReport, isLoading: onlineLoading } = useQuery({ queryKey: ['reports-online', period], queryFn: () => reportsApi.onlineOrdering(period).then(res => res as any) });
 
   const { mutate: refresh, isPending: refreshing } = useMutation({
     mutationFn: () => reportsApi.refresh(),
@@ -36,13 +37,14 @@ export default function ReportsPage() {
   });
 
   const downloadCsv = () => {
-    let typeMap: Record<Tab, string> = { sales: 'sales', items: 'items', 'menu-matrix': 'items', staff: 'staff', 'peak-hours': '', tables: '', inventory: '' };
+    let typeMap: Record<Tab, string> = { sales: 'sales', online: '', items: 'items', 'menu-matrix': 'items', staff: 'staff', 'peak-hours': '', tables: '', inventory: '' };
     if (!typeMap[tab]) return globalToast.info('Export not supported for this tab yet');
     window.open(reportsApi.exportUrl(typeMap[tab], period), '_blank');
   };
 
   const tabs = [
     { k: 'sales', l: 'Sales Overview', i: TrendingUp },
+    { k: 'online', l: 'Online & Delivery', i: ShoppingBag },
     { k: 'menu-matrix', l: 'AI Menu Matrix', i: Sparkles },
     { k: 'items', l: 'Top Items', i: Hash },
     { k: 'staff', l: 'Staff Perf.', i: Users },
@@ -257,6 +259,153 @@ export default function ReportsPage() {
             <p className="text-4xl font-display font-extrabold text-red-500">{invLoading ? '—' : formatCurrency(inv?.wastage_30d || 0)}</p>
             <p className="text-sm text-muted mt-2">Cost of goods lost to spoilage/waste in the last 30 days.</p>
           </div>
+        </div>
+      )}
+
+      {/* ══════════════ ONLINE ORDERING & DELIVERY REPORT ══════════════ */}
+      {tab === 'online' && (
+        <div className="space-y-6">
+          {onlineLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => <StatCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <>
+              {/* 4 KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="card p-5 border border-brand-200 bg-brand-50/30 space-y-1">
+                  <div className="flex items-center justify-between text-brand-700">
+                    <span className="text-xs font-bold uppercase tracking-wider">Online Revenue</span>
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-display font-extrabold text-primary">
+                    {formatCurrency(onlineReport?.kpis?.online_sales || 0)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {onlineReport?.kpis?.online_orders_count || 0} orders ({onlineReport?.kpis?.pickup_orders_count || 0} pickup, {onlineReport?.kpis?.delivery_orders_count || 0} delivery)
+                  </p>
+                </div>
+
+                <div className="card p-5 border border-emerald-200 bg-emerald-50/30 space-y-1">
+                  <div className="flex items-center justify-between text-emerald-700">
+                    <span className="text-xs font-bold uppercase tracking-wider">Delivery Fees</span>
+                    <Truck className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-display font-extrabold text-emerald-700">
+                    {formatCurrency(onlineReport?.kpis?.delivery_fees_collected || 0)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    Collected across {onlineReport?.kpis?.delivery_orders_count || 0} fulfilled deliveries
+                  </p>
+                </div>
+
+                <div className="card p-5 border border-blue-200 bg-blue-50/30 space-y-1">
+                  <div className="flex items-center justify-between text-blue-700">
+                    <span className="text-xs font-bold uppercase tracking-wider">Avg Delivery Time</span>
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-display font-extrabold text-blue-800">
+                    {onlineReport?.kpis?.avg_delivery_minutes || 0} <span className="text-sm font-normal">mins</span>
+                  </p>
+                  <p className="text-xs text-muted">
+                    Time from order acceptance to door arrival
+                  </p>
+                </div>
+
+                <div className="card p-5 border border-red-200 bg-red-50/30 space-y-1">
+                  <div className="flex items-center justify-between text-red-700">
+                    <span className="text-xs font-bold uppercase tracking-wider">Declined Orders</span>
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-display font-extrabold text-red-600">
+                    {onlineReport?.kpis?.total_rejected || 0}
+                  </p>
+                  <p className="text-xs text-muted">
+                    Rejected during selected {period} period
+                  </p>
+                </div>
+              </div>
+
+              {/* Online vs In-Restaurant Sales Comparison Card */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="card p-6 border border-default/80 space-y-4">
+                  <h3 className="font-bold text-base text-primary">Revenue Channel Breakdown</h3>
+                  <p className="text-xs text-muted">Compare online pickup/delivery vs in-store POS register volume.</p>
+
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span className="flex items-center gap-1.5"><ShoppingBag className="w-3.5 h-3.5 text-brand-600" /> Online Ordering</span>
+                        <span className="font-mono text-brand-700">{formatCurrency(onlineReport?.kpis?.online_sales || 0)}</span>
+                      </div>
+                      <div className="w-full bg-surface-100 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-brand-600 h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${
+                              ((onlineReport?.kpis?.online_sales || 0) /
+                                Math.max(1, (onlineReport?.kpis?.online_sales || 0) + (onlineReport?.kpis?.in_restaurant_sales || 0))) * 100
+                            }%`
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-bold mb-1">
+                        <span className="flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-surface-600" /> In-Restaurant POS</span>
+                        <span className="font-mono text-surface-800">{formatCurrency(onlineReport?.kpis?.in_restaurant_sales || 0)}</span>
+                      </div>
+                      <div className="w-full bg-surface-100 rounded-full h-3 overflow-hidden">
+                        <div
+                          className="bg-surface-800 h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${
+                              ((onlineReport?.kpis?.in_restaurant_sales || 0) /
+                                Math.max(1, (onlineReport?.kpis?.online_sales || 0) + (onlineReport?.kpis?.in_restaurant_sales || 0))) * 100
+                            }%`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Rejection Reasons Breakdown Table */}
+                <div className="card p-6 border border-default/80 space-y-4">
+                  <h3 className="font-bold text-base text-primary">Declined Orders & Reasons</h3>
+                  <p className="text-xs text-muted">Audit root causes why online orders were rejected.</p>
+
+                  {(!onlineReport?.rejection_reasons || onlineReport.rejection_reasons.length === 0) ? (
+                    <div className="py-8 text-center text-muted text-xs">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                      <p className="font-bold text-primary">Zero Rejected Orders</p>
+                      <p>All incoming online orders were accepted and processed.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-default/60">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-surface-50 border-b border-default text-[10px] uppercase font-bold text-surface-500">
+                          <tr>
+                            <th className="py-2.5 px-3">Rejection Reason</th>
+                            <th className="py-2.5 px-3 text-right">Orders</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface-100 font-medium">
+                          {onlineReport.rejection_reasons.map((r: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-surface-50">
+                              <td className="py-2.5 px-3 text-red-700">{r.reason}</td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold">{r.count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

@@ -91,11 +91,10 @@ router.get('/proofs', async (req, res) => {
 
 // ── POST /api/billing/proofs ──────────────────────────────────
 router.post('/proofs', requireOwner, uploadProof, async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Screenshot image is required' });
+  const screenshotUrl = req.file?.url || req.body?.screenshot_url || req.body?.proof_url;
+  if (!screenshotUrl) return res.status(400).json({ error: 'Screenshot image is required' });
   const { amount, payment_method = 'telebirr', note, subscription_id, reference_number } = req.body;
   if (!amount) return res.status(400).json({ error: 'amount required' });
-
-  const screenshotUrl = req.file.url;
 
   try {
     const subResult = await db.query(
@@ -104,13 +103,24 @@ router.post('/proofs', requireOwner, uploadProof, async (req, res) => {
     );
     const subId = subscription_id || subResult.rows[0]?.id || null;
 
+    const mappedMethod = payment_method === 'cbe' ? 'cbe_birr' : (payment_method === 'other' ? 'bank_transfer' : payment_method);
+
+    // Record in unified payments layer
+    const { rows: unifiedPayment } = await db.query(
+      `INSERT INTO payments
+         (restaurant_id, subscription_id, method, amount, currency, reference, proof_url, status, metadata)
+       VALUES ($1, $2, $3, $4, 'ETB', $5, $6, 'pending', $7)
+       RETURNING *`,
+      [tid(req), subId, mappedMethod, amount, reference_number || null, screenshotUrl, JSON.stringify({ note: note || null })]
+    );
+
     const { rows } = await db.query(
       `INSERT INTO payment_proofs
          (restaurant_id, subscription_id, amount, currency, payment_method, reference_number, screenshot_url, note, status)
        VALUES ($1,$2,$3,'ETB',$4,$5,$6,$7,'pending') RETURNING *`,
       [tid(req), subId, amount, payment_method, reference_number || null, screenshotUrl, note || null]
     );
-    res.status(201).json(rows[0]);
+    res.status(201).json({ ...rows[0], payment_id: unifiedPayment[0]?.id });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to submit payment proof' });
@@ -132,12 +142,23 @@ router.post('/subscribe', requireOwner, async (req, res) => {
     );
     if (!planRes.rows[0]) return res.status(404).json({ error: 'Plan not found' });
 
-    // Idempotency: if a subscription already exists, just return it
+    // Idempotency: if a subscription already exists, update plan_id if different and return it
     const existing = await db.query(
       'SELECT s.*, sp.name as plan_name FROM subscriptions s JOIN subscription_plans sp ON sp.id=s.plan_id WHERE s.restaurant_id=$1 ORDER BY s.created_at DESC LIMIT 1',
       [tid(req)]
     );
-    if (existing.rows[0]) return res.json(existing.rows[0]);
+    if (existing.rows[0]) {
+      if (existing.rows[0].plan_id !== plan_id || existing.rows[0].billing_cycle !== billing_cycle) {
+        const { rows: updated } = await db.query(
+          `UPDATE subscriptions SET plan_id = $1, billing_cycle = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+          [plan_id, billing_cycle, existing.rows[0].id]
+        );
+        const { invalidatePlanCache } = require('../middleware/planLimits');
+        invalidatePlanCache(tid(req));
+        return res.json({ ...updated[0], plan_name: planRes.rows[0].name });
+      }
+      return res.json(existing.rows[0]);
+    }
 
     // Calculate trial end (14 days)
     const trialEndsAt = new Date();

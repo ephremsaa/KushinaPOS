@@ -136,6 +136,37 @@ export default function OrderStatusPage() {
           )}
         </div>
 
+        {/* Loyalty Rewards */}
+        {(Number(order.points_earned) > 0 || (order.customer_points !== null && order.customer_points !== undefined)) && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-3xl border border-amber-300 p-4 shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span className="font-bold text-xs uppercase tracking-wider text-amber-900">★ Loyalty Rewards</span>
+              </div>
+              {order.customer_name && (
+                <span className="text-[11px] font-semibold text-amber-800">{order.customer_name}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-between pt-1 text-xs">
+              {Number(order.points_earned) > 0 ? (
+                <span className="text-amber-900">
+                  Points Earned: <strong className="text-emerald-700 font-extrabold font-mono">+{order.points_earned} pts</strong>
+                </span>
+              ) : (
+                <span className="text-amber-800 text-[11px]">
+                  Points will be awarded when order is completed.
+                </span>
+              )}
+              {order.customer_points !== null && order.customer_points !== undefined && (
+                <span className="text-amber-900">
+                  Balance: <strong className="font-extrabold font-mono text-brand-700">{order.customer_points} pts</strong>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Order Details Card */}
         <div className="bg-surface rounded-3xl border border-default p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-surface-100">

@@ -226,9 +226,11 @@ export default function SubscriptionPage() {
         <div className="text-center mb-12">
           {/* Logo wordmark */}
           <div className="inline-flex items-center gap-2 mb-6">
-            <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.4)]">
-              <ChefHat className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src="/kushinaPOStrace.png"
+              alt="kushinaPOS"
+              className="w-11 h-11 object-contain drop-shadow-md"
+            />
             <span className="font-display font-bold text-xl text-white">kushinaPOS</span>
           </div>
 

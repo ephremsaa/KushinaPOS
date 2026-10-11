@@ -25,9 +25,11 @@ export default function PendingPage() {
 
         {/* Brand mark */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-glow-sm">
-            <ChefHat className="w-5 h-5 text-white" />
-          </div>
+          <img
+            src="/kushinaPOStrace.png"
+            alt="kushinaPOS"
+            className="w-10 h-10 object-contain drop-shadow-sm"
+          />
           <span className="font-display font-black text-xl text-primary tracking-tight">
             kushina<span className="text-brand-500">POS</span>
           </span>

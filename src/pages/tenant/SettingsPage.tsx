@@ -7,8 +7,12 @@ import {
   Upload, Save, Plus, Trash2, Check, Loader2,
   ChevronRight, Percent, DollarSign, Bell,
   GripVertical, AlertCircle, Link2, AlertTriangle, Play,
-  Sparkles, Wand2, Image as ImageIcon, Sun, Moon, Globe
+  Sparkles, Wand2, Image as ImageIcon, Sun, Moon, Globe,
+  ShoppingBag, Award, Code2
 } from 'lucide-react';
+import OnlineOrderingTab from './settings/OnlineOrderingTab';
+import LoyaltyProgramTab from './settings/LoyaltyProgramTab';
+import DevelopersTab from './settings/DevelopersTab';
 import { cn, generateId, applyTheme, isDarkColor, getContrastRatio } from '../../lib/utils';
 import { Button, Input, Modal, Badge, Card, Toggle, LargeToggle } from '../../components/ui';
 import { extractColorPalette, type ExtractedColorPalette } from '../../lib/colorExtractor';
@@ -37,17 +41,20 @@ const STATIONS = ['General', 'Kitchen', 'Bar', 'Grill', 'Dessert', 'Cold Kitchen
 // Tabs config
 // ─────────────────────────────────────────────────────────────
 
-type TabId = 'profile' | 'hours' | 'tax' | 'service' | 'receipt' | 'devices' | 'appearance' | 'notifications';
+type TabId = 'profile' | 'hours' | 'online' | 'loyalty' | 'tax' | 'service' | 'receipt' | 'devices' | 'appearance' | 'notifications' | 'developers';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType; desc: string }[] = [
   { id: 'profile',       label: 'Profile',         icon: Store,     desc: 'Restaurant info' },
   { id: 'hours',         label: 'Operating Hours',  icon: Clock,     desc: 'Open/close times' },
+  { id: 'online',        label: 'Online Ordering',  icon: ShoppingBag, desc: 'Pickup & delivery' },
+  { id: 'loyalty',       label: 'Loyalty Program',  icon: Award,     desc: 'Points & stamp cards' },
   { id: 'tax',           label: 'Tax & Pricing',    icon: Percent,   desc: 'Tax rates & mode' },
   { id: 'service',       label: 'Service Charge',   icon: DollarSign,desc: 'Tip/gratuity config' },
   { id: 'receipt',       label: 'Receipt',          icon: Receipt,   desc: 'Print & digital' },
   { id: 'devices',       label: 'Devices',          icon: Printer,   desc: 'Printers & KDS' },
   { id: 'notifications', label: 'Notifications',    icon: Bell,      desc: 'Channel routing' },
   { id: 'appearance',    label: 'Appearance',       icon: Palette,   desc: 'Colors & branding' },
+  { id: 'developers',    label: 'Developers & API', icon: Code2,     desc: 'API keys & Webhooks' },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -532,7 +539,7 @@ export default function SettingsPage() {
         {/* ── Left tab sidebar ── */}
         <nav className="lg:w-60 flex-shrink-0">
           <div className="card p-2 space-y-1">
-            {TABS.map(tab => (
+            {TABS.filter(tab => !['online', 'loyalty', 'developers'].includes(tab.id) || (user?.role === 'restaurant_owner' || user?.role === 'platform_admin' || user?.staffRole === 'owner')).map(tab => (
               <button
                 key={tab.id}
                 onClick={() => handleTabClick(tab.id)}
@@ -1342,6 +1349,21 @@ export default function SettingsPage() {
             {/* ══════════════ NOTIFICATIONS ══════════════ */}
             {activeTab === 'notifications' && (
               <NotificationPreferencesTab />
+            )}
+
+            {/* ══════════════ ONLINE ORDERING ══════════════ */}
+            {activeTab === 'online' && (
+              <OnlineOrderingTab restaurant={r} onRefresh={refreshUser} />
+            )}
+
+            {/* ══════════════ LOYALTY PROGRAM ══════════════ */}
+            {activeTab === 'loyalty' && (
+              <LoyaltyProgramTab restaurant={r} onRefresh={refreshUser} />
+            )}
+
+            {/* ══════════════ DEVELOPERS & API ══════════════ */}
+            {activeTab === 'developers' && (
+              <DevelopersTab restaurant={r} onRefresh={refreshUser} />
             )}
 
           </div>

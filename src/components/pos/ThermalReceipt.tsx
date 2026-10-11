@@ -9,6 +9,8 @@ export interface ThermalReceiptProps {
   paymentMethod: string;
   amountTendered?: number;
   change?: number;
+  pointsEarned?: number;
+  loyaltyBalance?: number;
   restaurantName: string;
   restaurantLogo?: string;
   taxId?: string;
@@ -27,6 +29,8 @@ export function ThermalReceipt({
   paymentMethod,
   amountTendered = 0,
   change = 0,
+  pointsEarned,
+  loyaltyBalance,
   restaurantName,
   restaurantLogo,
   taxId,
@@ -220,6 +224,34 @@ export function ThermalReceipt({
                 </>
               )}
             </div>
+
+            {/* Loyalty Points Section */}
+            {((pointsEarned !== undefined && pointsEarned > 0) || (loyaltyBalance !== undefined && loyaltyBalance > 0) || (order.loyalty_points_redeemed && order.loyalty_points_redeemed > 0)) && (
+              <div className="pt-2 border-t border-dashed border-surface-300 space-y-1 text-surface-700 print:border-black print:text-black">
+                <div className="flex justify-between items-center font-bold text-brand-700 print:text-black">
+                  <span>★ LOYALTY REWARDS</span>
+                  {order.customer_name && <span className="text-[10px] text-surface-500 print:text-black">{order.customer_name}</span>}
+                </div>
+                {order.loyalty_points_redeemed && order.loyalty_points_redeemed > 0 ? (
+                  <div className="flex justify-between text-amber-700 print:text-black">
+                    <span>Points Redeemed:</span>
+                    <span>-{order.loyalty_points_redeemed} pts ({formatCurrency(order.loyalty_discount || 0)})</span>
+                  </div>
+                ) : null}
+                {pointsEarned !== undefined && pointsEarned > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-bold print:text-black">
+                    <span>Points Earned Today:</span>
+                    <span>+{pointsEarned} pts</span>
+                  </div>
+                )}
+                {loyaltyBalance !== undefined && loyaltyBalance > 0 && (
+                  <div className="flex justify-between font-bold">
+                    <span>New Loyalty Balance:</span>
+                    <span>{loyaltyBalance} pts</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Footer & Barcode/QR note */}

@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const { authenticate, requireTenant, requireOwner, requireManager } = require('../middleware/auth');
+const { logAudit } = require('../utils/auditLogger');
 const router = express.Router();
 
 router.use(authenticate, requireTenant);
@@ -32,7 +33,11 @@ router.get('/me', async (req, res) => {
 router.patch('/me', requireOwner, async (req, res) => {
   const {
     // Profile & Public
-    name, phone, address, city, cuisine_type, currency, slug, online_ordering_enabled,
+    name, phone, address, city, cuisine_type, currency, slug,
+    // Online ordering
+    online_ordering_enabled, online_pickup_enabled, online_delivery_enabled,
+    online_auto_accept, online_prep_time_minutes, online_max_active_orders,
+    online_payment_methods,
     // Theme
     theme_color, background_color,
     // Tax
@@ -155,8 +160,14 @@ router.patch('/me', requireOwner, async (req, res) => {
         kds_stations_config        = COALESCE($23, kds_stations_config),
         ${slugUpdateFragment}
         online_ordering_enabled    = COALESCE($25, online_ordering_enabled),
+        online_pickup_enabled      = COALESCE($26, online_pickup_enabled),
+        online_delivery_enabled    = COALESCE($27, online_delivery_enabled),
+        online_auto_accept         = COALESCE($28, online_auto_accept),
+        online_prep_time_minutes   = COALESCE($29, online_prep_time_minutes),
+        online_max_active_orders   = COALESCE($30, online_max_active_orders),
+        online_payment_methods     = COALESCE($31, online_payment_methods),
         updated_at                 = NOW()
-       WHERE id = $26 RETURNING *`,
+       WHERE id = $32 RETURNING *`,
       [
         name, phone, address, city, cuisine_type, currency,
         theme_color, background_color,
@@ -176,6 +187,12 @@ router.patch('/me', requireOwner, async (req, res) => {
         kds_stations_config != null ? JSON.stringify(kds_stations_config) : null,
         cleanSlug,
         online_ordering_enabled != null ? Boolean(online_ordering_enabled) : null,
+        online_pickup_enabled != null ? Boolean(online_pickup_enabled) : null,
+        online_delivery_enabled != null ? Boolean(online_delivery_enabled) : null,
+        online_auto_accept != null ? Boolean(online_auto_accept) : null,
+        online_prep_time_minutes != null ? Math.max(5, Math.min(180, parseInt(online_prep_time_minutes, 10) || 25)) : null,
+        online_max_active_orders != null ? Math.max(1, Math.min(100, parseInt(online_max_active_orders, 10) || 20)) : null,
+        online_payment_methods != null ? JSON.stringify(online_payment_methods) : null,
         tid(req),
       ]
     );
@@ -232,6 +249,136 @@ router.post('/menu-image', requireManager, menuUpload, async (req, res) => {
   // The client or a cron job would delete orphaned images.
   const image_url = req.file.url;
   res.json({ image_url });
+});
+
+// ── DELIVERY ZONES CRUD ────────────────────────────────────────
+// GET /api/restaurants/delivery-zones
+router.get('/delivery-zones', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT * FROM delivery_zones WHERE restaurant_id = $1 ORDER BY name ASC',
+      [tid(req)]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Fetch delivery zones error:', err);
+    res.status(500).json({ error: 'Failed to fetch delivery zones' });
+  }
+});
+
+// POST /api/restaurants/delivery-zones
+router.post('/delivery-zones', requireManager, async (req, res) => {
+  const { name, fee = 0, min_order_amount = 0, estimated_minutes = 35 } = req.body;
+  const cleanName = String(name || '').trim();
+  if (!cleanName) {
+    return res.status(400).json({ error: 'Zone name is required' });
+  }
+
+  const numFee = Number(fee);
+  const numMinOrder = Number(min_order_amount);
+  const numMinutes = parseInt(estimated_minutes, 10);
+
+  if (isNaN(numFee) || numFee < 0) return res.status(400).json({ error: 'Delivery fee must be >= 0' });
+  if (isNaN(numMinOrder) || numMinOrder < 0) return res.status(400).json({ error: 'Minimum order amount must be >= 0' });
+  if (isNaN(numMinutes) || numMinutes < 5) return res.status(400).json({ error: 'Estimated delivery minutes must be at least 5' });
+
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO delivery_zones (restaurant_id, name, fee, min_order_amount, estimated_minutes, is_active)
+       VALUES ($1, $2, $3, $4, $5, true)
+       RETURNING *`,
+      [tid(req), cleanName.slice(0, 80), Math.round(numFee * 100) / 100, Math.round(numMinOrder * 100) / 100, numMinutes]
+    );
+
+    await logAudit(db, {
+      restaurant_id: tid(req),
+      actor_user_id: req.user.userId || req.user.id,
+      action: 'delivery_zone_create',
+      target_type: 'delivery_zone',
+      target_id: rows[0].id,
+      metadata: { name: cleanName, fee: numFee }
+    });
+
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('Create delivery zone error:', err);
+    res.status(500).json({ error: 'Failed to create delivery zone' });
+  }
+});
+
+// PATCH /api/restaurants/delivery-zones/:id
+router.patch('/delivery-zones/:id', requireManager, async (req, res) => {
+  const { name, fee, min_order_amount, estimated_minutes, is_active } = req.body;
+  const zoneId = req.params.id;
+
+  try {
+    const { rows: existing } = await db.query(
+      'SELECT id FROM delivery_zones WHERE id = $1 AND restaurant_id = $2',
+      [zoneId, tid(req)]
+    );
+    if (!existing[0]) return res.status(404).json({ error: 'Delivery zone not found' });
+
+    const { rows } = await db.query(
+      `UPDATE delivery_zones SET
+        name = COALESCE($1, name),
+        fee = COALESCE($2, fee),
+        min_order_amount = COALESCE($3, min_order_amount),
+        estimated_minutes = COALESCE($4, estimated_minutes),
+        is_active = COALESCE($5, is_active),
+        updated_at = NOW()
+       WHERE id = $6 AND restaurant_id = $7
+       RETURNING *`,
+      [
+        name != null ? String(name).trim().slice(0, 80) : null,
+        fee != null ? Math.round(Number(fee) * 100) / 100 : null,
+        min_order_amount != null ? Math.round(Number(min_order_amount) * 100) / 100 : null,
+        estimated_minutes != null ? parseInt(estimated_minutes, 10) : null,
+        is_active != null ? Boolean(is_active) : null,
+        zoneId,
+        tid(req)
+      ]
+    );
+
+    await logAudit(db, {
+      restaurant_id: tid(req),
+      actor_user_id: req.user.userId || req.user.id,
+      action: 'delivery_zone_update',
+      target_type: 'delivery_zone',
+      target_id: zoneId,
+      metadata: req.body
+    });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update delivery zone error:', err);
+    res.status(500).json({ error: 'Failed to update delivery zone' });
+  }
+});
+
+// DELETE /api/restaurants/delivery-zones/:id
+router.delete('/delivery-zones/:id', requireManager, async (req, res) => {
+  const zoneId = req.params.id;
+  try {
+    const { rows } = await db.query(
+      'DELETE FROM delivery_zones WHERE id = $1 AND restaurant_id = $2 RETURNING id, name',
+      [zoneId, tid(req)]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Delivery zone not found' });
+
+    await logAudit(db, {
+      restaurant_id: tid(req),
+      actor_user_id: req.user.userId || req.user.id,
+      action: 'delivery_zone_delete',
+      target_type: 'delivery_zone',
+      target_id: zoneId,
+      metadata: { name: rows[0].name }
+    });
+
+    res.json({ message: 'Delivery zone deleted successfully', id: zoneId });
+  } catch (err) {
+    console.error('Delete delivery zone error:', err);
+    res.status(500).json({ error: 'Failed to delete delivery zone' });
+  }
 });
 
 module.exports = router;

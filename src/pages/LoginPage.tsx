@@ -96,26 +96,52 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative font-sans selection:bg-orange-500 selection:text-white">
-      {/* Top right language toggle */}
-      <div className="absolute top-4 right-4 z-50">
-        <LanguageSwitcher />
+    <div className="min-h-screen w-full bg-slate-900 text-slate-100 flex items-center justify-center p-4 relative font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
+      
+      {/* ── Background Video Layer (Light, Clear, Ambient, Silent, Autoplay, Loop) ── */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <video
+          src="/kushina-video.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="w-full h-full object-cover object-center opacity-90 filter brightness-105 contrast-100"
+        />
+        {/* Light cinematic scrim to protect form contrast */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-slate-950/45 to-slate-950/75" />
       </div>
 
-      <div className="w-full max-w-md relative z-10 animate-fade-in">
-        <div className="rounded-3xl bg-slate-900/90 backdrop-blur-2xl border border-slate-800 shadow-2xl p-8">
+      {/* Top Navigation: Home link & Language switcher */}
+      <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-black/50 hover:bg-black/70 backdrop-blur-md border border-white/20 text-white transition-all shadow-md"
+        >
+          <span>← KushinaPOS</span>
+        </Link>
+        <div className="bg-black/50 backdrop-blur-md rounded-full border border-white/20 p-0.5 shadow-md">
+          <LanguageSwitcher />
+        </div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10 animate-fade-in my-8">
+        <div className="rounded-3xl bg-slate-950/85 backdrop-blur-2xl border border-white/20 shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-6 sm:p-8">
           
-          <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg border border-white/10">
-              <ChefHat className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="font-display font-bold text-2xl text-white tracking-tight mb-2">
+          <div className="text-center mb-7">
+            <img
+              src="/kushinaPOStrace.png"
+              alt="kushinaPOS"
+              className="w-14 h-14 sm:w-16 sm:h-16 object-contain mx-auto mb-3 drop-shadow-xl"
+            />
+            <h1 className="font-display font-bold text-2xl text-white tracking-tight mb-1">
               kushinaPOS
             </h1>
-            <h2 className="text-lg font-semibold text-slate-200">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-200">
               {isForgotPassword ? 'Reset password' : 'Welcome back'}
             </h2>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">
               {isForgotPassword 
                 ? 'Enter your email to receive a reset link.' 
                 : 'Sign in to manage your restaurant.'}
@@ -123,7 +149,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div aria-live="polite" className="p-3.5 mb-6 bg-red-500/10 border border-red-500/30 rounded-2xl text-sm text-red-400 flex items-start gap-2.5 animate-scale-in">
+            <div aria-live="polite" className="p-3.5 mb-5 bg-red-500/15 border border-red-500/30 rounded-2xl text-xs sm:text-sm text-red-300 flex items-start gap-2.5 animate-scale-in">
               <span className="flex-1 font-medium">{error}</span>
             </div>
           )}

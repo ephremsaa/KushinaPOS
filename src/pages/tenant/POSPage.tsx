@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Plus, Minus, ShoppingCart, Table2, Trash2, ChevronRight,
   MessageSquare, PauseCircle, PlayCircle, Tag, AlertCircle, ChefHat,
-  ArrowLeft, Banknote, Check, Wifi, WifiOff, Smartphone, QrCode, Receipt
+  ArrowLeft, Banknote, Check, Wifi, WifiOff, Smartphone, QrCode, Receipt,
+  Users, X
 } from 'lucide-react';
 import { menuApi, tablesApi, ordersApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,13 +14,13 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { formatCurrency, generateId, cn } from '../../lib/utils';
 import { syncEngine } from '../../lib/sync';
 import { Button, Badge, Modal, Input, LanguageSwitcher, EmptyState } from '../../components/ui';
-import { QuickPaymentModal, ThermalReceipt } from '../../components/pos';
+import { QuickPaymentModal, ThermalReceipt, CustomerSelectorModal } from '../../components/pos';
 import { globalConfirm } from '../../contexts/ConfirmContext';
 import { globalToast } from '../../components/ui/Toast';
 import { assetUrl } from '../../lib/assetUrl';
 import type {
   MenuItem, MenuCategory, Table,
-  ModifierChoice, TableStatus, MenuModifier, Order
+  ModifierChoice, TableStatus, MenuModifier, Order, Customer
 } from '../../types';
 
 // ─── Local Types ────────────────────────────────────────────────────────────
@@ -376,6 +377,8 @@ export default function POSPage() {
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('dine_in');
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -606,7 +609,9 @@ export default function POSPage() {
           order_type: orderType,
           status: 'new',
           ...totals,
-          customer_name: customerName || null,
+          customer_name: selectedCustomer?.name || customerName || null,
+          customer_phone: selectedCustomer?.phone || null,
+          customer_id: selectedCustomer?.id || null,
           local_id: localId,
           synced_at: isOnline ? new Date().toISOString() : null,
           items,
@@ -638,7 +643,9 @@ export default function POSPage() {
         tax_amount: taxAmount,
         discount_amount: discount,
         total,
-        customer_name: customerName || undefined,
+        customer_name: selectedCustomer?.name || customerName || undefined,
+        customer_phone: selectedCustomer?.phone || undefined,
+        customer_id: selectedCustomer?.id || undefined,
         order_items: items.map((it, idx) => ({
           id: `item-${idx}`,
           order_id: resultingOrderId || '',
@@ -912,14 +919,58 @@ export default function POSPage() {
               </button>
             </div>
 
-            {/* Customer name for takeaway/delivery */}
-            {(orderType === 'takeaway' || orderType === 'delivery') && (
-              <Input
-                placeholder="Customer name (optional)"
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-              />
-            )}
+            {/* Customer attachment / Loyalty account */}
+            <div className="p-2 rounded-xl bg-default-50 border border-default text-xs">
+              {selectedCustomer ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-brand-500 text-white font-bold flex items-center justify-center text-[11px]">
+                      {selectedCustomer.name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-default-900 leading-tight">{selectedCustomer.name}</span>
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.2 rounded-full">
+                          {selectedCustomer.points} pts
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-default-500 font-mono">{selectedCustomer.phone}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setCustomerName('');
+                    }}
+                    className="p-1 text-default-400 hover:text-red-600 rounded-md"
+                    title="Remove customer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomerModalOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50/50 hover:bg-brand-50 rounded-lg transition-colors border border-brand-200"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Attach Customer / Loyalty</span>
+                  </button>
+                  {(orderType === 'takeaway' || orderType === 'delivery') && (
+                    <input
+                      type="text"
+                      placeholder="Guest name"
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      className="w-28 px-2 py-1 text-xs rounded-lg border border-default bg-card outline-none"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Cart Items */}
@@ -1131,6 +1182,14 @@ export default function POSPage() {
           onClose={() => setReservedModal(null)}
         />
       )}
+      <CustomerSelectorModal
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        onSelectCustomer={(c) => {
+          setSelectedCustomer(c);
+          setCustomerName(c.name);
+        }}
+      />
     </>
   );
 }

@@ -10,7 +10,6 @@ import { ToastProvider }    from './components/ui/Toast';
 import { ConfirmProvider }  from './contexts/ConfirmContext';
 
 // Lazy loaded pages
-const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const LoginPage        = lazy(() => import('./pages/LoginPage'));
 const RegisterPage     = lazy(() => import('./pages/RegisterPage'));
 const PendingPage      = lazy(() => import('./pages/PendingPage'));
@@ -18,24 +17,51 @@ const SuspendedPage    = lazy(() => import('./pages/SuspendedPage'));
 const RejectedPage     = lazy(() => import('./pages/RejectedPage'));
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
 
+// Marketing Area pages
+const HomePage           = lazy(() => import('./pages/marketing/HomePage'));
+const SolutionDetailPage = lazy(() => import('./pages/marketing/SolutionDetailPage'));
+const FeaturesPage       = lazy(() => import('./pages/marketing/FeaturesPage'));
+const PricingPage        = lazy(() => import('./pages/marketing/PricingPage'));
+const HardwarePage       = lazy(() => import('./pages/marketing/HardwarePage'));
+const PaymentsPage       = lazy(() => import('./pages/marketing/PaymentsPage'));
+const IntegrationsPage   = lazy(() => import('./pages/marketing/IntegrationsPage'));
+const DevelopersPage     = lazy(() => import('./pages/marketing/DevelopersPage'));
+const SuccessStoriesPage = lazy(() => import('./pages/marketing/SuccessStoriesPage'));
+const SupportPage        = lazy(() => import('./pages/marketing/SupportPage'));
+const AboutPage          = lazy(() => import('./pages/marketing/AboutPage'));
+const ContactPage        = lazy(() => import('./pages/marketing/ContactPage'));
+const DemoPage           = lazy(() => import('./pages/marketing/DemoPage'));
+const FAQPage            = lazy(() => import('./pages/marketing/FAQPage'));
+const TermsPage          = lazy(() => import('./pages/marketing/TermsPage'));
+const PrivacyPage        = lazy(() => import('./pages/marketing/PrivacyPage'));
+
 // Public Customer Ordering pages
-const PublicMenuPage   = lazy(() => import('./pages/public/PublicMenuPage'));
-const OrderStatusPage  = lazy(() => import('./pages/public/OrderStatusPage'));
-const StaffLoginPage   = lazy(() => import('./pages/public/StaffLoginPage'));
+const PublicMenuPage        = lazy(() => import('./pages/public/PublicMenuPage'));
+const PublicOnlineOrderPage = lazy(() => import('./pages/public/PublicOnlineOrderPage'));
+const PublicTrackOrderPage  = lazy(() => import('./pages/public/PublicTrackOrderPage'));
+const OrderStatusPage       = lazy(() => import('./pages/public/OrderStatusPage'));
+const StaffLoginPage        = lazy(() => import('./pages/public/StaffLoginPage'));
 
 // Admin pages
 const AdminLayout      = lazy(() => import('./layouts/AdminLayout'));
 const AdminDashboard   = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminLeads       = lazy(() => import('./pages/admin/AdminLeads'));
 const AdminApprovals   = lazy(() => import('./pages/admin/AdminApprovals'));
 const AdminPayments    = lazy(() => import('./pages/admin/AdminPayments'));
 const AdminRestaurants = lazy(() => import('./pages/admin/AdminRestaurants'));
 const AdminPlans       = lazy(() => import('./pages/admin/AdminPlans'));
+const AdminApiWebhooks = lazy(() => import('./pages/admin/AdminApiWebhooks'));
 const AdminAuditLogs   = lazy(() => import('./pages/admin/AdminAuditLogs'));
+
+// Marketing Lead Modal
+import { LeadModalProvider } from './pages/marketing/context/LeadModalContext';
+import { LeadModal } from './pages/marketing/components/LeadModal';
 
 // Tenant pages
 const TenantLayout     = lazy(() => import('./layouts/TenantLayout'));
 const TenantDashboard  = lazy(() => import('./pages/tenant/TenantDashboard'));
 const POSPage          = lazy(() => import('./pages/tenant/POSPage'));
+const OnlineOrdersPage = lazy(() => import('./pages/tenant/OnlineOrdersPage'));
 const OrdersPage       = lazy(() => import('./pages/tenant/OrdersPage'));
 const CheckoutPage     = lazy(() => import('./pages/tenant/CheckoutPage'));
 const KitchenPage      = lazy(() => import('./pages/tenant/KitchenPage'));
@@ -50,6 +76,8 @@ const BillingPage      = lazy(() => import('./pages/tenant/BillingPage'));
 const SettingsPage     = lazy(() => import('./pages/tenant/SettingsPage'));
 const TillManagementPage = lazy(() => import('./pages/tenant/TillManagementPage'));
 const BillHistoryPage    = lazy(() => import('./pages/tenant/BillHistoryPage'));
+const CustomersPage      = lazy(() => import('./pages/tenant/CustomersPage'));
+const TenantPaymentsPage = lazy(() => import('./pages/tenant/PaymentsPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -102,14 +130,33 @@ function AppRoutes() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
-        {/* Public */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Marketing Area */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/solutions/:slug" element={<SolutionDetailPage />} />
+        <Route path="/features" element={<FeaturesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/hardware" element={<HardwarePage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
+        <Route path="/integrations" element={<IntegrationsPage />} />
+        <Route path="/developers" element={<DevelopersPage />} />
+        <Route path="/success-stories" element={<SuccessStoriesPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/demo" element={<DemoPage />} />
+        <Route path="/faq" element={<FAQPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+
+        {/* Auth */}
         <Route path="/login" element={user ? <Navigate to={getHome()} replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to={getHome()} replace /> : <RegisterPage />} />
         
         {/* Public Customer Menu & Order Tracking */}
         <Route path="/r/:slug" element={<PublicMenuPage />} />
+        <Route path="/r/:slug/order" element={<PublicOnlineOrderPage />} />
         <Route path="/r/:slug/table/:tableId" element={<PublicMenuPage />} />
+        <Route path="/track/:token" element={<PublicTrackOrderPage />} />
         <Route path="/order-status/:orderId" element={<OrderStatusPage />} />
 
         {/* Staff Login */}
@@ -128,10 +175,12 @@ function AppRoutes() {
         {/* Platform Admin */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<AdminDashboard />} />
+          <Route path="leads"       element={<AdminLeads />} />
           <Route path="approvals"   element={<AdminApprovals />} />
           <Route path="payments"    element={<AdminPayments />} />
           <Route path="restaurants" element={<AdminRestaurants />} />
           <Route path="plans"       element={<AdminPlans />} />
+          <Route path="developers"  element={<AdminApiWebhooks />} />
           <Route path="audit-logs"  element={<AdminAuditLogs />} />
         </Route>
 
@@ -139,6 +188,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<ProtectedRoute><TenantLayout /></ProtectedRoute>}>
           <Route index element={<TenantDashboard />} />
           <Route path="pos"       element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier', 'waiter']}><POSPage /></TenantRoute>} />
+          <Route path="online-orders" element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><OnlineOrdersPage /></TenantRoute>} />
           <Route path="checkout"  element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><CheckoutPage /></TenantRoute>} />
           <Route path="till"      element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><TillManagementPage /></TenantRoute>} />
           <Route path="bill-history" element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><BillHistoryPage /></TenantRoute>} />
@@ -146,6 +196,8 @@ function AppRoutes() {
           <Route path="kitchen"   element={<TenantRoute allowedRoles={['owner', 'manager', 'kitchen']}><KitchenPage /></TenantRoute>} />
           <Route path="tables"    element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier', 'waiter']}><TablesPage /></TenantRoute>} />
           <Route path="reservations" element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><ReservationsPage /></TenantRoute>} />
+          <Route path="customers" element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><CustomersPage /></TenantRoute>} />
+          <Route path="payments"  element={<TenantRoute allowedRoles={['owner', 'manager', 'cashier']}><TenantPaymentsPage /></TenantRoute>} />
           <Route path="menu"      element={<TenantRoute allowedRoles={['owner', 'manager']}><MenuPage /></TenantRoute>} />
           <Route path="staff"     element={<TenantRoute allowedRoles={['owner', 'manager']}><StaffPage /></TenantRoute>} />
           <Route path="inventory" element={<TenantRoute allowedRoles={['owner', 'manager']}><InventoryPage /></TenantRoute>} />
@@ -171,8 +223,11 @@ export default function App() {
             <ToastProvider>
               <ConfirmProvider>
                 <BrowserRouter>
-                  <AppRoutes />
-                  <SyncStatusBanner />
+                  <LeadModalProvider>
+                    <AppRoutes />
+                    <LeadModal />
+                    <SyncStatusBanner />
+                  </LeadModalProvider>
                 </BrowserRouter>
               </ConfirmProvider>
             </ToastProvider>

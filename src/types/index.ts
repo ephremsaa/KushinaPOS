@@ -270,6 +270,9 @@ export interface Order {
   notes?: string;
   customer_name?: string;
   customer_phone?: string;
+  customer_id?: string;
+  loyalty_points_redeemed?: number;
+  loyalty_discount?: number;
   local_id?: string;
   synced_at?: string;
   payment_status: 'pending' | 'paid' | 'refunded';
@@ -395,4 +398,207 @@ export interface NotificationPreference {
   email: boolean;
   sms: boolean;
 }
+
+// ── Leads (Public Inquiries) ───────────────────────────────
+export type LeadStatus = 'new' | 'contacted' | 'demo booked' | 'won' | 'lost';
+
+export interface Lead {
+  id: string;
+  name: string;
+  business_name: string;
+  phone: string;
+  email?: string;
+  branches: string;
+  interest: string;
+  preferred_contact_time: string;
+  source_page: string;
+  language: string;
+  status: LeadStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadCounts {
+  total: number;
+  new: number;
+  contacted: number;
+  demo_booked: number;
+  won: number;
+  lost: number;
+}
+
+// ── CRM & Loyalty Program ───────────────────────────────────
+export interface Customer {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  birthday?: string;
+  notes?: string;
+  marketing_consent: boolean;
+  points: number;
+  tier: string;
+  stamps: number;
+  total_spent: number;
+  order_count: number;
+  last_visit_at?: string;
+  is_anonymized?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoyaltyTransaction {
+  id: string;
+  restaurant_id: string;
+  customer_id: string;
+  order_id?: string;
+  type: 'earn' | 'redeem' | 'adjust' | 'expire' | 'reverse';
+  points: number;
+  balance_after: number;
+  staff_id?: string;
+  staff_name?: string;
+  note?: string;
+  created_at: string;
+}
+
+export interface LoyaltySettings {
+  loyalty_enabled: boolean;
+  loyalty_program_type: 'points' | 'stamps';
+  loyalty_points_per_100_etb: number;
+  loyalty_point_val_etb: number;
+  loyalty_min_redeem_points: number;
+  loyalty_max_bill_share_percent: number;
+  loyalty_expiry_months: number;
+  loyalty_stamp_target: number;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  restaurant_id: string;
+  title: string;
+  message: string;
+  channel: 'manual' | 'whatsapp' | 'telegram' | 'sms';
+  target_segment: string;
+  recipient_count: number;
+  status: string;
+  created_at: string;
+  sent_by_staff_id?: string;
+}
+
+export interface CustomersLoyaltyReport {
+  repeat_customer_rate: number;
+  repeat_customers: number;
+  total_ordering_customers: number;
+  total_customers: number;
+  average_spend_per_customer: number;
+  total_revenue_from_customers: number;
+  loyalty_points_outstanding: number;
+  loyalty_liability_etb: number;
+  point_value_etb: number;
+  consented_marketing_count: number;
+  new_customers_30d: number;
+  inactive_customers_30d: number;
+  monthly_redemptions: Array<{
+    month: string;
+    redemption_count: number;
+    points_redeemed: number;
+    value_redeemed_etb: number;
+  }>;
+  monthly_earned: Array<{
+    month: string;
+    earn_count: number;
+    points_earned: number;
+  }>;
+}
+
+// ── Unified Payment Layer ──────────────────────────────────
+export type UnifiedPaymentMethod = 'cash' | 'telebirr' | 'cbe_birr' | 'bank_transfer' | 'card' | 'loyalty';
+export type PaymentStatus = 'initiated' | 'pending' | 'confirmed' | 'paid' | 'rejected' | 'failed' | 'refunded' | 'expired';
+
+export interface PaymentRecord {
+  id: string;
+  restaurant_id: string;
+  order_id?: string;
+  order_local_id?: number;
+  order_total?: number;
+  table_id?: string;
+  subscription_id?: string;
+  till_session_id?: string;
+  created_by?: string;
+  cashier_name?: string;
+  created_by_name?: string;
+  method: UnifiedPaymentMethod;
+  amount: number;
+  currency: string;
+  reference?: string;
+  proof_url?: string;
+  status: PaymentStatus;
+  confirmed_by?: string;
+  confirmed_by_name?: string;
+  confirmed_at?: string;
+  rejected_reason?: string;
+  original_payment_id?: string;
+  is_matched_with_statement: boolean;
+  matched_at?: string;
+  matched_by?: string;
+  matched_by_name?: string;
+  invoice_number?: string;
+  provider?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface PaymentProviderConfig {
+  id: string;
+  provider: 'telebirr' | 'cbe_birr' | 'chapa' | 'mock_sandbox';
+  is_enabled: boolean;
+  is_sandbox: boolean;
+  credentials: Record<string, string>;
+  webhook_secret?: string;
+  updated_at?: string;
+}
+
+export interface PaymentsReportData {
+  daily_by_method: Array<{
+    date: string;
+    method: string;
+    transaction_count: number;
+    confirmed_amount: number;
+    pending_amount: number;
+    refunded_amount: number;
+  }>;
+  shifts: Array<{
+    session_id: string;
+    opened_at: string;
+    closed_at?: string;
+    session_status?: string;
+    staff_name?: string;
+    confirmed_total: number;
+    cash_total: number;
+    telebirr_total: number;
+    cbe_birr_total: number;
+    bank_total: number;
+    card_total: number;
+    unconfirmed_amount: number;
+    unconfirmed_count: number;
+  }>;
+  unconfirmed: {
+    count: number;
+    total_amount: number;
+    telebirr_amount: number;
+    cbe_birr_amount: number;
+    bank_transfer_amount: number;
+  };
+  reconciliation: {
+    total_eligible: number;
+    matched_amount: number;
+    unmatched_amount: number;
+    matched_count: number;
+    unmatched_count: number;
+  };
+}
+
 

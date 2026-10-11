@@ -123,7 +123,14 @@ app.use('/api/recipes', require('./routes/recipes'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/restaurants', require('./routes/restaurants'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/api-keys', require('./routes/api_keys'));
+app.use('/api/webhook-endpoints', require('./routes/webhooks_mgmt'));
+app.use('/api/loyalty', require('./routes/loyalty'));
+app.use('/api/customers', require('./routes/customers').router);
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/public', require('./routes/public'));
+app.use('/api/v1', require('./routes/api_v1'));
 
 // ── Health check ─────────────────────────────────────────────
 app.get('/api/health', async (req, res) => {
@@ -143,7 +150,13 @@ app.use((req, res) => {
 
 // ── Global error handler ─────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err.stack || err);
+  // Redact any Authorization or API keys from error messages before logging
+  const safeMessage = (err.stack || err.message || '')
+    .replace(/kpos_live_[a-zA-Z0-9_-]+/g, 'kpos_live_[REDACTED]')
+    .replace(/whsec_[a-zA-Z0-9_-]+/g, 'whsec_[REDACTED]')
+    .replace(/Bearer\s+[a-zA-Z0-9._-]+/gi, 'Bearer [REDACTED]');
+  console.error('Unhandled error:', safeMessage);
+
   if (process.env.NODE_ENV === 'production') {
     res.status(500).json({ error: 'An unexpected error occurred. Please try again later.' });
   } else {
@@ -168,35 +181,49 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ── Start ─────────────────────────────────────────────────────
-const server = app.listen(PORT, () => {
-  console.log(`\n🚀 kushinaPOS API running on http://localhost:${PORT}`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}\n`);
-});
+let server = null;
+if (require.main === module) {
+  server = app.listen(PORT, () => {
+    console.log(`\n🚀 kushinaPOS API running on http://localhost:${PORT}`);
+    console.log(`   Health check: http://localhost:${PORT}/api/health`);
+    console.log(`   API v1 Docs: http://localhost:${PORT}/api/v1/docs`);
+    console.log(`   Environment: ${process.env.NODE_ENV || 'development'}\n`);
+    
+    // Start background job to expire stale pending payments (>15 min)
+    const { startPaymentExpiryJob } = require('./jobs/paymentExpiryJob');
+    startPaymentExpiryJob(5 * 60 * 1000);
 
-// ── Graceful Shutdown ─────────────────────────────────────────
-function shutdown() {
-  console.log('SIGTERM/SIGINT received. Shutting down gracefully...');
-  server.close(async () => {
-    console.log('HTTP server closed.');
-    try {
-      await db.end(); // close pg pool
-      console.log('Database pool closed.');
-      process.exit(0);
-    } catch (err) {
-      console.error('Error closing database pool:', err);
-      process.exit(1);
-    }
+    // Start background worker for webhook retries (every 60s)
+    const { processWebhookRetries } = require('./jobs/webhookDispatcher');
+    setInterval(() => {
+      processWebhookRetries().catch(() => {});
+    }, 60 * 1000);
   });
-  
-  // Force close after 10s
-  setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
-}
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+  // ── Graceful Shutdown ─────────────────────────────────────────
+  function shutdown() {
+    console.log('SIGTERM/SIGINT received. Shutting down gracefully...');
+    server.close(async () => {
+      console.log('HTTP server closed.');
+      try {
+        await db.end(); // close pg pool
+        console.log('Database pool closed.');
+        process.exit(0);
+      } catch (err) {
+        console.error('Error closing database pool:', err);
+        process.exit(1);
+      }
+    });
+    
+    // Force close after 10s
+    setTimeout(() => {
+      console.error('Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 10000);
+  }
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
 
 module.exports = app;

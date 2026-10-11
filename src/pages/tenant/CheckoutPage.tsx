@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, tablesApi } from '../../lib/api';
+import { ordersApi, tablesApi, customersApi, loyaltyApi, paymentsApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThermalReceipt } from '../../components/pos/ThermalReceipt';
-import type { Order, OrderItem } from '../../types';
+import { CustomerSelectorModal } from '../../components/pos/CustomerSelectorModal';
+import type { Order, OrderItem, Customer, LoyaltySettings } from '../../types';
 import { globalToast } from '../../components/ui/Toast';
 import { assetUrl } from '../../lib/assetUrl';
 import {
   Wallet, CheckCircle, Clock, Banknote, CreditCard, Smartphone, Building2,
   X, Printer, Users, SplitSquareHorizontal, ShieldAlert, QrCode,
-  ChevronRight, Percent, Minus, Plus, AlertTriangle, Sparkles
+  ChevronRight, Percent, Minus, Plus, AlertTriangle, Sparkles,
+  User, UserCheck, UserPlus, Coins, Award, Upload, Camera
 } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -164,6 +166,8 @@ export default function CheckoutPage() {
   const [tipPercent, setTipPercent] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [proofUrl, setProofUrl] = useState('');
+  const [uploadingProof, setUploadingProof] = useState(false);
 
   // ── Split bill ────────────────────────────────────────────────
   const [splitMode, setSplitMode] = useState<'none' | 'even' | 'items'>('none');
@@ -171,12 +175,22 @@ export default function CheckoutPage() {
   const [guests, setGuests] = useState<SplitGuest[]>([]);
   const [activeGuest, setActiveGuest] = useState(0);
 
-  // ── Modals ────────────────────────────────────────────────────
+  // ── Modals & Customer State ─────────────────────────────────
   const [showVoid, setShowVoid] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showTableModal, setShowTableModal] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [redeemPoints, setRedeemPoints] = useState<number>(0);
   const [lastPaidData, setLastPaidData] = useState<{
-    order: Order; tip: number; method: string; tendered: number; change: number; tableLabel?: string;
+    order: Order;
+    tip: number;
+    method: string;
+    tendered: number;
+    change: number;
+    tableLabel?: string;
+    pointsEarned?: number;
+    loyaltyBalance?: number;
   } | null>(null);
   const [pendingTableStatus, setPendingTableStatus] = useState<'available' | 'cleaning'>('available');
 
@@ -187,12 +201,35 @@ export default function CheckoutPage() {
     refetchInterval: 10_000,
   });
 
+  const { data: loyaltySettings } = useQuery<LoyaltySettings>({
+    queryKey: ['loyalty-settings'],
+    queryFn: () => loyaltyApi.getSettings(),
+    staleTime: 60_000,
+  });
+
   const unpaidOrders = orders.filter(
     o => o.status !== 'cancelled' && o.payment_status === 'pending'
   );
 
-  // ── Derived amounts ───────────────────────────────────────────
-  const baseTotal = selectedOrder?.total ?? 0;
+  // ── Loyalty & Derived amounts ─────────────────────────────────
+  const loyaltyEnabled = Boolean(loyaltySettings?.loyalty_enabled);
+  const customerPoints = selectedCustomer?.points ?? 0;
+  const minRedeemPoints = loyaltySettings?.loyalty_min_redeem_points ?? 50;
+  const pointValEtb = loyaltySettings?.loyalty_point_val_etb ?? 1.0;
+  const maxBillSharePct = loyaltySettings?.loyalty_max_bill_share_percent ?? 50;
+
+  const orderRawTotal = selectedOrder?.total ?? 0;
+  const maxDiscountFromBill = Math.round((orderRawTotal * (maxBillSharePct / 100)) * 100) / 100;
+  const maxRedeemablePoints = Math.min(
+    customerPoints,
+    Math.floor(maxDiscountFromBill / pointValEtb)
+  );
+
+  const loyaltyDiscount = (loyaltyEnabled && redeemPoints > 0)
+    ? Math.round(redeemPoints * pointValEtb * 100) / 100
+    : 0;
+
+  const baseTotal = Math.max(0, orderRawTotal - loyaltyDiscount);
   const tipAmount = tipPercent != null
     ? Math.round(baseTotal * (tipPercent / 100) * 100) / 100
     : parseFloat(customTip) || 0;
@@ -244,9 +281,18 @@ export default function CheckoutPage() {
     setTipPercent(null);
     setCustomTip('');
     setPaymentReference('');
+    setProofUrl('');
     setSplitMode('none');
     setGuestCount(2);
     setGuests([]);
+    setRedeemPoints(0);
+    if (order.customer_id) {
+      customersApi.get(order.customer_id)
+        .then((res: any) => setSelectedCustomer(res.customer || null))
+        .catch(() => setSelectedCustomer(null));
+    } else {
+      setSelectedCustomer(null);
+    }
   };
 
   // ── Auto-select from location state ───────────────────────────
@@ -279,27 +325,42 @@ export default function CheckoutPage() {
       : paymentMethod;
 
     try {
-      await ordersApi.pay(selectedOrder.id, {
+      const res = await ordersApi.pay(selectedOrder.id, {
         payment_method: primaryMethod,
         tip_amount: tipAmount,
         amount_tendered: paymentMethod === 'cash' && splits.length === 0 ? tendered || null : null,
         table_next_status: tableNextStatus,
         payment_reference: paymentReference || undefined,
-      });
+        proof_url: proofUrl || undefined,
+        customer_id: selectedCustomer?.id || undefined,
+        points_to_redeem: redeemPoints > 0 ? redeemPoints : undefined,
+      }) as any;
 
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
+      qc.invalidateQueries({ queryKey: ['customers'] });
 
       setLastPaidData({
-        order: selectedOrder,
+        order: {
+          ...selectedOrder,
+          customer_id: selectedCustomer?.id || selectedOrder.customer_id,
+          customer_name: selectedCustomer?.name || selectedOrder.customer_name,
+          loyalty_points_redeemed: redeemPoints > 0 ? redeemPoints : selectedOrder.loyalty_points_redeemed,
+          loyalty_discount: loyaltyDiscount > 0 ? loyaltyDiscount : selectedOrder.loyalty_discount,
+          total: grandTotal,
+        },
         tip: tipAmount,
         method: primaryMethod,
         tendered: tendered,
         change: changeDue,
         tableLabel: selectedOrder.table_label ?? undefined,
+        pointsEarned: res?.points_awarded?.pointsEarned ?? undefined,
+        loyaltyBalance: res?.loyalty_balance ?? undefined,
       });
       setShowReceipt(true);
       setSelectedOrder(null);
+      setSelectedCustomer(null);
+      setRedeemPoints(0);
       setSplits([]);
     } catch (err: any) {
       globalToast.info(err?.response?.data?.error ?? 'Payment failed. Please try again.');
@@ -342,6 +403,18 @@ export default function CheckoutPage() {
   return (
     <>
       {/* Modals */}
+      {isCustomerModalOpen && (
+        <CustomerSelectorModal
+          isOpen={isCustomerModalOpen}
+          onClose={() => setIsCustomerModalOpen(false)}
+          onSelect={(cust) => {
+            setSelectedCustomer(cust);
+            setRedeemPoints(0);
+            setIsCustomerModalOpen(false);
+          }}
+          selectedCustomerId={selectedCustomer?.id}
+        />
+      )}
       {showVoid && selectedOrder && (
         <VoidModal order={selectedOrder} onConfirm={handleVoid} onClose={() => setShowVoid(false)} />
       )}
@@ -352,6 +425,8 @@ export default function CheckoutPage() {
           paymentMethod={lastPaidData.method}
           amountTendered={lastPaidData.tendered}
           change={lastPaidData.change}
+          pointsEarned={lastPaidData.pointsEarned}
+          loyaltyBalance={lastPaidData.loyaltyBalance}
           restaurantName={(user?.restaurant as any)?.name ?? user?.restaurantName ?? 'Restaurant'}
           restaurantLogo={assetUrl((user?.restaurant as any)?.logo_url)}
           taxId={(user?.restaurant as any)?.tax_id}
@@ -461,6 +536,138 @@ export default function CheckoutPage() {
                 </button>
               </div>
 
+              {/* Customer & Loyalty Attachment Card */}
+              <div className="card p-4 border border-default/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-brand-600" />
+                    <h4 className="font-bold text-sm text-primary">Customer & Loyalty</h4>
+                  </div>
+                  {selectedCustomer ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomerModalOpen(true)}
+                        className="text-xs text-brand-600 font-bold hover:underline cursor-pointer"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedCustomer(null); setRedeemPoints(0); }}
+                        className="text-xs text-red-500 font-bold hover:underline cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomerModalOpen(true)}
+                      className="btn-secondary !py-1 !px-3 text-xs gap-1.5 rounded-xl font-bold cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 text-brand-600" />
+                      <span>Attach Customer</span>
+                    </button>
+                  )}
+                </div>
+
+                {selectedCustomer ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-50 border border-default/60">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-primary">{selectedCustomer.name}</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">
+                            {selectedCustomer.tier || 'Bronze'}
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono text-muted mt-0.5">{selectedCustomer.phone}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted flex items-center gap-1 justify-end">
+                          <Coins className="w-3 h-3 text-amber-500" /> Balance
+                        </span>
+                        <p className="font-extrabold text-base font-mono text-amber-600">
+                          {selectedCustomer.points || 0} <span className="text-xs font-normal text-muted">pts</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Loyalty Points Redemption Widget */}
+                    {loyaltyEnabled && (selectedCustomer.points || 0) >= minRedeemPoints && maxRedeemablePoints > 0 && (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50/70 to-orange-50/70 border border-amber-200 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Redeem Points for Bill Discount</span>
+                          </div>
+                          <span className="text-[10px] text-amber-700">
+                            1 pt = {pointValEtb} ETB (Max {maxBillSharePct}%)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-300 bg-white">
+                            <input
+                              type="number"
+                              min={0}
+                              max={maxRedeemablePoints}
+                              step={10}
+                              value={redeemPoints || ''}
+                              onChange={e => {
+                                const val = Math.max(0, Math.min(maxRedeemablePoints, parseInt(e.target.value, 10) || 0));
+                                setRedeemPoints(val);
+                              }}
+                              placeholder={`0 - ${maxRedeemablePoints}`}
+                              className="w-full text-sm font-extrabold font-mono text-amber-900 outline-none bg-transparent"
+                            />
+                            <span className="text-xs font-bold text-amber-600">pts</span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setRedeemPoints(minRedeemPoints)}
+                            disabled={maxRedeemablePoints < minRedeemPoints}
+                            className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-white border border-amber-300 text-amber-800 hover:bg-amber-100/50 transition-colors disabled:opacity-40 cursor-pointer"
+                          >
+                            Min ({minRedeemPoints})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRedeemPoints(maxRedeemablePoints)}
+                            className="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-amber-600 text-white hover:bg-amber-700 transition-colors shadow-xs cursor-pointer"
+                          >
+                            Max ({maxRedeemablePoints})
+                          </button>
+                          {redeemPoints > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setRedeemPoints(0)}
+                              className="p-1.5 text-xs font-bold text-surface-400 hover:text-surface-700 transition-colors cursor-pointer"
+                              title="Reset"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {redeemPoints > 0 && (
+                          <div className="flex items-center justify-between text-xs text-emerald-700 font-bold bg-white/80 px-2.5 py-1.5 rounded-xl border border-emerald-200">
+                            <span>Discount Applied:</span>
+                            <span className="font-mono">-{formatCurrency(loyaltyDiscount)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted">
+                    No customer linked. Search by Ethiopian phone number (+251...) or quick-create to award points & track order history.
+                  </p>
+                )}
+              </div>
+
               {/* Order Summary */}
               <div className="card">
                 <h4 className="font-bold text-primary mb-4 flex items-center gap-2">
@@ -498,6 +705,11 @@ export default function CheckoutPage() {
                   {selectedOrder.tax_amount > 0 && (
                     <div className="flex justify-between text-muted">
                       <span>Tax</span><span>{formatCurrency(selectedOrder.tax_amount)}</span>
+                    </div>
+                  )}
+                  {loyaltyDiscount > 0 && (
+                    <div className="flex justify-between text-amber-600 font-bold">
+                      <span>Loyalty Reward (-{redeemPoints} pts)</span><span>-{formatCurrency(loyaltyDiscount)}</span>
                     </div>
                   )}
                   {selectedOrder.discount_amount > 0 && (
@@ -753,7 +965,54 @@ export default function CheckoutPage() {
                         value={paymentReference}
                         onChange={e => setPaymentReference(e.target.value)}
                       />
-                      <p className="text-[10px] text-amber-600 font-semibold mt-1">Payment will be marked as "pending confirmation" until receipt is verified.</p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-surface-700 flex items-center justify-between">
+                        <span>Receipt / Proof Photo (Optional)</span>
+                        {proofUrl && <span className="text-emerald-600 font-bold text-[10px]">Photo Attached ✓</span>}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-xl border border-default text-xs font-bold transition-all cursor-pointer",
+                          proofUrl ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-surface-50 text-surface-700 hover:bg-surface-100"
+                        )}>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{uploadingProof ? 'Uploading...' : proofUrl ? 'Change Receipt Photo' : 'Upload Receipt Photo'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              setUploadingProof(true);
+                              try {
+                                const formData = new FormData();
+                                formData.append('proof', file);
+                                const res = await paymentsApi.uploadProof(formData);
+                                setProofUrl(res.proof_url);
+                                globalToast.success('Receipt photo attached.');
+                              } catch (err: any) {
+                                globalToast.error(err?.response?.data?.error || 'Failed to upload receipt photo');
+                              } finally {
+                                setUploadingProof(false);
+                              }
+                            }}
+                          />
+                        </label>
+                        {proofUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setProofUrl('')}
+                            className="p-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+                            title="Remove photo"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-amber-600 font-semibold mt-1">Payment will be marked as "pending confirmation" until manager verifies reference & receipt.</p>
                     </div>
                   </div>
                 )}

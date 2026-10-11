@@ -140,6 +140,10 @@ export const restaurantApi = {
   },
   testPrint: (data: { printer_name: string; ip_or_usb: string; type: string }) =>
     api.post<{ success: boolean; message: string }>('/restaurants/me/test-print', data),
+  getDeliveryZones: () => api.get<any[]>('/restaurants/delivery-zones'),
+  createDeliveryZone: (data: Record<string, unknown>) => api.post<any>('/restaurants/delivery-zones', data),
+  updateDeliveryZone: (id: string, data: Record<string, unknown>) => api.patch<any>(`/restaurants/delivery-zones/${id}`, data),
+  deleteDeliveryZone: (id: string) => api.delete<any>(`/restaurants/delivery-zones/${id}`),
 };
 
 // ── Menu ──────────────────────────────────────────────────────
@@ -184,6 +188,15 @@ export const ordersApi = {
   setItemStatus:   (itemId: string, status: string) => api.patch(`/orders/items/${itemId}/status`, { status }),
   todaySummary:    () => api.get('/orders/today/summary'),
   history:         (dateFrom?: string) => api.get(`/orders/history${dateFrom ? `?date_from=${dateFrom}` : ''}`),
+  onlineList:      (tab?: string) => api.get<any[]>(`/orders/online${tab ? `?tab=${tab}` : ''}`),
+  acceptOnline:    (id: string, prep_time_minutes?: number) => api.patch<any>(`/orders/${id}/accept-online`, { prep_time_minutes }),
+  rejectOnline:    (id: string, rejection_reason: string) => api.patch<any>(`/orders/${id}/reject-online`, { rejection_reason }),
+  assignDriver:    (id: string, data: { driver_name?: string; driver_phone?: string; driver_staff_id?: string; mark_out_for_delivery?: boolean }) =>
+    api.patch<any>(`/orders/${id}/assign-driver`, data),
+  outForDelivery:  (id: string) => api.patch<any>(`/orders/${id}/out-for-delivery`),
+  markDelivered:   (id: string) => api.patch<any>(`/orders/${id}/mark-delivered`),
+  collectCod:      (id: string) => api.patch<any>(`/orders/${id}/collect-cod`),
+  confirmOnlineTransfer: (id: string) => api.patch<any>(`/orders/${id}/confirm-online-transfer`),
 };
 
 // ── Tables ────────────────────────────────────────────────────
@@ -257,6 +270,9 @@ export const reportsApi = {
   inventoryValuation: () => api.get('/reports/inventory-valuation'),
   refresh: () => api.post('/reports/refresh'),
   exportUrl: (type: string, period: string) => `/api/reports/export?type=${type}&period=${period}`,
+  onlineOrdering: (period = '30d') => api.get<any>(`/reports/online-ordering?period=${period}`),
+  customersLoyalty: () => api.get<any>('/reports/customers-loyalty'),
+  payments: () => api.get<any>('/reports/payments'),
 };
 
 // ── Kitchen ───────────────────────────────────────────────────
@@ -320,9 +336,18 @@ export const adminApi = {
   createPlan:        (plan: Record<string, unknown>) => api.post('/admin/plans', plan),
   updatePlan:        (id: string, plan: Record<string, unknown>) => api.patch(`/admin/plans/${id}`, plan),
   impersonateTenant: (id: string) => api.post(`/admin/restaurants/${id}/impersonate`),
+  leads:             (params?: { status?: string; search?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status && params.status !== 'all') q.set('status', params.status);
+    if (params?.search) q.set('search', params.search);
+    const qs = q.toString();
+    return api.get<{ leads: any[]; counts: any }>(`/admin/leads${qs ? `?${qs}` : ''}`);
+  },
+  updateLeadStatus:  (id: string, status: string) => api.patch<any>(`/admin/leads/${id}/status`, { status }),
+  updateLeadNotes:   (id: string, notes: string) => api.patch<any>(`/admin/leads/${id}/notes`, { notes }),
 };
 
-// ── Public Customer Ordering ──────────────────────────────────
+// ── Public Customer Ordering & Marketing ───────────────────────
 export const publicApi = {
   getRestaurant:  (slugOrId: string) => api.get<any>(`/public/restaurant/${slugOrId}`),
   getMenu:        (slugOrId: string) => api.get<any>(`/public/restaurant/${slugOrId}/menu`),
@@ -331,6 +356,11 @@ export const publicApi = {
   getOrderStatus: (orderId: string) => api.get<any>(`/public/order-status/${orderId}`),
   callWaiter:     (data: { restaurant_id: string; table_label: string; request_type?: string; notes?: string }) =>
     api.post<{ success: boolean; message: string }>('/public/call-waiter', data),
+  submitLead:     (leadData: Record<string, unknown>) =>
+    api.post<{ success: boolean; lead_id?: string; message: string }>('/public/leads', leadData),
+  placeOnlineOrder: (orderData: Record<string, unknown>) =>
+    api.post<{ success: boolean; tracking_token: string; tracking_url: string; order: any }>('/public/online-order', orderData),
+  trackOrder:     (token: string) => api.get<any>(`/public/track/${token}`),
 };
 
 // ── Notifications ─────────────────────────────────────────────
@@ -341,5 +371,159 @@ export const notificationApi = {
   getPreferences: () => api.get<any[]>('/notifications/preferences'),
   updatePreferences: (preferences: any[]) => api.put('/notifications/preferences', { preferences }),
   testTrigger:    (type: string) => api.post('/notifications/test-trigger', { type }),
+};
+
+// ── Customers & CRM ───────────────────────────────────────────
+export const customersApi = {
+  list: (params?: { search?: string; segment?: string; sort?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set('search', params.search);
+    if (params?.segment) q.set('segment', params.segment);
+    if (params?.sort) q.set('sort', params.sort);
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.offset) q.set('offset', String(params.offset));
+    const qs = q.toString();
+    return api.get<{
+      customers: any[];
+      total: number;
+      limit: number;
+      offset: number;
+      segments: { all: number; new: number; regular: number; inactive_30d: number; consented: number };
+    }>(`/customers${qs ? `?${qs}` : ''}`);
+  },
+  searchByPhone: (phone: string) =>
+    api.get<any[]>(`/customers/search-phone?phone=${encodeURIComponent(phone)}`),
+  get: (id: string) =>
+    api.get<{ customer: any; orders: any[]; loyaltyTransactions: any[]; loyaltySettings: any }>(`/customers/${id}`),
+  create: (data: { name: string; phone: string; email?: string; birthday?: string; notes?: string; marketing_consent?: boolean }) =>
+    api.post<{ message: string; customer: any }>('/customers', data),
+  update: (id: string, data: Partial<{ name: string; phone: string; email?: string; birthday?: string; notes?: string; marketing_consent?: boolean }>) =>
+    api.patch<{ message: string; customer: any }>(`/customers/${id}`, data),
+  adjustPoints: (id: string, data: { points: number; manager_pin: string; reason: string }) =>
+    api.post<any>(`/customers/${id}/adjust-points`, data),
+  anonymize: (id: string) =>
+    api.post<{ message: string }>(`/customers/${id}/anonymize`, {}),
+  delete: (id: string) =>
+    api.delete<{ message: string }>(`/customers/${id}`),
+  exportCsv: async () => {
+    const token = getToken();
+    const res = await fetch(`${BASE_URL}/customers/export/csv`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+    });
+    if (!res.ok) throw new ApiError('Failed to export CSV', res.status);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  getCampaigns: () => api.get<any[]>('/customers/marketing/campaigns'),
+  createCampaign: (data: { title: string; message: string; channel: string; segment: string }) =>
+    api.post<{ message: string; campaign: any; dispatches: any[] }>('/customers/marketing/campaigns', data),
+  getMarketingLimit: () => api.get<{ sentToday: number; limit: number; remaining: number; isLimitReached: boolean }>('/customers/marketing/limit'),
+};
+
+// ── Loyalty Program ───────────────────────────────────────────
+export const loyaltyApi = {
+  getSettings: () => api.get<any>('/loyalty/settings'),
+  updateSettings: (data: Record<string, unknown>) => api.patch<{ message: string; settings: any }>('/loyalty/settings', data),
+  getTransactions: (params?: { customer_id?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.customer_id) q.set('customer_id', params.customer_id);
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.offset) q.set('offset', String(params.offset));
+    const qs = q.toString();
+    return api.get<any[]>(`/loyalty/transactions${qs ? `?${qs}` : ''}`);
+  },
+  adjustPoints: (id: string, data: { points: number; manager_pin: string; reason: string }) =>
+    api.post<any>(`/loyalty/customers/${id}/adjust-points`, data),
+};
+
+// ── Unified Payments ───────────────────────────────────────────
+export const paymentsApi = {
+  list: (params?: { status?: string; method?: string; order_id?: string; till_session_id?: string; search?: string; limit?: number; offset?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set('status', params.status);
+    if (params?.method) q.set('method', params.method);
+    if (params?.order_id) q.set('order_id', params.order_id);
+    if (params?.till_session_id) q.set('till_session_id', params.till_session_id);
+    if (params?.search) q.set('search', params.search);
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.offset) q.set('offset', String(params.offset));
+    const qs = q.toString();
+    return api.get<any[]>(`/payments${qs ? `?${qs}` : ''}`);
+  },
+  toConfirm: () => api.get<{ count: number; total_unconfirmed: number; payments: any[] }>('/payments/to-confirm'),
+  create: (data: {
+    order_id?: string;
+    method: string;
+    amount: number;
+    reference?: string;
+    proof_url?: string;
+    notes?: string;
+    provider?: string;
+  }) => api.post<{ payment: any; order_paid: boolean; total_confirmed: number; remaining_due: number }>('/payments', data),
+  confirm: (id: string) => api.patch<{ payment: any; order_paid: boolean }>(`/payments/${id}/confirm`),
+  reject: (id: string, rejected_reason: string) => api.patch<any>(`/payments/${id}/reject`, { rejected_reason }),
+  refund: (id: string, data: { manager_pin: string; reason: string; amount?: number }) =>
+    api.post<{ message: string; refund: any }>(`/payments/${id}/refund`, data),
+  reconciliation: (params?: { matched?: boolean; method?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.matched !== undefined) q.set('matched', String(params.matched));
+    if (params?.method) q.set('method', params.method);
+    const qs = q.toString();
+    return api.get<{ total_amount: number; matched_amount: number; unmatched_amount: number; payments: any[] }>(`/payments/reconciliation${qs ? `?${qs}` : ''}`);
+  },
+  matchStatement: (id: string, matched = true) => api.patch<any>(`/payments/${id}/match`, { matched }),
+  uploadProof: (formData: FormData) => api.upload<{ proof_url: string }>('/payments/upload-proof', formData),
+  getProviderConfigs: () => api.get<any[]>('/payments/providers/config'),
+  saveProviderConfig: (provider: string, data: any) =>
+    api.put<any>(`/payments/providers/${provider}`, data),
+  testProvider: (provider: string, data?: { credentials?: Record<string, string>; is_sandbox?: boolean }) =>
+    api.post<{ success: boolean; message: string }>(`/payments/providers/${provider}/test`, data || {}),
+  expireStale: () => api.post<{ totalChecked: number; expiredCount: number; confirmedCount: number }>('/payments/expire-stale'),
+};
+
+// ── Developer API Keys & Webhooks ──────────────────────────────
+export const apiKeysApi = {
+  list: () => api.get<any[]>('/api-keys'),
+  create: (data: {
+    name: string;
+    scopes: string[];
+    expires_at?: string | null;
+    ip_allowlist?: string[];
+    rate_limit_per_minute?: number;
+  }) => api.post<any>('/api-keys', data),
+  rotate: (id: string) => api.post<any>(`/api-keys/${id}/rotate`),
+  update: (id: string, data: any) => api.patch<any>(`/api-keys/${id}`, data),
+  revoke: (id: string) => api.delete<{ message: string }>(`/api-keys/${id}`),
+};
+
+export const webhooksApi = {
+  list: () => api.get<any[]>('/webhook-endpoints'),
+  create: (data: { name: string; url: string; events: string[] }) =>
+    api.post<any>('/webhook-endpoints', data),
+  update: (id: string, data: { name?: string; url?: string; events?: string[]; is_active?: boolean }) =>
+    api.patch<any>(`/webhook-endpoints/${id}`, data),
+  rotateSecret: (id: string) => api.post<any>(`/webhook-endpoints/${id}/rotate-secret`),
+  test: (id: string) => api.post<any>(`/webhook-endpoints/${id}/test`),
+  delete: (id: string) => api.delete<{ message: string }>(`/webhook-endpoints/${id}`),
+  deliveries: (id: string, limit = 50) => api.get<any[]>(`/webhook-endpoints/${id}/deliveries?limit=${limit}`),
+  retryDelivery: (deliveryId: string) => api.post<any>(`/webhook-endpoints/deliveries/${deliveryId}/retry`),
+};
+
+export const developerAdminApi = {
+  getUsage: () => api.get<any[]>('/admin/developer-usage'),
+  getKeys: () => api.get<any[]>('/admin/developer-keys'),
+  suspendKey: (id: string, suspended: boolean, reason?: string) =>
+    api.patch<any>(`/admin/developer-keys/${id}/suspend`, { suspended, reason }),
+  getWebhookFailures: () => api.get<any[]>('/admin/developer-webhooks/failures'),
+  getIntegrationRequests: () => api.get<any[]>('/admin/developer-integrations/requests'),
+  updateIntegrationStatus: (id: string, status: string) =>
+    api.patch<any>(`/admin/developer-integrations/requests/${id}/status`, { status }),
 };
 

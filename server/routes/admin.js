@@ -209,12 +209,24 @@ router.patch('/payments/:id/approve', async (req, res) => {
       [proof.restaurant_id]
     );
 
+    // Generate sequential invoice number
+    const { rows: seqRes } = await db.query("SELECT nextval('subscription_invoice_seq') as seq");
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String(seqRes[0]?.seq || '1001').padStart(5, '0')}`;
+
+    // Update unified payments table
+    await db.query(
+      `UPDATE payments 
+       SET status='confirmed', confirmed_by=$1, confirmed_at=NOW(), invoice_number=$2, updated_at=NOW()
+       WHERE (subscription_id=$3 AND status='pending') OR id=$4`,
+      [req.user.userId, invoiceNumber, proof.subscription_id, id]
+    );
+
     // Extend subscription
+    let newEnd = new Date();
     if (proof.subscription_id) {
       const subRes = await db.query('SELECT * FROM subscriptions WHERE id=$1', [proof.subscription_id]);
       if (subRes.rows[0]) {
         const sub = subRes.rows[0];
-        const newEnd = new Date();
         if (sub.billing_cycle === 'annual') newEnd.setFullYear(newEnd.getFullYear() + 1);
         else newEnd.setMonth(newEnd.getMonth() + 1);
 
@@ -223,11 +235,24 @@ router.patch('/payments/:id/approve', async (req, res) => {
           [newEnd.toISOString(), sub.id]
         );
         await db.query("UPDATE restaurants SET status='active', updated_at=NOW() WHERE id=$1", [proof.restaurant_id]);
+        const { invalidatePlanCache } = require('../middleware/planLimits');
+        invalidatePlanCache(proof.restaurant_id);
       }
     }
 
-    await auditLog(req.user, 'payment_approved', 'payment_proof', id, { amount: proof.amount });
-    res.json({ message: 'Approved' });
+    // Send owner notification with invoice number
+    const { notify } = require('../utils/notifyService');
+    await notify({
+      restaurant_id: proof.restaurant_id,
+      type: 'billing',
+      title: '🎉 Subscription Payment Approved',
+      message: `Your payment of ${proof.amount} ETB has been confirmed! Invoice #${invoiceNumber}. Subscription active until ${newEnd.toLocaleDateString()}.`,
+      target_role: 'owner',
+      metadata: { invoice_number: invoiceNumber, amount: proof.amount, subscription_id: proof.subscription_id }
+    });
+
+    await auditLog(req.user, 'payment_approved', 'payment_proof', id, { amount: proof.amount, invoice_number: invoiceNumber });
+    res.json({ message: 'Approved', invoice_number: invoiceNumber });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to approve payment' });
@@ -247,6 +272,13 @@ router.patch('/payments/:id/reject', async (req, res) => {
     await db.query(
       `UPDATE payment_proofs SET status='rejected', reviewed_by=$1, reviewed_at=NOW(), rejection_reason=$2 WHERE id=$3`,
       [req.user.userId, reason, id]
+    );
+
+    await db.query(
+      `UPDATE payments 
+       SET status='rejected', rejected_reason=$1, updated_at=NOW()
+       WHERE id=$2 OR (restaurant_id=$3 AND status='pending' AND created_at >= NOW() - INTERVAL '7 days')`,
+      [reason, id, restaurant_id]
     );
 
     // Set payment_failed on restaurant so tenant sees a persistent warning banner
@@ -343,6 +375,320 @@ router.post('/restaurants/:id/impersonate', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to impersonate' });
+  }
+});
+
+// ── GET /api/admin/leads ──────────────────────────────────────
+router.get('/leads', async (req, res) => {
+  const { status, search } = req.query;
+  try {
+    let whereClauses = [];
+    let params = [];
+
+    if (status && status !== 'all') {
+      params.push(status);
+      whereClauses.push(`status = $${params.length}`);
+    }
+
+    if (search && String(search).trim()) {
+      params.push(`%${String(search).trim()}%`);
+      whereClauses.push(`(
+        name ILIKE $${params.length} 
+        OR business_name ILIKE $${params.length} 
+        OR phone ILIKE $${params.length} 
+        OR COALESCE(email, '') ILIKE $${params.length}
+        OR COALESCE(notes, '') ILIKE $${params.length}
+      )`);
+    }
+
+    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const query = `
+      SELECT * FROM leads
+      ${whereSQL}
+      ORDER BY created_at DESC
+    `;
+
+    const [leadsRes, countsRes] = await Promise.all([
+      db.query(query, params),
+      db.query(`
+        SELECT 
+          COUNT(*)::int as total,
+          COUNT(*) FILTER (WHERE status = 'new')::int as new,
+          COUNT(*) FILTER (WHERE status = 'contacted')::int as contacted,
+          COUNT(*) FILTER (WHERE status = 'demo booked')::int as demo_booked,
+          COUNT(*) FILTER (WHERE status = 'won')::int as won,
+          COUNT(*) FILTER (WHERE status = 'lost')::int as lost
+        FROM leads
+      `)
+    ]);
+
+    res.json({
+      leads: leadsRes.rows,
+      counts: countsRes.rows[0] || {
+        total: 0,
+        new: 0,
+        contacted: 0,
+        demo_booked: 0,
+        won: 0,
+        lost: 0
+      }
+    });
+  } catch (err) {
+    console.error('Fetch leads error:', err);
+    res.status(500).json({ error: 'Failed to fetch leads' });
+  }
+});
+
+// ── PATCH /api/admin/leads/:id/status ─────────────────────────
+router.patch('/leads/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ['new', 'contacted', 'demo booked', 'won', 'lost'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+  }
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE leads 
+       SET status = $1, updated_at = NOW() 
+       WHERE id = $2 
+       RETURNING *`,
+      [status, id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    await auditLog(req.user, 'lead_status_updated', 'lead', id, { new_status: status });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update lead status error:', err);
+    res.status(500).json({ error: 'Failed to update lead status' });
+  }
+});
+
+// ── PATCH /api/admin/leads/:id/notes ──────────────────────────
+router.patch('/leads/:id/notes', async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body;
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE leads 
+       SET notes = $1, updated_at = NOW() 
+       WHERE id = $2 
+       RETURNING *`,
+      [notes, id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    await auditLog(req.user, 'lead_notes_updated', 'lead', id, { notes_length: notes?.length });
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update lead notes error:', err);
+    res.status(500).json({ error: 'Failed to update lead notes' });
+  }
+});
+
+// ── GET /api/admin/leads/export ───────────────────────────────
+router.get('/leads/export', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM leads ORDER BY created_at DESC');
+
+    const headers = [
+      'ID', 'Name', 'Business Name', 'Phone', 'Email', 'Branches', 
+      'Interest', 'Preferred Contact Time', 'Source Page', 'Language', 
+      'Status', 'Notes', 'Created At'
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const csvLines = [headers.join(',')];
+    for (const lead of rows) {
+      csvLines.push([
+        escapeCsv(lead.id),
+        escapeCsv(lead.name),
+        escapeCsv(lead.business_name),
+        escapeCsv(lead.phone),
+        escapeCsv(lead.email || ''),
+        escapeCsv(lead.branches || '1'),
+        escapeCsv(lead.interest || ''),
+        escapeCsv(lead.preferred_contact_time || ''),
+        escapeCsv(lead.source_page || '/'),
+        escapeCsv(lead.language || 'en'),
+        escapeCsv(lead.status),
+        escapeCsv(lead.notes || ''),
+        escapeCsv(lead.created_at)
+      ].join(','));
+    }
+
+    const csvContent = csvLines.join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="kushina_leads_${new Date().toISOString().split('T')[0]}.csv"`);
+    res.send('\uFEFF' + csvContent);
+  } catch (err) {
+    console.error('Export leads error:', err);
+    res.status(500).json({ error: 'Failed to export leads' });
+  }
+});
+
+// ── Platform Admin Developer & API Oversight Endpoints ───────────
+
+// 1. GET /api/admin/developer-usage - Summary per restaurant
+router.get('/developer-usage', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT r.id as restaurant_id, r.name as restaurant_name, r.status as restaurant_status,
+             sp.name as plan_name,
+             COUNT(DISTINCT k.id) as total_keys,
+             COUNT(DISTINCT CASE WHEN k.is_active AND NOT k.is_suspended_by_admin THEN k.id END) as active_keys,
+             COUNT(DISTINCT CASE WHEN k.is_suspended_by_admin THEN k.id END) as suspended_keys,
+             COALESCE(SUM(k.request_count), 0) as total_requests,
+             MAX(k.last_used_at) as last_api_activity,
+             COUNT(DISTINCT w.id) as total_webhooks,
+             COUNT(DISTINCT CASE WHEN w.is_active THEN w.id END) as active_webhooks,
+             COUNT(DISTINCT CASE WHEN w.auto_disabled_at IS NOT NULL THEN w.id END) as disabled_webhooks,
+             COUNT(DISTINCT CASE WHEN wd.status = 'failed' THEN wd.id END) as failed_deliveries
+      FROM restaurants r
+      LEFT JOIN subscriptions s ON s.restaurant_id = r.id AND s.status IN ('active', 'trial')
+      LEFT JOIN subscription_plans sp ON sp.id = s.plan_id
+      LEFT JOIN api_keys k ON k.restaurant_id = r.id
+      LEFT JOIN webhooks w ON w.restaurant_id = r.id
+      LEFT JOIN webhook_deliveries wd ON wd.restaurant_id = r.id AND wd.created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY r.id, r.name, r.status, sp.name
+      ORDER BY total_requests DESC, r.name ASC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin developer usage error:', err);
+    res.status(500).json({ error: 'Failed to retrieve developer usage' });
+  }
+});
+
+// 2. GET /api/admin/developer-keys - All API keys across all restaurants
+router.get('/developer-keys', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT k.id, k.restaurant_id, r.name as restaurant_name,
+             k.name as key_name, k.key_prefix, k.scopes, k.permissions,
+             k.is_active, k.is_suspended_by_admin, k.expires_at, k.ip_allowlist,
+             k.rate_limit_per_minute, k.request_count, k.last_used_at, k.created_at
+      FROM api_keys k
+      JOIN restaurants r ON r.id = k.restaurant_id
+      ORDER BY k.created_at DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin developer keys error:', err);
+    res.status(500).json({ error: 'Failed to retrieve API keys' });
+  }
+});
+
+// 3. PATCH /api/admin/developer-keys/:id/suspend - Suspend or reinstate key
+router.patch('/developer-keys/:id/suspend', async (req, res) => {
+  const keyId = req.params.id;
+  const { suspended = true, reason = '' } = req.body;
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE api_keys 
+       SET is_suspended_by_admin = $1, updated_at = NOW() 
+       WHERE id = $2 
+       RETURNING id, name, key_prefix, restaurant_id, is_suspended_by_admin`,
+      [Boolean(suspended), keyId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'API key not found' });
+    }
+
+    const key = rows[0];
+
+    await auditLog(
+      req.user,
+      suspended ? 'api_key_admin_suspended' : 'api_key_admin_reinstated',
+      'api_key',
+      keyId,
+      { restaurant_id: key.restaurant_id, key_name: key.name, reason }
+    );
+
+    res.json({
+      message: suspended ? 'API key suspended by admin' : 'API key reinstated',
+      key
+    });
+  } catch (err) {
+    console.error('Admin key suspend error:', err);
+    res.status(500).json({ error: 'Failed to update key suspension status' });
+  }
+});
+
+// 4. GET /api/admin/developer-webhooks/failures - Failed delivery logs
+router.get('/developer-webhooks/failures', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT wd.id, wd.webhook_id, wd.restaurant_id, r.name as restaurant_name,
+             w.name as webhook_name, w.url, wd.event, wd.status_code, wd.status,
+             wd.attempts, wd.max_attempts, wd.error_message, wd.response_body,
+             wd.duration_ms, wd.created_at, wd.updated_at
+      FROM webhook_deliveries wd
+      JOIN restaurants r ON r.id = wd.restaurant_id
+      JOIN webhooks w ON w.id = wd.webhook_id
+      WHERE wd.status IN ('failed', 'retrying')
+      ORDER BY wd.updated_at DESC
+      LIMIT 100
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin webhook failures error:', err);
+    res.status(500).json({ error: 'Failed to retrieve webhook failure logs' });
+  }
+});
+
+// 5. GET /api/admin/developer-integrations/requests - Integration lead requests
+router.get('/developer-integrations/requests', async (req, res) => {
+  try {
+    const { rows } = await db.query(`
+      SELECT * FROM integration_requests ORDER BY created_at DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    console.error('Admin integration requests error:', err);
+    res.status(500).json({ error: 'Failed to retrieve integration requests' });
+  }
+});
+
+// 6. PATCH /api/admin/developer-integrations/requests/:id/status
+router.patch('/developer-integrations/requests/:id/status', async (req, res) => {
+  const { status } = req.body;
+  if (!['new', 'contacted', 'planned', 'closed'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
+  try {
+    const { rows } = await db.query(
+      `UPDATE integration_requests SET status = $1 WHERE id = $2 RETURNING *`,
+      [status, req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Request not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Update integration status error:', err);
+    res.status(500).json({ error: 'Failed to update status' });
   }
 });
 

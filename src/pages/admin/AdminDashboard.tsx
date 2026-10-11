@@ -3,11 +3,42 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Store, Clock, CheckCircle2, CreditCard, TrendingUp, 
   AlertTriangle, RefreshCw, ArrowUpRight, ShieldCheck, 
-  Layers, ChevronRight, Activity, ArrowRight
+  Layers, ChevronRight, Activity, ArrowRight, type LucideIcon
 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
 import { formatCurrency, formatRelative } from '../../lib/utils';
 import { Link, useNavigate } from 'react-router-dom';
+
+interface RecentTenant {
+  id: string;
+  name: string;
+  status: string;
+  created_at: string;
+}
+
+interface AdminStats {
+  total: number;
+  active: number;
+  pending: number;
+  suspended: number;
+  pendingPayments: number;
+  mrr: number;
+  recent: RecentTenant[];
+  planBreakdown: Record<string, number>;
+  upcomingRenewals: number;
+  churnRate: number;
+}
+
+interface KpiCard {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  color: string;
+  badge: string;
+  badgeColor: string;
+  isText?: boolean;
+  link?: string;
+}
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -29,9 +60,9 @@ export default function AdminDashboard() {
   const qc = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: stats, isLoading, refetch } = useQuery({
+  const { data: stats, isLoading, refetch } = useQuery<AdminStats>({
     queryKey: ['admin-stats'],
-    queryFn: () => adminApi.stats() as Promise<Record<string, unknown>>,
+    queryFn: () => adminApi.stats() as Promise<AdminStats>,
   });
 
   const handleRefresh = async () => {
@@ -44,7 +75,7 @@ export default function AdminDashboard() {
   const totalTenants = Number(stats?.total ?? 0);
   const activeTenants = Number(stats?.active ?? 0);
 
-  const kpiCards = [
+  const kpiCards: KpiCard[] = [
     { 
       label: 'Total Restaurants', 
       value: totalTenants,           
@@ -115,8 +146,8 @@ export default function AdminDashboard() {
     },
   ];
 
-  const recent = (stats?.recent as Record<string, unknown>[] | undefined) ?? [];
-  const planBreakdown = (stats?.planBreakdown as Record<string, number> | undefined) ?? {};
+  const recent = stats?.recent ?? [];
+  const planBreakdown = stats?.planBreakdown ?? {};
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -174,7 +205,7 @@ export default function AdminDashboard() {
                 {isLoading ? (
                   <span className="inline-block w-16 h-8 bg-slate-800 rounded-lg animate-pulse" />
                 ) : (
-                  isText ? value : Number(value).toLocaleString()
+                  isText ? String(value) : Number(value).toLocaleString()
                 )}
               </p>
               <p className="text-xs font-semibold text-slate-400 mt-1 flex items-center justify-between">
@@ -281,22 +312,22 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
                     {recent.slice(0, 5).map((r) => (
-                      <tr key={r.id as string} className="hover:bg-slate-900/50 transition-colors group">
+                      <tr key={r.id} className="hover:bg-slate-900/50 transition-colors group">
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-lg bg-slate-800 text-orange-400 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                              {(r.name as string)?.charAt(0)}
+                              {r.name?.charAt(0)}
                             </div>
-                            <span className="font-bold text-white text-sm">{r.name as string}</span>
+                            <span className="font-bold text-white text-sm">{r.name}</span>
                           </div>
                         </td>
                         <td className="py-3 px-3">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${getStatusBadge(r.status as string)}`}>
-                            {r.status as string}
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider ${getStatusBadge(r.status)}`}>
+                            {r.status}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-slate-400 font-mono">
-                          {formatRelative(r.created_at as string)}
+                          {formatRelative(r.created_at)}
                         </td>
                         <td className="py-3 px-3 text-right">
                           {r.status === 'pending' ? (

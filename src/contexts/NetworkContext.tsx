@@ -48,18 +48,18 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // 2. Native listener
+    // 2. Native listener (Capacitor)
     let listenerHandle: any = null;
-    try {
-      listenerHandle = Network.addListener('networkStatusChange', status => {
-        setIsOnline(status.connected);
-        if (status.connected) {
-          runSync();
-        }
-      });
-    } catch {
+    Network.addListener('networkStatusChange', status => {
+      setIsOnline(status.connected);
+      if (status.connected) {
+        runSync();
+      }
+    }).then(handle => {
+      listenerHandle = handle;
+    }).catch(() => {
       // Browser fallback
-    }
+    });
 
     // 3. Browser event fallback
     const handleOnline = () => {
@@ -78,7 +78,11 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
 
     return () => {
       if (listenerHandle && typeof listenerHandle.remove === 'function') {
-        listenerHandle.remove();
+        try {
+          listenerHandle.remove();
+        } catch {
+          // ignore
+        }
       }
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);

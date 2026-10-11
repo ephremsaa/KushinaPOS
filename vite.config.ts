@@ -30,6 +30,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     plugins: [react()],
     server: {
+      host: true,
       proxy: {
         // Proxy all /api/* and /uploads/* requests to Express backend
         '/api': {

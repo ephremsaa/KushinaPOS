@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cashDrawerApi } from '../../lib/api';
 import { formatCurrency, cn } from '../../lib/utils';
@@ -199,6 +200,14 @@ export default function TillManagementPage() {
       return setError('Manager PIN required for discrepancy over 5 ETB');
     }
 
+    if (summary.unconfirmed_count > 0 && !notes.trim()) {
+      return setError(`Cannot close shift with ${summary.unconfirmed_count} unconfirmed payment(s) without a manager note explaining the exception.`);
+    }
+
+    if (summary.unconfirmed_count > 0 && !managerPin.trim()) {
+      return setError('Manager PIN required to authorize shift close with unconfirmed payments.');
+    }
+
     closeMut.mutate({ actual_cash: amt, manager_pin: managerPin, notes });
   };
 
@@ -377,12 +386,17 @@ export default function TillManagementPage() {
             </div>
 
             {summary.unconfirmed_count > 0 && (
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 animate-fade-in">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-amber-900">Pending Confirmations</p>
-                  <p className="text-xs text-amber-700">You have {summary.unconfirmed_count} unconfirmed mobile money / bank transfer payment(s). Please verify them in Bill History before closing the till.</p>
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Pending Confirmations ({summary.unconfirmed_count})</p>
+                    <p className="text-xs text-amber-700">You have {summary.unconfirmed_count} unconfirmed payment(s). Shift cannot close without a manager exception note & PIN.</p>
+                  </div>
                 </div>
+                <Link to="/dashboard/payments" className="btn-sm bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex-shrink-0 shadow-xs">
+                  Review & Confirm →
+                </Link>
               </div>
             )}
           </div>
@@ -415,10 +429,10 @@ export default function TillManagementPage() {
                   onChange={e => { setActualCash(e.target.value); setError(''); }}
                 />
               </div>
-              {actualCash && Math.abs(Number(actualCash) - Number(session.expected_cash)) > 5 && (
+              {((actualCash && Math.abs(Number(actualCash) - Number(session.expected_cash)) > 5) || summary.unconfirmed_count > 0) && (
                 <div className="animate-fade-in">
-                  <label className="label text-amber-700 flex items-center gap-1">
-                    <Key className="w-3.5 h-3.5" /> Manager PIN Required
+                  <label className="label text-amber-700 flex items-center gap-1 font-bold text-xs">
+                    <Key className="w-3.5 h-3.5" /> Manager PIN Required {summary.unconfirmed_count > 0 ? '(Unconfirmed Payments Authorization)' : ''}
                   </label>
                   <input
                     type="password"
@@ -447,11 +461,13 @@ export default function TillManagementPage() {
               </div>
             )}
 
-            {actualCash && Math.abs(Number(actualCash) - Number(session.expected_cash)) > 0.01 && (
-              <div>
-                <label className="label">Discrepancy Note</label>
+            {((actualCash && Math.abs(Number(actualCash) - Number(session.expected_cash)) > 0.01) || summary.unconfirmed_count > 0) && (
+              <div className="animate-fade-in">
+                <label className="label font-bold text-xs">
+                  {summary.unconfirmed_count > 0 ? 'Manager Exception / Discrepancy Note (Mandatory)' : 'Discrepancy Note'}
+                </label>
                 <Input
-                  placeholder="e.g. Returned 2 ETB excess change"
+                  placeholder={summary.unconfirmed_count > 0 ? "Explain why unconfirmed payments remain open at shift end..." : "e.g. Returned 2 ETB excess change"}
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                 />

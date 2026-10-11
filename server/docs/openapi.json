@@ -1,0 +1,337 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "KushinaPOS Partner & Developer API",
+    "version": "1.0.0",
+    "description": "Production REST API for restaurant owners, third-party delivery dispatchers, and ERP accounting partners.\n\n### Authentication\nPass your secret API key in the `Authorization` header as a Bearer token or `x-api-key`:\n```http\nAuthorization: Bearer kpos_live_...\n```\n\n### Rate Limits\n- Standard limit: 60 requests / minute per API key.\n- HTTP 429 is returned with `Retry-After`, `X-RateLimit-Limit`, and `X-RateLimit-Remaining` headers when exceeded.\n\n### Error Format\nAll errors return standard JSON:\n```json\n{\n  \"error\": {\n    \"code\": \"NOT_FOUND\",\n    \"message\": \"Order not found\"\n  },\n  \"request_id\": \"req_9a4f210e\"\n}\n```",
+    "contact": {
+      "name": "KushinaPOS Developer Relations",
+      "email": "api@kushinapos.com",
+      "url": "https://kushinapos.com/developers"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Current Server (v1 API)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "description": "Secret API key generated in Settings > Developers"
+      },
+      "ApiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["code", "message"]
+          },
+          "request_id": { "type": "string" }
+        },
+        "required": ["error", "request_id"]
+      },
+      "MenuItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "category_id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "price": { "type": "number" },
+          "is_available": { "type": "boolean" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "order_number": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "preparing", "ready", "served", "out_for_delivery", "delivered", "cancelled"] },
+          "payment_status": { "type": "string", "enum": ["pending", "paid", "refunded"] },
+          "subtotal": { "type": "number" },
+          "tax_amount": { "type": "number" },
+          "discount_amount": { "type": "number" },
+          "delivery_fee": { "type": "number" },
+          "total": { "type": "number" },
+          "order_source": { "type": "string" },
+          "customer_phone": { "type": "string" },
+          "items": { "type": "array", "items": { "type": "object" } },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "security": [
+    { "BearerAuth": [] },
+    { "ApiKeyHeader": [] }
+  ],
+  "paths": {
+    "/menu": {
+      "get": {
+        "summary": "List menu categories and active items",
+        "description": "Requires scope: `menu:read`",
+        "responses": {
+          "200": {
+            "description": "List of categories with items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "categories": { "type": "array", "items": { "type": "object" } },
+                    "items": { "type": "array", "items": { "$ref": "#/components/schemas/MenuItem" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "summary": "List orders with cursor pagination",
+        "description": "Requires scope: `orders:read`",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "Filter by order status" },
+          { "name": "source", "in": "query", "schema": { "type": "string" }, "description": "Filter by source (pos, online_pickup, online_delivery, partner_api)" },
+          { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "date_to", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } },
+          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "Pagination cursor from previous response" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/Order" } },
+                    "next_cursor": { "type": "string", "nullable": true },
+                    "has_more": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an order (Idempotent)",
+        "description": "Requires scope: `orders:write`. Pass `Idempotency-Key` header to safely retry requests without creating duplicates.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "Unique UUID/string to prevent duplicate submission"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "order_type": { "type": "string", "enum": ["dine_in", "takeaway", "delivery"], "default": "dine_in" },
+                  "customer_phone": { "type": "string", "example": "+251911234567" },
+                  "customer_name": { "type": "string" },
+                  "notes": { "type": "string" },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["menu_item_id", "quantity"],
+                      "properties": {
+                        "menu_item_id": { "type": "string", "format": "uuid" },
+                        "quantity": { "type": "number", "minimum": 1 },
+                        "notes": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Get order details by ID",
+        "description": "Requires scope: `orders:read`",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Order details", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Order" } } } },
+          "404": { "description": "Order not found" }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "patch": {
+        "summary": "Update order status",
+        "description": "Requires scope: `orders:write`. Limited state machine transitions:\n- `pending` -> `preparing` | `cancelled`\n- `preparing` -> `ready` | `cancelled`\n- `ready` -> `served` | `out_for_delivery` | `cancelled`\n- `out_for_delivery` -> `delivered` | `cancelled`",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["preparing", "ready", "served", "out_for_delivery", "delivered", "cancelled"] },
+                  "reason": { "type": "string", "description": "Reason required when cancelling" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated successfully" },
+          "400": { "description": "Invalid state transition" }
+        }
+      }
+    },
+    "/customers": {
+      "get": {
+        "summary": "List restaurant customers",
+        "description": "Requires scope: `customers:read`",
+        "responses": {
+          "200": {
+            "description": "List of customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/sales-summary": {
+      "get": {
+        "summary": "Get sales and payments summary report",
+        "description": "Requires scope: `reports:read`",
+        "parameters": [
+          { "name": "date_from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "date_to", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sales report metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "date_from": { "type": "string" },
+                    "date_to": { "type": "string" },
+                    "total_orders": { "type": "integer" },
+                    "gross_sales": { "type": "number" },
+                    "net_sales": { "type": "number" },
+                    "tax_total": { "type": "number" },
+                    "discount_total": { "type": "number" },
+                    "payment_methods": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Unauthorized": {
+        "description": "API key missing or invalid",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "Forbidden": {
+        "description": "Insufficient scope or feature locked",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          },
+          "request_id": { "type": "string" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "total": { "type": "number" },
+          "status": { "type": "string" }
+        }
+      },
+      "MenuItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "price": { "type": "number" }
+        }
+      }
+    }
+  }
+}
