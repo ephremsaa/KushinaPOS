@@ -134,6 +134,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-color);
     background: color-mix(in srgb, var(--scrollbar-color) 70%, transparent);
     border-radius: 9999px;
   }
@@ -337,6 +338,7 @@
     @apply w-full text-sm border-collapse;
   }
   .data-table thead {
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     background-color: var(--table-header-bg);
     border-bottom: 1px solid var(--card-border);
@@ -406,6 +408,7 @@
 
   /* ── KDS Card ── */
   .kds-card {
+    -webkit-backdrop-filter: blur(24px);
     backdrop-filter: blur(24px);
     background-color: var(--card-bg);
     border: 1px solid var(--card-border);
@@ -418,6 +421,7 @@
   }
   .kds-card.urgent {
     @apply border-red-400 ring-2 ring-red-400/30;
+    background-color: rgba(239, 68, 68, 0.1);
     background-color: color-mix(in srgb, var(--card-bg) 90%, #ef4444 10%);
   }
 
